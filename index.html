@@ -28,7 +28,6 @@
   .panel p{opacity:.8;margin:6px 0}
   .grid{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin:14px 0}
   .grid button{padding:9px 0;font-size:17px;line-height:1.2}
-  .chap{grid-column:1/-1;text-align:left;font-size:12px;opacity:.6;letter-spacing:1px;text-transform:uppercase;margin-top:4px}
   .panel{max-height:88vh;overflow-y:auto}
   .grid small{display:block;font-size:12px;color:#ffd34d;min-height:14px}
   .row{display:flex;gap:10px;justify-content:center;margin-top:14px}
@@ -59,7 +58,7 @@
     <p>You don't move the ball. You turn the world.</p>
     <div class="grid" id="levelGrid"></div>
     <p style="font-size:13px">Drag or circle your finger to rotate · ← → / A D<br>Q / E snap 90° · R restart · M toggle mode<br>Tap / click / Space to drop the ball</p>
-    <p style="font-size:11px;opacity:.45" id="ver">prototype v0.8 · 60 levels</p>
+    <p style="font-size:11px;opacity:.45" id="ver">prototype v0.9 · 60 levels</p>
   </div>
 </div>
 
@@ -122,7 +121,10 @@ const box = (hw, hh, t = "wall") => [
 ];
 
 const LEVELS = [
-  // ── Chapter 1: learn to turn ─────────────────────────────
+  // One run, easiest first (bot-measured solve rate + judgement). Each new piece's
+  // intro level comes before anything that uses it.
+
+  // ── 1–10: basics, nothing moves ─────────────────────────────
   { name: "Steer the Fall", cam: "follow", view: 820, bounds: 650, start: [0, -250], par: [3, 6],
     hint: "Drag or draw circles (or ← →) to rotate the world. Miss the spikes, land on the green pad.",
     objs: [
@@ -135,6 +137,29 @@ const LEVELS = [
       ...box(250, 250),
       { x: 0, y: 60, w: 24, h: 380, t: "wall" },
       { x: 160, y: 240, w: 120, h: 20, t: "goal" },
+    ] },
+  { name: "Upside Down", cam: "fixed", view: 720, start: [-170, 236], par: [5, 10],
+    hint: "The goal is under the block. Roll into the cradle, then flip the world.",
+    objs: [
+      { x: -75, y: 238, w: 16, h: 24, t: "wall" },
+      { x: 75, y: 238, w: 16, h: 24, t: "wall" },
+      { x: 0, y: 262, w: 548, h: 24, t: "wall" },
+      { x: 0, y: -262, w: 548, h: 24, t: "spike" },
+      { x: -262, y: 0, w: 24, h: 548, t: "wall" },
+      { x: 262, y: 0, w: 24, h: 548, t: "wall" },
+      { x: -240, y: -140, w: 20, h: 180, t: "spike" },
+      { x: 240, y: -140, w: 20, h: 180, t: "spike" },
+      { x: 0, y: 0, w: 180, h: 60, t: "wall" },
+      { x: 0, y: 40, w: 120, h: 20, t: "goal" },
+    ] },
+  { name: "Zigzag", cam: "fixed", view: 820, start: [-170, -204], par: [8, 16],
+    hint: "Shelf to shelf. Tilt, drop, tilt back.",
+    objs: [
+      ...box(220, 340),
+      { x: -50, y: -180, w: 340, h: 20, t: "wall" },
+      { x: 50, y: 0, w: 340, h: 20, t: "wall" },
+      { x: -50, y: 180, w: 340, h: 20, t: "wall" },
+      { x: -170, y: 330, w: 80, h: 20, t: "goal" },
     ] },
   { name: "Funnel", cam: "follow", view: 820, bounds: 650, start: [0, -250], par: [4, 8],
     hint: "The funnel drops you on the spikes. Steer out the moment you leave it.",
@@ -152,26 +177,6 @@ const LEVELS = [
       { x: 0, y: 260, w: 800, h: 24, t: "spike" },
       { x: 290, y: 40, w: 140, h: 20, t: "goal" },
     ] },
-  { name: "Zigzag", cam: "fixed", view: 820, start: [-170, -204], par: [8, 16],
-    hint: "Shelf to shelf. Tilt, drop, tilt back.",
-    objs: [
-      ...box(220, 340),
-      { x: -50, y: -180, w: 340, h: 20, t: "wall" },
-      { x: 50, y: 0, w: 340, h: 20, t: "wall" },
-      { x: -50, y: 180, w: 340, h: 20, t: "wall" },
-      { x: -170, y: 330, w: 80, h: 20, t: "goal" },
-    ] },
-
-  // ── Chapter 2: use the whole world ───────────────────────
-  { name: "Island Hop", cam: "follow", view: 900, bounds: 760, start: [-340, -26], par: [8, 16],
-    hint: "Fall from island to island. The void is hungry.",
-    objs: [
-      { x: -320, y: 0, w: 140, h: 20, t: "wall" },
-      { x: -60, y: 140, w: 140, h: 20, t: "wall" },
-      { x: 170, y: -60, w: 140, h: 20, a: -20, t: "wall" },
-      { x: 60, y: -200, w: 90, h: 20, t: "bounce" },
-      { x: 380, y: 120, w: 120, h: 20, t: "goal" },
-    ] },
   { name: "Labyrinth", cam: "fixed", view: 820, start: [-240, -128], par: [14, 28],
     hint: "Snake down through the gaps. Spikes at the bottom: go across the ceiling instead.",
     objs: [
@@ -181,19 +186,14 @@ const LEVELS = [
       { x: 0, y: 295, w: 110, h: 24, t: "spike" },
       { x: 250, y: 290, w: 70, h: 20, t: "goal" },
     ] },
-  { name: "Upside Down", cam: "fixed", view: 720, start: [-170, 236], par: [5, 10],
-    hint: "The goal is under the block. Roll into the cradle, then flip the world.",
+  { name: "Island Hop", cam: "follow", view: 900, bounds: 760, start: [-340, -26], par: [8, 16],
+    hint: "Fall from island to island. The void is hungry.",
     objs: [
-      { x: -75, y: 238, w: 16, h: 24, t: "wall" },
-      { x: 75, y: 238, w: 16, h: 24, t: "wall" },
-      { x: 0, y: 262, w: 548, h: 24, t: "wall" },
-      { x: 0, y: -262, w: 548, h: 24, t: "spike" },
-      { x: -262, y: 0, w: 24, h: 548, t: "wall" },
-      { x: 262, y: 0, w: 24, h: 548, t: "wall" },
-      { x: -240, y: -140, w: 20, h: 180, t: "spike" },
-      { x: 240, y: -140, w: 20, h: 180, t: "spike" },
-      { x: 0, y: 0, w: 180, h: 60, t: "wall" },
-      { x: 0, y: 40, w: 120, h: 20, t: "goal" },
+      { x: -320, y: 0, w: 140, h: 20, t: "wall" },
+      { x: -60, y: 140, w: 140, h: 20, t: "wall" },
+      { x: 170, y: -60, w: 140, h: 20, a: -20, t: "wall" },
+      { x: 60, y: -200, w: 90, h: 20, t: "bounce" },
+      { x: 380, y: 120, w: 120, h: 20, t: "goal" },
     ] },
   { name: "Bounce Gap", cam: "follow", view: 900, bounds: 700, start: [-300, -24], par: [5, 10],
     hint: "Orange pads launch you. Hit it, then steer to the far side.",
@@ -204,16 +204,18 @@ const LEVELS = [
       { x: 170, y: 170, w: 200, h: 24, t: "spike" },
       { x: 320, y: 0, w: 120, h: 20, t: "goal" },
     ] },
-  { name: "Corner Shot", cam: "fixed", view: 720, start: [-200, 226], par: [4, 8],
-    hint: "Spikes on floor and ceiling. Point gravity straight at the far corner.",
+  { name: "Keyhole", cam: "fixed", view: 720, start: [-180, -222], par: [8, 16],
+    hint: "One tiny gap. Line it up, drop through, then dodge.",
     objs: [
       ...box(240, 240),
-      { x: 40, y: 230, w: 400, h: 20, t: "spike" },
-      { x: -40, y: -230, w: 400, h: 20, t: "spike" },
-      { x: 200, y: -230, w: 80, h: 20, t: "goal" },
+      { x: -180, y: -200, w: 100, h: 16, t: "wall" },
+      { x: -135, y: 0, w: 210, h: 20, t: "wall" },
+      { x: 135, y: 0, w: 210, h: 20, t: "wall" },
+      { x: -40, y: 230, w: 240, h: 20, t: "spike" },
+      { x: 180, y: 230, w: 80, h: 20, t: "goal" },
     ] },
 
-  // ── Chapter 3: things that move ──────────────────────────
+  // ── 11–20: first movers, first glue ──────────────────────────
   { name: "Slider", cam: "fixed", view: 720, start: [0, -212], par: [5, 10],
     hint: "Hazards move now. Wait for your moment.",
     objs: [
@@ -224,100 +226,6 @@ const LEVELS = [
       { x: 240, y: 130, w: 20, h: 200, t: "spike" },
       { x: 0, y: 240, w: 100, h: 20, t: "goal" },
     ] },
-  { name: "Spinner", cam: "fixed", view: 820, bounds: 600, start: [-250, -244], par: [5, 10],
-    hint: "Slip past the spinning blade.",
-    objs: [
-      { x: -250, y: -220, w: 120, h: 20, t: "wall" },
-      { x: 0, y: 0, w: 280, h: 20, t: "spike", spin: 70 },
-      { x: 250, y: 230, w: 120, h: 20, t: "goal" },
-    ] },
-  { name: "Crusher Corridor", cam: "fixed", view: 860, start: [-340, 66], par: [8, 16],
-    hint: "Floor or ceiling? Flip to whichever side is open.",
-    objs: [
-      ...box(380, 80),
-      { x: -170, y: 0, w: 24, h: 100, t: "spike", m: [0, 50, 2.2] },
-      { x: 0, y: 0, w: 24, h: 100, t: "spike", m: [0, -50, 2.2] },
-      { x: 170, y: 0, w: 24, h: 100, t: "spike", m: [0, 50, 1.6] },
-      { x: 370, y: 0, w: 20, h: 120, t: "goal" },
-    ] },
-  { name: "Needle", cam: "follow", view: 860, bounds: 700, start: [0, -320], par: [4, 8],
-    hint: "Thread the moving gap, then find the pad.",
-    objs: [
-      { x: -96, y: -60, w: 140, h: 24, t: "spike", m: [120, 0, 4] },
-      { x: 96, y: -60, w: 140, h: 24, t: "spike", m: [120, 0, 4] },
-      { x: 0, y: 300, w: 800, h: 24, t: "spike" },
-      { x: 150, y: 250, w: 70, h: 20, t: "goal" },
-    ] },
-  { name: "Crossroads", cam: "fixed", view: 720, start: [-110, -26], par: [8, 16],
-    hint: "Two ways round. Each one has a gatekeeper.",
-    objs: [
-      ...box(260, 260),
-      { x: 0, y: 0, w: 300, h: 24, t: "wall" },
-      { x: 0, y: 0, w: 24, h: 300, t: "wall" },
-      { x: 0, y: -205, w: 24, h: 60, t: "spike", m: [0, 40, 2] },
-      { x: -205, y: 0, w: 60, h: 24, t: "spike", m: [40, 0, 2] },
-      { x: 200, y: 245, w: 80, h: 20, t: "goal" },
-    ] },
-
-  // ── Chapter 4: everything at once ────────────────────────
-  { name: "Moving Target", cam: "follow", view: 860, bounds: 700, start: [0, -295], par: [5, 10],
-    hint: "The pad won't wait for you.",
-    objs: [
-      { x: 0, y: -270, w: 120, h: 20, t: "wall" },
-      { x: 0, y: -60, w: 100, h: 24, t: "spike", spin: 90 },
-      { x: 0, y: 280, w: 800, h: 24, t: "spike" },
-      { x: 0, y: 150, w: 90, h: 20, t: "goal", m: [220, 0, 3.2] },
-    ] },
-  { name: "Long Fall", cam: "follow", view: 900, bounds: 1150, start: [0, -900], par: [6, 12],
-    hint: "A long way down. Keep weaving.",
-    objs: [
-      { x: -100, y: -600, w: 240, h: 24, t: "spike" },
-      { x: 120, y: -300, w: 240, h: 24, t: "spike" },
-      { x: -80, y: 0, w: 280, h: 24, t: "spike" },
-      { x: 100, y: 300, w: 260, h: 24, t: "spike" },
-      { x: 0, y: 600, w: 220, h: 24, t: "spike" },
-      { x: 0, y: 900, w: 140, h: 20, t: "goal" },
-    ] },
-  { name: "Corkscrew", cam: "fixed", view: 820, start: [-170, -204], par: [12, 24],
-    hint: "Zigzag again — but the shelves have pop-up spikes. Roll across while they're down.",
-    objs: [
-      ...box(220, 340),
-      { x: -50, y: -180, w: 340, h: 20, t: "wall" },
-      { x: 50, y: 0, w: 340, h: 20, t: "wall" },
-      { x: -50, y: 180, w: 340, h: 20, t: "wall" },
-      // pop-up spikes: rise out of the shelf and sink back (down ≈ 1/3 of the cycle)
-      { x: 40, y: -6, w: 40, h: 24, t: "spike", m: [0, 16, 2.2] },
-      { x: -40, y: 174, w: 40, h: 24, t: "spike", m: [0, 16, 1.8] },
-      { x: -170, y: 330, w: 80, h: 20, t: "goal" },
-    ] },
-  { name: "Twin Blades", cam: "fixed", view: 760, start: [0, -242], par: [5, 10],
-    hint: "Two blades, one narrow path through the middle.",
-    objs: [
-      ...box(280, 280),
-      { x: 0, y: -220, w: 100, h: 16, t: "wall" },
-      { x: -120, y: 0, w: 180, h: 18, t: "spike", spin: 80 },
-      { x: 120, y: 0, w: 180, h: 18, t: "spike", spin: -80 },
-      { x: -200, y: 270, w: 120, h: 20, t: "spike" },
-      { x: 200, y: 270, w: 120, h: 20, t: "spike" },
-      { x: 0, y: 270, w: 90, h: 20, t: "goal" },
-    ] },
-  { name: "Final Shift", cam: "fixed", view: 820, start: [-230, 178], par: [10, 20],
-    hint: "Everything you've learned. Good luck.",
-    objs: [
-      ...box(300, 300),
-      { x: -230, y: 200, w: 120, h: 16, t: "wall" },
-      { x: 0, y: -290, w: 600, h: 20, t: "spike" },
-      { x: -100, y: 290, w: 400, h: 20, t: "spike" },
-      { x: -40, y: -20, w: 260, h: 18, t: "spike", spin: 90 },
-      { x: 290, y: 150, w: 20, h: 240, t: "spike" },
-      // goal sits in a pocket on the right wall, guarded by a sliding spike
-      { x: 255, y: -152, w: 90, h: 16, t: "wall" },
-      { x: 255, y: -48, w: 90, h: 16, t: "wall" },
-      { x: 195, y: -100, w: 20, h: 60, t: "spike", m: [0, 80, 2] },
-      { x: 290, y: -100, w: 20, h: 70, t: "goal" },
-    ] },
-
-  // ── Chapter 5: Second wind ─────────────────────────────
   { name: "Moving Spring", cam: "fixed", view: 720, start: [-200, -82], par: [4, 8],
     hint: "The floor bites. Catch the moving pad.",
     objs: [
@@ -340,15 +248,16 @@ const LEVELS = [
       { x: 250, y: 180, w: 20, h: 140, t: "spike" },
       { x: 0, y: 250, w: 100, h: 20, t: "goal" },
     ] },
-  { name: "Keyhole", cam: "fixed", view: 720, start: [-180, -222], par: [8, 16],
-    hint: "One tiny gap. Line it up, drop through, then dodge.",
+  { name: "Twin Blades", cam: "fixed", view: 760, start: [0, -242], par: [5, 10],
+    hint: "Two blades, one narrow path through the middle.",
     objs: [
-      ...box(240, 240),
-      { x: -180, y: -200, w: 100, h: 16, t: "wall" },
-      { x: -135, y: 0, w: 210, h: 20, t: "wall" },
-      { x: 135, y: 0, w: 210, h: 20, t: "wall" },
-      { x: -40, y: 230, w: 240, h: 20, t: "spike" },
-      { x: 180, y: 230, w: 80, h: 20, t: "goal" },
+      ...box(280, 280),
+      { x: 0, y: -220, w: 100, h: 16, t: "wall" },
+      { x: -120, y: 0, w: 180, h: 18, t: "spike", spin: 80 },
+      { x: 120, y: 0, w: 180, h: 18, t: "spike", spin: -80 },
+      { x: -200, y: 270, w: 120, h: 20, t: "spike" },
+      { x: 200, y: 270, w: 120, h: 20, t: "spike" },
+      { x: 0, y: 270, w: 90, h: 20, t: "goal" },
     ] },
   { name: "Trampoline", cam: "fixed", view: 860, bounds: 700, start: [-300, -24], par: [4, 8],
     hint: "Use the pad to reach the high ground.",
@@ -357,6 +266,26 @@ const LEVELS = [
       { x: -60, y: 220, w: 140, h: 20, t: "bounce" },
       { x: 150, y: 240, w: 300, h: 24, t: "spike" },
       { x: 300, y: -120, w: 100, h: 20, t: "goal" },
+    ] },
+  { name: "Corner Shot", cam: "fixed", view: 720, start: [-200, 226], par: [4, 8],
+    hint: "Spikes on floor and ceiling. Point gravity straight at the far corner.",
+    objs: [
+      ...box(240, 240),
+      { x: 40, y: 230, w: 400, h: 20, t: "spike" },
+      { x: -40, y: -230, w: 400, h: 20, t: "spike" },
+      { x: 200, y: -230, w: 80, h: 20, t: "goal" },
+    ] },
+  { name: "Sticky Start", cam: "fixed", view: 720, start: [0, -24], par: [5, 10],
+    hint: "Green glue holds the ball while you turn. Turn far enough and it lets go.",
+    objs: [
+      ...box(240, 240),
+      { x: 0, y: 0, w: 100, h: 20, t: "glue" },
+      { x: 0, y: 230, w: 480, h: 20, t: "spike" },
+      { x: -230, y: 0, w: 20, h: 300, t: "spike" },
+      { x: 230, y: 0, w: 20, h: 300, t: "spike" },
+      { x: -180, y: -230, w: 120, h: 20, t: "spike" },
+      { x: 180, y: -230, w: 120, h: 20, t: "spike" },
+      { x: 0, y: -230, w: 120, h: 20, t: "goal" },
     ] },
   { name: "Sync", cam: "fixed", view: 820, start: [0, -302], par: [4, 8],
     hint: "Three sliders out of step. Find the line through.",
@@ -370,8 +299,6 @@ const LEVELS = [
       { x: 170, y: 310, w: 180, h: 20, t: "spike" },
       { x: 0, y: 310, w: 80, h: 20, t: "goal" },
     ] },
-
-  // ── Chapter 6: Getting serious ─────────────────────────
   { name: "Blade Run", cam: "fixed", view: 880, start: [-370, 106], par: [7, 14],
     hint: "Three blades in a corridor. Go when they lie flat.",
     objs: [
@@ -381,14 +308,33 @@ const LEVELS = [
       { x: 200, y: 0, w: 200, h: 16, t: "spike", spin: 120 },
       { x: 390, y: 0, w: 20, h: 160, t: "goal" },
     ] },
-  { name: "Fall Up", cam: "fixed", view: 800, bounds: 600, start: [0, 306], par: [9, 18],
-    hint: "The goal is above you. Turn the sky into the floor.",
+  { name: "Crossroads", cam: "fixed", view: 720, start: [-110, -26], par: [8, 16],
+    hint: "Two ways round. Each one has a gatekeeper.",
     objs: [
-      { x: 0, y: 330, w: 80, h: 20, t: "wall" },
-      { x: -80, y: 150, w: 240, h: 20, t: "spike" },
-      { x: 80, y: 0, w: 240, h: 20, t: "spike" },
-      { x: -80, y: -150, w: 240, h: 20, t: "spike" },
-      { x: 0, y: -330, w: 80, h: 20, t: "goal" },
+      ...box(260, 260),
+      { x: 0, y: 0, w: 300, h: 24, t: "wall" },
+      { x: 0, y: 0, w: 24, h: 300, t: "wall" },
+      { x: 0, y: -205, w: 24, h: 60, t: "spike", m: [0, 40, 2] },
+      { x: -205, y: 0, w: 60, h: 24, t: "spike", m: [40, 0, 2] },
+      { x: 200, y: 245, w: 80, h: 20, t: "goal" },
+    ] },
+
+  // ── 21–30: spinners, first ice, first portals ────────────────
+  { name: "Spinner", cam: "fixed", view: 820, bounds: 600, start: [-250, -244], par: [5, 10],
+    hint: "Slip past the spinning blade.",
+    objs: [
+      { x: -250, y: -220, w: 120, h: 20, t: "wall" },
+      { x: 0, y: 0, w: 280, h: 20, t: "spike", spin: 70 },
+      { x: 250, y: 230, w: 120, h: 20, t: "goal" },
+    ] },
+  { name: "Crusher Corridor", cam: "fixed", view: 860, start: [-340, 66], par: [8, 16],
+    hint: "Floor or ceiling? Flip to whichever side is open.",
+    objs: [
+      ...box(380, 80),
+      { x: -170, y: 0, w: 24, h: 100, t: "spike", m: [0, 50, 2.2] },
+      { x: 0, y: 0, w: 24, h: 100, t: "spike", m: [0, -50, 2.2] },
+      { x: 170, y: 0, w: 24, h: 100, t: "spike", m: [0, 50, 1.6] },
+      { x: 370, y: 0, w: 20, h: 120, t: "goal" },
     ] },
   { name: "Gears", cam: "fixed", view: 760, start: [0, -252], par: [4, 8],
     hint: "Two blades turning against each other.",
@@ -401,6 +347,41 @@ const LEVELS = [
       { x: 180, y: 270, w: 200, h: 20, t: "spike" },
       { x: 0, y: 270, w: 100, h: 20, t: "goal" },
     ] },
+  { name: "Black Ice", cam: "fixed", view: 760, start: [-260, 136], par: [4, 8],
+    hint: "Blue ice has no grip. Whatever speed you build, you keep. Ease into the gap.",
+    objs: [
+      ...box(300, 200),
+      { x: -170, y: 160, w: 260, h: 20, t: "ice" },
+      { x: 170, y: 160, w: 260, h: 20, t: "ice" },
+      { x: 0, y: 190, w: 80, h: 20, t: "goal" },
+      { x: 290, y: 40, w: 20, h: 200, t: "spike" },
+      { x: -290, y: 40, w: 20, h: 200, t: "spike" },
+      { x: 0, y: -190, w: 600, h: 20, t: "spike" },
+    ] },
+  { name: "Corkscrew", cam: "fixed", view: 820, start: [-170, -204], par: [12, 24],
+    hint: "Zigzag again — but the shelves have pop-up spikes. Roll across while they're down.",
+    objs: [
+      ...box(220, 340),
+      { x: -50, y: -180, w: 340, h: 20, t: "wall" },
+      { x: 50, y: 0, w: 340, h: 20, t: "wall" },
+      { x: -50, y: 180, w: 340, h: 20, t: "wall" },
+      // pop-up spikes: rise out of the shelf and sink back (down ≈ 1/3 of the cycle)
+      { x: 40, y: -6, w: 40, h: 24, t: "spike", m: [0, 16, 2.2] },
+      { x: -40, y: 174, w: 40, h: 24, t: "spike", m: [0, 16, 1.8] },
+      { x: -170, y: 330, w: 80, h: 20, t: "goal" },
+    ] },
+  { name: "First Portal", cam: "fixed", view: 720, start: [-180, -222], par: [5, 10],
+    hint: "Portals come in pairs. In one, out the other, same speed. Steer once you're through.",
+    objs: [
+      ...box(240, 240),
+      { x: -180, y: -200, w: 100, h: 16, t: "wall" },
+      { x: 0, y: 0, w: 24, h: 480, t: "wall" },
+      { x: -180, y: 60, w: 50, h: 50, t: "portal", link: "a" },
+      { x: 150, y: -140, w: 50, h: 50, t: "portal", link: "a" },
+      { x: -120, y: 230, w: 240, h: 20, t: "spike" },
+      { x: 60, y: 230, w: 120, h: 20, t: "spike" },
+      { x: 180, y: 230, w: 80, h: 20, t: "goal" },
+    ] },
   { name: "Clock Face", cam: "fixed", view: 720, start: [0, -232], par: [8, 16],
     hint: "The hand sweeps the whole room. Ride it or dodge it.",
     objs: [
@@ -411,113 +392,6 @@ const LEVELS = [
       { x: 150, y: 250, w: 220, h: 20, t: "spike" },
       { x: 0, y: 250, w: 80, h: 20, t: "goal" },
     ] },
-  { name: "Sky Hopper", cam: "fixed", view: 960, bounds: 800, start: [0, -174], par: [4, 8],
-    hint: "Pad to pad through open sky.",
-    objs: [
-      { x: 0, y: -150, w: 80, h: 20, t: "wall" },
-      { x: 0, y: 150, w: 120, h: 20, t: "bounce" },
-      { x: 300, y: -50, w: 100, h: 20, a: -30, t: "bounce" },
-      { x: 0, y: 400, w: 600, h: 24, t: "spike" },
-      { x: -300, y: -250, w: 80, h: 20, t: "goal" },
-    ] },
-
-  // ── Chapter 7: Precision ───────────────────────────────
-  { name: "Drifting Isles", cam: "fixed", view: 960, bounds: 800, start: [-350, -24], par: [4, 8],
-    hint: "Nothing stays put out here.",
-    objs: [
-      { x: -350, y: 0, w: 90, h: 20, t: "wall" },
-      { x: -120, y: 120, w: 90, h: 20, t: "wall", m: [0, 80, 3] },
-      { x: 120, y: 0, w: 90, h: 20, t: "wall", m: [80, 0, 2.5] },
-      { x: 0, y: 330, w: 900, h: 24, t: "spike" },
-      { x: 350, y: 100, w: 80, h: 20, t: "goal", m: [0, 100, 3.5] },
-    ] },
-  { name: "Stepping Stones", cam: "fixed", view: 1000, bounds: 900, start: [-400, -224], par: [4, 8],
-    hint: "Stone to stone. Some are uphill.",
-    objs: [
-      { x: -400, y: -200, w: 70, h: 20, t: "wall" },
-      { x: -200, y: -80, w: 70, h: 20, t: "wall" },
-      { x: 0, y: 40, w: 70, h: 20, t: "wall" },
-      { x: 200, y: -40, w: 70, h: 20, t: "wall" },
-      { x: 400, y: 100, w: 70, h: 20, t: "goal" },
-    ] },
-  { name: "Spike Box", cam: "fixed", view: 640, start: [0, -144], par: [4, 8],
-    hint: "Every wall bites. Land soft.",
-    objs: [
-      ...box(220, 220, "spike"),
-      { x: 0, y: -120, w: 120, h: 20, t: "wall" },
-      { x: 0, y: 40, w: 160, h: 20, t: "wall" },
-      { x: 150, y: 160, w: 60, h: 20, t: "goal" },
-    ] },
-  { name: "Narrow Ledge", cam: "fixed", view: 800, bounds: 650, start: [0, -24], par: [4, 8],
-    hint: "Small targets now. Gentle hands.",
-    objs: [
-      { x: 0, y: 0, w: 60, h: 20, t: "wall" },
-      { x: 140, y: 120, w: 220, h: 20, a: 40, t: "spike" },
-      { x: -120, y: 200, w: 200, h: 24, t: "spike" },
-      { x: 280, y: 240, w: 60, h: 20, t: "goal" },
-    ] },
-  { name: "Long Way Round", cam: "fixed", view: 1000, bounds: 600, start: [0, -274], par: [8, 16],
-    hint: "The pad faces the wrong way. Go round and come at it from below.",
-    objs: [
-      { x: 0, y: -250, w: 80, h: 20, t: "wall" },
-      { x: 0, y: 180, w: 200, h: 20, t: "spike" },
-      { x: -110, y: 250, w: 20, h: 160, t: "spike" },
-      { x: 110, y: 250, w: 20, h: 160, t: "spike" },
-      { x: 0, y: 260, w: 100, h: 20, t: "goal" },
-    ] },
-
-  // ── Chapter 8: Danger zone ─────────────────────────────
-  { name: "Orbit", cam: "fixed", view: 820, bounds: 560, start: [0, -304], par: [4, 8],
-    hint: "Two blades nearly meet in the middle. Time the drop.",
-    objs: [
-      { x: 0, y: -280, w: 80, h: 16, t: "wall" },
-      { x: -150, y: 0, w: 260, h: 18, t: "spike", spin: 60 },
-      { x: 150, y: 0, w: 260, h: 18, t: "spike", spin: -60 },
-      { x: 0, y: 250, w: 70, h: 20, t: "goal" },
-    ] },
-  { name: "Bounce Gauntlet", cam: "fixed", view: 1040, bounds: 900, start: [-400, -224], par: [4, 8],
-    hint: "Three pads, one moving. Spikes overhead.",
-    objs: [
-      { x: -400, y: -200, w: 90, h: 20, t: "wall" },
-      { x: -250, y: 100, w: 100, h: 20, t: "bounce" },
-      { x: 0, y: 150, w: 100, h: 20, t: "bounce", m: [0, 60, 2] },
-      { x: 250, y: 100, w: 100, h: 20, t: "bounce" },
-      { x: 0, y: 320, w: 1000, h: 24, t: "spike" },
-      { x: -120, y: -150, w: 120, h: 20, t: "spike" },
-      { x: 130, y: -150, w: 120, h: 20, t: "spike" },
-      { x: 420, y: -100, w: 70, h: 20, t: "goal" },
-    ] },
-  { name: "Windmill", cam: "fixed", view: 820, bounds: 600, start: [-250, -274], par: [4, 8],
-    hint: "A spinning cross. Slip between the arms.",
-    objs: [
-      { x: -250, y: -250, w: 120, h: 20, t: "wall" },
-      { x: 0, y: 0, w: 300, h: 18, t: "spike", spin: 50 },
-      { x: 0, y: 0, w: 300, h: 18, a: 90, t: "spike", spin: 50 },
-      { x: 250, y: 250, w: 120, h: 20, t: "goal" },
-    ] },
-  { name: "Piston Hall", cam: "fixed", view: 900, start: [-390, 86], par: [7, 14],
-    hint: "Five pistons, five rhythms. Floor or ceiling, every time.",
-    objs: [
-      ...box(420, 100),
-      { x: -280, y: 0, w: 24, h: 120, t: "spike", m: [0, 60, 1.8] },
-      { x: -140, y: 0, w: 24, h: 120, t: "spike", m: [0, -60, 2.2] },
-      { x: 0, y: 0, w: 24, h: 120, t: "spike", m: [0, 60, 1.6] },
-      { x: 140, y: 0, w: 24, h: 120, t: "spike", m: [0, -60, 2.6] },
-      { x: 280, y: 0, w: 24, h: 120, t: "spike", m: [0, 60, 2.0] },
-      { x: 410, y: 0, w: 20, h: 120, t: "goal" },
-    ] },
-  { name: "Ricochet", cam: "fixed", view: 640, start: [0, -184], par: [4, 8],
-    hint: "Can't go straight down. Bank it off a pad.",
-    objs: [
-      ...box(240, 240, "spike"),
-      { x: 0, y: -160, w: 100, h: 20, t: "wall" },
-      { x: -150, y: 60, w: 100, h: 20, a: 30, t: "bounce" },
-      { x: 150, y: 60, w: 100, h: 20, a: -30, t: "bounce" },
-      { x: 0, y: 60, w: 80, h: 80, t: "spike" },
-      { x: 0, y: 200, w: 80, h: 20, t: "goal" },
-    ] },
-
-  // ── Chapter 9: Expert ──────────────────────────────────
   { name: "Shifting Maze", cam: "fixed", view: 820, start: [0, -252], par: [4, 8],
     hint: "The walls turn too.",
     objs: [
@@ -531,6 +405,20 @@ const LEVELS = [
       { x: 220, y: 290, w: 160, h: 20, t: "spike" },
       { x: 70, y: 290, w: 60, h: 20, t: "goal" },
     ] },
+  { name: "Locked Room", cam: "fixed", view: 720, start: [-150, 78], par: [6, 12],
+    hint: "The pad is sealed in. Park on the glue, aim, release — the portal is the only door.",
+    objs: [
+      ...box(260, 260),
+      { x: -150, y: 100, w: 90, h: 16, t: "glue" },
+      { x: 150, y: -160, w: 50, h: 50, t: "portal", link: "a" },
+      { x: 175, y: 200, w: 50, h: 50, t: "portal", link: "a" },
+      { x: 175, y: 140, w: 170, h: 16, t: "wall" },
+      { x: 82, y: 200, w: 16, h: 136, t: "wall" },
+      { x: 175, y: 250, w: 150, h: 20, t: "goal" },
+      { x: -90, y: 250, w: 340, h: 20, t: "spike" },
+      { x: -60, y: -250, w: 400, h: 20, t: "spike" },
+      { x: -250, y: -60, w: 20, h: 260, t: "spike" },
+    ] },
   { name: "Gauntlet", cam: "fixed", view: 900, start: [-340, -262], par: [14, 28],
     hint: "Piston, drop, blade, landing. One run.",
     objs: [
@@ -543,6 +431,102 @@ const LEVELS = [
       { x: 150, y: 290, w: 500, h: 20, t: "spike" },
       { x: -340, y: 290, w: 100, h: 20, t: "goal" },
     ] },
+
+  // ── 31–40: open space and combinations ───────────────────────
+  { name: "Moving Target", cam: "follow", view: 860, bounds: 700, start: [0, -295], par: [5, 10],
+    hint: "The pad won't wait for you.",
+    objs: [
+      { x: 0, y: -270, w: 120, h: 20, t: "wall" },
+      { x: 0, y: -60, w: 100, h: 24, t: "spike", spin: 90 },
+      { x: 0, y: 280, w: 800, h: 24, t: "spike" },
+      { x: 0, y: 150, w: 90, h: 20, t: "goal", m: [220, 0, 3.2] },
+    ] },
+  { name: "Portal Hop", cam: "fixed", view: 900, bounds: 600, start: [-300, -204], par: [4, 8],
+    hint: "Portals keep your speed. Use it.",
+    objs: [
+      { x: -300, y: -180, w: 100, h: 20, t: "wall" },
+      { x: -300, y: 120, w: 50, h: 50, t: "portal", link: "a" },
+      { x: 250, y: -300, w: 50, h: 50, t: "portal", link: "a" },
+      { x: 250, y: 40, w: 160, h: 20, t: "spike" },
+      { x: -300, y: 300, w: 200, h: 20, t: "spike" },
+      { x: 100, y: 250, w: 80, h: 20, t: "goal" },
+    ] },
+  { name: "Ice Rink", cam: "fixed", view: 860, start: [-320, 116], par: [6, 12],
+    hint: "Slide under the blades. You can't brake on ice, only tilt back.",
+    objs: [
+      ...box(360, 150),
+      { x: 0, y: 140, w: 720, h: 20, t: "ice" },
+      { x: 0, y: -140, w: 720, h: 20, t: "spike" },
+      { x: -120, y: 50, w: 160, h: 16, t: "spike", spin: 80 },
+      { x: 120, y: 50, w: 160, h: 16, t: "spike", spin: -80 },
+      { x: 350, y: 60, w: 20, h: 120, t: "goal" },
+    ] },
+  { name: "Drifting Isles", cam: "fixed", view: 960, bounds: 800, start: [-350, -24], par: [4, 8],
+    hint: "Nothing stays put out here.",
+    objs: [
+      { x: -350, y: 0, w: 90, h: 20, t: "wall" },
+      { x: -120, y: 120, w: 90, h: 20, t: "wall", m: [0, 80, 3] },
+      { x: 120, y: 0, w: 90, h: 20, t: "wall", m: [80, 0, 2.5] },
+      { x: 0, y: 330, w: 900, h: 24, t: "spike" },
+      { x: 350, y: 100, w: 80, h: 20, t: "goal", m: [0, 100, 3.5] },
+    ] },
+  { name: "Sky Hopper", cam: "fixed", view: 960, bounds: 800, start: [0, -174], par: [4, 8],
+    hint: "Pad to pad through open sky.",
+    objs: [
+      { x: 0, y: -150, w: 80, h: 20, t: "wall" },
+      { x: 0, y: 150, w: 120, h: 20, t: "bounce" },
+      { x: 300, y: -50, w: 100, h: 20, a: -30, t: "bounce" },
+      { x: 0, y: 400, w: 600, h: 24, t: "spike" },
+      { x: -300, y: -250, w: 80, h: 20, t: "goal" },
+    ] },
+  { name: "Stepping Stones", cam: "fixed", view: 1000, bounds: 900, start: [-400, -224], par: [4, 8],
+    hint: "Stone to stone. Some are uphill.",
+    objs: [
+      { x: -400, y: -200, w: 70, h: 20, t: "wall" },
+      { x: -200, y: -80, w: 70, h: 20, t: "wall" },
+      { x: 0, y: 40, w: 70, h: 20, t: "wall" },
+      { x: 200, y: -40, w: 70, h: 20, t: "wall" },
+      { x: 400, y: 100, w: 70, h: 20, t: "goal" },
+    ] },
+  { name: "Narrow Ledge", cam: "fixed", view: 800, bounds: 650, start: [0, -24], par: [4, 8],
+    hint: "Small targets now. Gentle hands.",
+    objs: [
+      { x: 0, y: 0, w: 60, h: 20, t: "wall" },
+      { x: 140, y: 120, w: 220, h: 20, a: 40, t: "spike" },
+      { x: -120, y: 200, w: 200, h: 24, t: "spike" },
+      { x: 280, y: 240, w: 60, h: 20, t: "goal" },
+    ] },
+  { name: "Fall Up", cam: "fixed", view: 800, bounds: 600, start: [0, 306], par: [9, 18],
+    hint: "The goal is above you. Turn the sky into the floor.",
+    objs: [
+      { x: 0, y: 330, w: 80, h: 20, t: "wall" },
+      { x: -80, y: 150, w: 240, h: 20, t: "spike" },
+      { x: 80, y: 0, w: 240, h: 20, t: "spike" },
+      { x: -80, y: -150, w: 240, h: 20, t: "spike" },
+      { x: 0, y: -330, w: 80, h: 20, t: "goal" },
+    ] },
+  { name: "Clockwork", cam: "fixed", view: 820, start: [-240, -272], par: [8, 16],
+    hint: "Ceiling-roll past the slider, dodge the blade, catch the drifting pad.",
+    objs: [
+      ...box(300, 300),
+      { x: -240, y: -250, w: 100, h: 16, t: "wall" },
+      { x: -60, y: -150, w: 480, h: 20, t: "wall" },
+      { x: -60, y: -185, w: 24, h: 50, t: "spike", m: [160, 0, 2] },
+      { x: 120, y: 30, w: 200, h: 16, t: "spike", spin: -80 },
+      { x: 60, y: 150, w: 480, h: 20, t: "wall" },
+      { x: 60, y: 290, w: 480, h: 20, t: "spike" },
+      { x: -240, y: 290, w: 70, h: 20, t: "goal", m: [30, 0, 1.5] },
+    ] },
+  { name: "Spike Box", cam: "fixed", view: 640, start: [0, -144], par: [4, 8],
+    hint: "Every wall bites. Land soft.",
+    objs: [
+      ...box(220, 220, "spike"),
+      { x: 0, y: -120, w: 120, h: 20, t: "wall" },
+      { x: 0, y: 40, w: 160, h: 20, t: "wall" },
+      { x: 150, y: 160, w: 60, h: 20, t: "goal" },
+    ] },
+
+  // ── 41–50: hard ──────────────────────────────────────────────
   { name: "Needle's Eye", cam: "fixed", view: 680, start: [0, -172], par: [4, 8],
     hint: "Spike walls, a fast blade, a tiny pad.",
     objs: [
@@ -551,6 +535,148 @@ const LEVELS = [
       { x: 0, y: 30, w: 180, h: 16, t: "spike", spin: 110 },
       { x: 180, y: 200, w: 60, h: 16, t: "bounce" },
       { x: -180, y: 200, w: 60, h: 20, t: "goal" },
+    ] },
+  { name: "Ice Stairs", cam: "fixed", view: 820, start: [-250, -202], par: [4, 8],
+    hint: "Every step is ice. Don't fly off the end.",
+    objs: [
+      ...box(300, 300),
+      { x: -220, y: -180, w: 140, h: 16, t: "ice" },
+      { x: -60, y: -60, w: 140, h: 16, t: "ice" },
+      { x: 100, y: 60, w: 140, h: 16, t: "ice" },
+      { x: 240, y: 180, w: 80, h: 20, t: "goal" },
+      { x: 0, y: 290, w: 600, h: 20, t: "spike" },
+      { x: 290, y: -40, w: 20, h: 400, t: "spike" },
+      { x: 0, y: -290, w: 600, h: 20, t: "spike" },
+    ] },
+  { name: "Long Way Round", cam: "fixed", view: 1000, bounds: 600, start: [0, -274], par: [8, 16],
+    hint: "The pad faces the wrong way. Go round and come at it from below.",
+    objs: [
+      { x: 0, y: -250, w: 80, h: 20, t: "wall" },
+      { x: 0, y: 180, w: 200, h: 20, t: "spike" },
+      { x: -110, y: 250, w: 20, h: 160, t: "spike" },
+      { x: 110, y: 250, w: 20, h: 160, t: "spike" },
+      { x: 0, y: 260, w: 100, h: 20, t: "goal" },
+    ] },
+  { name: "Bounce Gauntlet", cam: "fixed", view: 1040, bounds: 900, start: [-400, -224], par: [4, 8],
+    hint: "Three pads, one moving. Spikes overhead.",
+    objs: [
+      { x: -400, y: -200, w: 90, h: 20, t: "wall" },
+      { x: -250, y: 100, w: 100, h: 20, t: "bounce" },
+      { x: 0, y: 150, w: 100, h: 20, t: "bounce", m: [0, 60, 2] },
+      { x: 250, y: 100, w: 100, h: 20, t: "bounce" },
+      { x: 0, y: 320, w: 1000, h: 24, t: "spike" },
+      { x: -120, y: -150, w: 120, h: 20, t: "spike" },
+      { x: 130, y: -150, w: 120, h: 20, t: "spike" },
+      { x: 420, y: -100, w: 70, h: 20, t: "goal" },
+    ] },
+  { name: "Needle", cam: "follow", view: 860, bounds: 700, start: [0, -320], par: [4, 8],
+    hint: "Thread the moving gap, then find the pad.",
+    objs: [
+      { x: -96, y: -60, w: 140, h: 24, t: "spike", m: [120, 0, 4] },
+      { x: 96, y: -60, w: 140, h: 24, t: "spike", m: [120, 0, 4] },
+      { x: 0, y: 300, w: 800, h: 24, t: "spike" },
+      { x: 150, y: 250, w: 70, h: 20, t: "goal" },
+    ] },
+  { name: "Long Fall", cam: "follow", view: 900, bounds: 1150, start: [0, -900], par: [6, 12],
+    hint: "A long way down. Keep weaving.",
+    objs: [
+      { x: -100, y: -600, w: 240, h: 24, t: "spike" },
+      { x: 120, y: -300, w: 240, h: 24, t: "spike" },
+      { x: -80, y: 0, w: 280, h: 24, t: "spike" },
+      { x: 100, y: 300, w: 260, h: 24, t: "spike" },
+      { x: 0, y: 600, w: 220, h: 24, t: "spike" },
+      { x: 0, y: 900, w: 140, h: 20, t: "goal" },
+    ] },
+  { name: "Wormhole", cam: "fixed", view: 900, bounds: 640, start: [0, -324], par: [4, 8],
+    hint: "Two pairs of portals. One of them drifts.",
+    objs: [
+      { x: 0, y: -300, w: 80, h: 16, t: "wall" },
+      { x: 0, y: -120, w: 50, h: 50, t: "portal", link: "a" },
+      { x: -320, y: 0, w: 50, h: 50, t: "portal", link: "a", m: [0, 120, 3] },
+      { x: -320, y: 260, w: 50, h: 50, t: "portal", link: "b" },
+      { x: 300, y: -260, w: 50, h: 50, t: "portal", link: "b" },
+      { x: 300, y: 20, w: 160, h: 16, t: "spike", spin: 80 },
+      { x: 0, y: 120, w: 300, h: 20, t: "spike" },
+      { x: 300, y: 260, w: 90, h: 20, t: "goal" },
+    ] },
+  { name: "Windmill", cam: "fixed", view: 820, bounds: 600, start: [-250, -274], par: [4, 8],
+    hint: "A spinning cross. Slip between the arms.",
+    objs: [
+      { x: -250, y: -250, w: 120, h: 20, t: "wall" },
+      { x: 0, y: 0, w: 300, h: 18, t: "spike", spin: 50 },
+      { x: 0, y: 0, w: 300, h: 18, a: 90, t: "spike", spin: 50 },
+      { x: 250, y: 250, w: 120, h: 20, t: "goal" },
+    ] },
+  { name: "Orbit", cam: "fixed", view: 820, bounds: 560, start: [0, -304], par: [4, 8],
+    hint: "Two blades nearly meet in the middle. Time the drop.",
+    objs: [
+      { x: 0, y: -280, w: 80, h: 16, t: "wall" },
+      { x: -150, y: 0, w: 260, h: 18, t: "spike", spin: 60 },
+      { x: 150, y: 0, w: 260, h: 18, t: "spike", spin: -60 },
+      { x: 0, y: 250, w: 70, h: 20, t: "goal" },
+    ] },
+  { name: "Piston Hall", cam: "fixed", view: 900, start: [-390, 86], par: [7, 14],
+    hint: "Five pistons, five rhythms. Floor or ceiling, every time.",
+    objs: [
+      ...box(420, 100),
+      { x: -280, y: 0, w: 24, h: 120, t: "spike", m: [0, 60, 1.8] },
+      { x: -140, y: 0, w: 24, h: 120, t: "spike", m: [0, -60, 2.2] },
+      { x: 0, y: 0, w: 24, h: 120, t: "spike", m: [0, 60, 1.6] },
+      { x: 140, y: 0, w: 24, h: 120, t: "spike", m: [0, -60, 2.6] },
+      { x: 280, y: 0, w: 24, h: 120, t: "spike", m: [0, 60, 2.0] },
+      { x: 410, y: 0, w: 20, h: 120, t: "goal" },
+    ] },
+
+  // ── 51–60: hardest ───────────────────────────────────────────
+  { name: "Ricochet", cam: "fixed", view: 640, start: [0, -184], par: [4, 8],
+    hint: "Can't go straight down. Bank it off a pad.",
+    objs: [
+      ...box(240, 240, "spike"),
+      { x: 0, y: -160, w: 100, h: 20, t: "wall" },
+      { x: -150, y: 60, w: 100, h: 20, a: 30, t: "bounce" },
+      { x: 150, y: 60, w: 100, h: 20, a: -30, t: "bounce" },
+      { x: 0, y: 60, w: 80, h: 80, t: "spike" },
+      { x: 0, y: 200, w: 80, h: 20, t: "goal" },
+    ] },
+  { name: "Wall Walker", cam: "fixed", view: 820, start: [0, 278], par: [6, 12],
+    hint: "Climb the walls. Glue patches are safe spots to stop and re-aim.",
+    objs: [
+      ...box(200, 320),
+      { x: 0, y: 300, w: 80, h: 16, t: "wall" },
+      { x: 0, y: 310, w: 400, h: 20, t: "spike" },
+      { x: -40, y: 150, w: 220, h: 20, t: "spike" },
+      { x: 40, y: -20, w: 220, h: 20, t: "spike" },
+      { x: 190, y: 230, w: 20, h: 100, t: "glue" },
+      { x: -190, y: 60, w: 20, h: 100, t: "glue" },
+      { x: 190, y: -110, w: 20, h: 100, t: "glue" },
+      { x: -140, y: -310, w: 120, h: 20, t: "spike" },
+      { x: 140, y: -310, w: 120, h: 20, t: "spike" },
+      { x: 0, y: -310, w: 160, h: 20, t: "goal" },
+    ] },
+  { name: "Tower", cam: "follow", view: 900, start: [-100, 586], par: [20, 40],
+    hint: "The goal is at the top. Gravity is whatever you say it is.",
+    objs: [
+      ...box(150, 600),
+      { x: -45, y: 400, w: 210, h: 20, t: "wall" },
+      { x: 45, y: 200, w: 210, h: 20, t: "wall" },
+      { x: -45, y: 0, w: 210, h: 20, t: "wall" },
+      { x: 45, y: -200, w: 210, h: 20, t: "wall" },
+      { x: -45, y: -400, w: 210, h: 20, t: "wall" },
+      { x: -140, y: 300, w: 20, h: 120, t: "spike" },
+      { x: 140, y: 100, w: 20, h: 120, t: "spike" },
+      { x: -140, y: -100, w: 20, h: 120, t: "spike" },
+      { x: 140, y: -300, w: 20, h: 120, t: "spike" },
+      { x: 0, y: -590, w: 100, h: 20, t: "goal" },
+    ] },
+  { name: "Double Back", cam: "fixed", view: 900, start: [-360, -24], par: [8, 16],
+    hint: "Out along the top, back along the bottom — upside down.",
+    objs: [
+      ...box(400, 200),
+      { x: -50, y: 0, w: 700, h: 20, t: "wall" },
+      { x: 0, y: -100, w: 24, h: 120, t: "spike", m: [0, 50, 2] },
+      { x: -100, y: 100, w: 24, h: 120, t: "spike", m: [0, -50, 2.4] },
+      { x: 50, y: 190, w: 700, h: 20, t: "spike" },
+      { x: -390, y: 100, w: 20, h: 120, t: "goal" },
     ] },
   { name: "Switchback", cam: "fixed", view: 820, start: [-100, -224], par: [22, 44],
     hint: "Back and forth, all the way down. Don't overshoot.",
@@ -580,45 +706,6 @@ const LEVELS = [
       { x: 220, y: 128, w: 90, h: 16, t: "bounce" },
       { x: 370, y: 0, w: 20, h: 120, t: "goal" },
     ] },
-
-  // ── Chapter 10: Master ─────────────────────────────────
-  { name: "Clockwork", cam: "fixed", view: 820, start: [-240, -272], par: [8, 16],
-    hint: "Ceiling-roll past the slider, dodge the blade, catch the drifting pad.",
-    objs: [
-      ...box(300, 300),
-      { x: -240, y: -250, w: 100, h: 16, t: "wall" },
-      { x: -60, y: -150, w: 480, h: 20, t: "wall" },
-      { x: -60, y: -185, w: 24, h: 50, t: "spike", m: [160, 0, 2] },
-      { x: 120, y: 30, w: 200, h: 16, t: "spike", spin: -80 },
-      { x: 60, y: 150, w: 480, h: 20, t: "wall" },
-      { x: 60, y: 290, w: 480, h: 20, t: "spike" },
-      { x: -240, y: 290, w: 70, h: 20, t: "goal", m: [30, 0, 1.5] },
-    ] },
-  { name: "Double Back", cam: "fixed", view: 900, start: [-360, -24], par: [8, 16],
-    hint: "Out along the top, back along the bottom — upside down.",
-    objs: [
-      ...box(400, 200),
-      { x: -50, y: 0, w: 700, h: 20, t: "wall" },
-      { x: 0, y: -100, w: 24, h: 120, t: "spike", m: [0, 50, 2] },
-      { x: -100, y: 100, w: 24, h: 120, t: "spike", m: [0, -50, 2.4] },
-      { x: 50, y: 190, w: 700, h: 20, t: "spike" },
-      { x: -390, y: 100, w: 20, h: 120, t: "goal" },
-    ] },
-  { name: "Tower", cam: "follow", view: 900, start: [-100, 586], par: [20, 40],
-    hint: "The goal is at the top. Gravity is whatever you say it is.",
-    objs: [
-      ...box(150, 600),
-      { x: -45, y: 400, w: 210, h: 20, t: "wall" },
-      { x: 45, y: 200, w: 210, h: 20, t: "wall" },
-      { x: -45, y: 0, w: 210, h: 20, t: "wall" },
-      { x: 45, y: -200, w: 210, h: 20, t: "wall" },
-      { x: -45, y: -400, w: 210, h: 20, t: "wall" },
-      { x: -140, y: 300, w: 20, h: 120, t: "spike" },
-      { x: 140, y: 100, w: 20, h: 120, t: "spike" },
-      { x: -140, y: -100, w: 20, h: 120, t: "spike" },
-      { x: 140, y: -300, w: 20, h: 120, t: "spike" },
-      { x: 0, y: -590, w: 100, h: 20, t: "goal" },
-    ] },
   { name: "Pinwheel", cam: "fixed", view: 900, bounds: 700, start: [0, -324], par: [10, 20],
     hint: "Ride the wheel, dodge the blades, come at the pad from below.",
     objs: [
@@ -629,6 +716,35 @@ const LEVELS = [
       { x: 220, y: 0, w: 160, h: 16, t: "spike", spin: 90 },
       { x: 0, y: 230, w: 300, h: 20, t: "spike" },
       { x: 0, y: 330, w: 70, h: 20, t: "goal" },
+    ] },
+  { name: "Strange Matter", cam: "fixed", view: 860, start: [-200, -22], par: [24, 48],
+    hint: "Glue, portal, ice, blade. Everything strange at once.",
+    objs: [
+      ...box(320, 320),
+      { x: -200, y: 0, w: 80, h: 16, t: "glue" },
+      { x: -260, y: -250, w: 50, h: 50, t: "portal", link: "a" },
+      { x: 240, y: -100, w: 50, h: 50, t: "portal", link: "a" },
+      { x: 100, y: -170, w: 20, h: 260, t: "spike" },
+      { x: 220, y: 60, w: 180, h: 16, a: 25, t: "ice" },
+      { x: 40, y: 140, w: 200, h: 16, t: "spike", spin: 90 },
+      { x: -60, y: 310, w: 520, h: 20, t: "spike" },
+      { x: -310, y: 160, w: 20, h: 300, t: "spike" },
+      { x: 270, y: 310, w: 80, h: 20, t: "goal" },
+    ] },
+  { name: "Final Shift", cam: "fixed", view: 820, start: [-230, 178], par: [10, 20],
+    hint: "Everything you've learned. Good luck.",
+    objs: [
+      ...box(300, 300),
+      { x: -230, y: 200, w: 120, h: 16, t: "wall" },
+      { x: 0, y: -290, w: 600, h: 20, t: "spike" },
+      { x: -100, y: 290, w: 400, h: 20, t: "spike" },
+      { x: -40, y: -20, w: 260, h: 18, t: "spike", spin: 90 },
+      { x: 290, y: 150, w: 20, h: 240, t: "spike" },
+      // goal sits in a pocket on the right wall, guarded by a sliding spike
+      { x: 255, y: -152, w: 90, h: 16, t: "wall" },
+      { x: 255, y: -48, w: 90, h: 16, t: "wall" },
+      { x: 195, y: -100, w: 20, h: 60, t: "spike", m: [0, 80, 2] },
+      { x: 290, y: -100, w: 20, h: 70, t: "goal" },
     ] },
   { name: "World's End", cam: "fixed", view: 860, start: [-240, -262], par: [6, 12],
     hint: "Everything at once. Breathe.",
@@ -644,132 +760,6 @@ const LEVELS = [
       { x: 270, y: 200, w: 100, h: 16, t: "wall" },
       { x: 205, y: 120, w: 20, h: 80, t: "spike", m: [0, 60, 1.8] },
       { x: 310, y: 120, w: 20, h: 130, t: "goal" },
-    ] },
-
-  // ── Chapter 11: strange matter ───────────────────────────
-  { name: "First Portal", cam: "fixed", view: 720, start: [-180, -222], par: [5, 10],
-    hint: "Portals come in pairs. In one, out the other, same speed. Steer once you're through.",
-    objs: [
-      ...box(240, 240),
-      { x: -180, y: -200, w: 100, h: 16, t: "wall" },
-      { x: 0, y: 0, w: 24, h: 480, t: "wall" },
-      { x: -180, y: 60, w: 50, h: 50, t: "portal", link: "a" },
-      { x: 150, y: -140, w: 50, h: 50, t: "portal", link: "a" },
-      { x: -120, y: 230, w: 240, h: 20, t: "spike" },
-      { x: 60, y: 230, w: 120, h: 20, t: "spike" },
-      { x: 180, y: 230, w: 80, h: 20, t: "goal" },
-    ] },
-  { name: "Black Ice", cam: "fixed", view: 760, start: [-260, 136], par: [4, 8],
-    hint: "Blue ice has no grip. Whatever speed you build, you keep. Ease into the gap.",
-    objs: [
-      ...box(300, 200),
-      { x: -170, y: 160, w: 260, h: 20, t: "ice" },
-      { x: 170, y: 160, w: 260, h: 20, t: "ice" },
-      { x: 0, y: 190, w: 80, h: 20, t: "goal" },
-      { x: 290, y: 40, w: 20, h: 200, t: "spike" },
-      { x: -290, y: 40, w: 20, h: 200, t: "spike" },
-      { x: 0, y: -190, w: 600, h: 20, t: "spike" },
-    ] },
-  { name: "Sticky Start", cam: "fixed", view: 720, start: [0, -24], par: [5, 10],
-    hint: "Green glue holds the ball while you turn. Turn far enough and it lets go.",
-    objs: [
-      ...box(240, 240),
-      { x: 0, y: 0, w: 100, h: 20, t: "glue" },
-      { x: 0, y: 230, w: 480, h: 20, t: "spike" },
-      { x: -230, y: 0, w: 20, h: 300, t: "spike" },
-      { x: 230, y: 0, w: 20, h: 300, t: "spike" },
-      { x: -180, y: -230, w: 120, h: 20, t: "spike" },
-      { x: 180, y: -230, w: 120, h: 20, t: "spike" },
-      { x: 0, y: -230, w: 120, h: 20, t: "goal" },
-    ] },
-  { name: "Portal Hop", cam: "fixed", view: 900, bounds: 600, start: [-300, -204], par: [4, 8],
-    hint: "Portals keep your speed. Use it.",
-    objs: [
-      { x: -300, y: -180, w: 100, h: 20, t: "wall" },
-      { x: -300, y: 120, w: 50, h: 50, t: "portal", link: "a" },
-      { x: 250, y: -300, w: 50, h: 50, t: "portal", link: "a" },
-      { x: 250, y: 40, w: 160, h: 20, t: "spike" },
-      { x: -300, y: 300, w: 200, h: 20, t: "spike" },
-      { x: 100, y: 250, w: 80, h: 20, t: "goal" },
-    ] },
-  { name: "Wall Walker", cam: "fixed", view: 820, start: [0, 278], par: [6, 12],
-    hint: "Climb the walls. Glue patches are safe spots to stop and re-aim.",
-    objs: [
-      ...box(200, 320),
-      { x: 0, y: 300, w: 80, h: 16, t: "wall" },
-      { x: 0, y: 310, w: 400, h: 20, t: "spike" },
-      { x: -40, y: 150, w: 220, h: 20, t: "spike" },
-      { x: 40, y: -20, w: 220, h: 20, t: "spike" },
-      { x: 190, y: 230, w: 20, h: 100, t: "glue" },
-      { x: -190, y: 60, w: 20, h: 100, t: "glue" },
-      { x: 190, y: -110, w: 20, h: 100, t: "glue" },
-      { x: -140, y: -310, w: 120, h: 20, t: "spike" },
-      { x: 140, y: -310, w: 120, h: 20, t: "spike" },
-      { x: 0, y: -310, w: 160, h: 20, t: "goal" },
-    ] },
-
-  // ── Chapter 12: beyond ───────────────────────────────────
-  { name: "Locked Room", cam: "fixed", view: 720, start: [-150, 78], par: [6, 12],
-    hint: "The pad is sealed in. Park on the glue, aim, release — the portal is the only door.",
-    objs: [
-      ...box(260, 260),
-      { x: -150, y: 100, w: 90, h: 16, t: "glue" },
-      { x: 150, y: -160, w: 50, h: 50, t: "portal", link: "a" },
-      { x: 175, y: 200, w: 50, h: 50, t: "portal", link: "a" },
-      { x: 175, y: 140, w: 170, h: 16, t: "wall" },
-      { x: 82, y: 200, w: 16, h: 136, t: "wall" },
-      { x: 175, y: 250, w: 150, h: 20, t: "goal" },
-      { x: -90, y: 250, w: 340, h: 20, t: "spike" },
-      { x: -60, y: -250, w: 400, h: 20, t: "spike" },
-      { x: -250, y: -60, w: 20, h: 260, t: "spike" },
-    ] },
-  { name: "Ice Rink", cam: "fixed", view: 860, start: [-320, 116], par: [6, 12],
-    hint: "Slide under the blades. You can't brake on ice, only tilt back.",
-    objs: [
-      ...box(360, 150),
-      { x: 0, y: 140, w: 720, h: 20, t: "ice" },
-      { x: 0, y: -140, w: 720, h: 20, t: "spike" },
-      { x: -120, y: 50, w: 160, h: 16, t: "spike", spin: 80 },
-      { x: 120, y: 50, w: 160, h: 16, t: "spike", spin: -80 },
-      { x: 350, y: 60, w: 20, h: 120, t: "goal" },
-    ] },
-  { name: "Ice Stairs", cam: "fixed", view: 820, start: [-250, -202], par: [4, 8],
-    hint: "Every step is ice. Don't fly off the end.",
-    objs: [
-      ...box(300, 300),
-      { x: -220, y: -180, w: 140, h: 16, t: "ice" },
-      { x: -60, y: -60, w: 140, h: 16, t: "ice" },
-      { x: 100, y: 60, w: 140, h: 16, t: "ice" },
-      { x: 240, y: 180, w: 80, h: 20, t: "goal" },
-      { x: 0, y: 290, w: 600, h: 20, t: "spike" },
-      { x: 290, y: -40, w: 20, h: 400, t: "spike" },
-      { x: 0, y: -290, w: 600, h: 20, t: "spike" },
-    ] },
-  { name: "Wormhole", cam: "fixed", view: 900, bounds: 640, start: [0, -324], par: [4, 8],
-    hint: "Two pairs of portals. One of them drifts.",
-    objs: [
-      { x: 0, y: -300, w: 80, h: 16, t: "wall" },
-      { x: 0, y: -120, w: 50, h: 50, t: "portal", link: "a" },
-      { x: -320, y: 0, w: 50, h: 50, t: "portal", link: "a", m: [0, 120, 3] },
-      { x: -320, y: 260, w: 50, h: 50, t: "portal", link: "b" },
-      { x: 300, y: -260, w: 50, h: 50, t: "portal", link: "b" },
-      { x: 300, y: 20, w: 160, h: 16, t: "spike", spin: 80 },
-      { x: 0, y: 120, w: 300, h: 20, t: "spike" },
-      { x: 300, y: 260, w: 90, h: 20, t: "goal" },
-    ] },
-  { name: "Strange Matter", cam: "fixed", view: 860, start: [-200, -22], par: [24, 48],
-    hint: "Glue, portal, ice, blade. Everything strange at once.",
-    objs: [
-      ...box(320, 320),
-      { x: -200, y: 0, w: 80, h: 16, t: "glue" },
-      { x: -260, y: -250, w: 50, h: 50, t: "portal", link: "a" },
-      { x: 240, y: -100, w: 50, h: 50, t: "portal", link: "a" },
-      { x: 100, y: -170, w: 20, h: 260, t: "spike" },
-      { x: 220, y: 60, w: 180, h: 16, a: 25, t: "ice" },
-      { x: 40, y: 140, w: 200, h: 16, t: "spike", spin: 90 },
-      { x: -60, y: 310, w: 520, h: 20, t: "spike" },
-      { x: -310, y: 160, w: 20, h: 300, t: "spike" },
-      { x: 270, y: 310, w: 80, h: 20, t: "goal" },
     ] },
 ];
 
@@ -940,8 +930,18 @@ function recordGhost(force) {
   if (force || timer * GHOST_HZ >= rec.length / 2) rec.push(Math.round(ball.x), Math.round(ball.y));
 }
 
+// stars, keyed by level name so reordering levels never moves them
 let progress = {};
-try { progress = JSON.parse(localStorage.getItem("ws_progress") || "{}"); } catch (e) { progress = {}; }
+try { progress = JSON.parse(localStorage.getItem("ws_stars") || "null"); } catch (e) { progress = null; }
+if (!progress) { // one-time migration from v0.8 and earlier, which keyed stars by level position
+  progress = {};
+  const V08_ORDER = "Steer the Fall|Over the Wall|Funnel|Spike Garden|Zigzag|Island Hop|Labyrinth|Upside Down|Bounce Gap|Corner Shot|Slider|Spinner|Crusher Corridor|Needle|Crossroads|Moving Target|Long Fall|Corkscrew|Twin Blades|Final Shift|Moving Spring|Pendulum|Keyhole|Trampoline|Sync|Blade Run|Fall Up|Gears|Clock Face|Sky Hopper|Drifting Isles|Stepping Stones|Spike Box|Narrow Ledge|Long Way Round|Orbit|Bounce Gauntlet|Windmill|Piston Hall|Ricochet|Shifting Maze|Gauntlet|Needle's Eye|Switchback|Hop Scotch|Clockwork|Double Back|Tower|Pinwheel|World's End|First Portal|Black Ice|Sticky Start|Portal Hop|Wall Walker|Locked Room|Ice Rink|Ice Stairs|Wormhole|Strange Matter".split("|");
+  try {
+    const old = JSON.parse(localStorage.getItem("ws_progress") || "{}");
+    for (const k in old) if (V08_ORDER[k]) progress[V08_ORDER[k]] = old[k];
+    localStorage.setItem("ws_stars", JSON.stringify(progress));
+  } catch (e) {}
+}
 
 function resize() {
   DPR = Math.min(window.devicePixelRatio || 1, 2);
@@ -1151,8 +1151,8 @@ function win() {
   recordGhost(true);
   const gk = level.name;
   if (!ghosts[gk] || t < ghosts[gk].t) { ghosts[gk] = { t, p: rec }; try { localStorage.setItem("ws_ghosts", JSON.stringify(ghosts)); } catch (e) {} }
-  const prev = progress[levelIdx] || 0;
-  if (st > prev) { progress[levelIdx] = st; try { localStorage.setItem("ws_progress", JSON.stringify(progress)); } catch (e) {} }
+  const prev = progress[level.name] || 0;
+  if (st > prev) { progress[level.name] = st; try { localStorage.setItem("ws_stars", JSON.stringify(progress)); } catch (e) {} }
   const wonLevel = levelIdx;
   setTimeout(() => {
     if (state !== "won" || levelIdx !== wonLevel) return; // player restarted / left meanwhile
@@ -1450,13 +1450,9 @@ function hide(id) { document.getElementById(id).classList.remove("show"); }
 function isShown(id) { return document.getElementById(id).classList.contains("show"); }
 function buildMenu() {
   const grid = document.getElementById("levelGrid"); grid.innerHTML = "";
-  const CHAPTERS = { 0: "1 · Learn to turn", 5: "2 · Use the whole world", 10: "3 · Things that move", 15: "4 · Everything at once",
-    20: "5 · Second wind", 25: "6 · Getting serious", 30: "7 · Precision", 35: "8 · Danger zone", 40: "9 · Expert", 45: "10 · Master",
-    50: "11 · Strange matter", 55: "12 · Beyond" };
   LEVELS.forEach((l, i) => {
-    if (CHAPTERS[i]) { const c = document.createElement("div"); c.className = "chap"; c.textContent = CHAPTERS[i]; grid.appendChild(c); }
     const b = document.createElement("button");
-    const st = progress[i] || 0;
+    const st = progress[l.name] || 0;
     b.innerHTML = `${i + 1}<small>${st ? "★".repeat(st) : ""}</small>`;
     b.title = l.name;
     b.onclick = () => loadLevel(i);
