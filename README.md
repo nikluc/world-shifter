@@ -6,7 +6,8 @@ You don't move the ball — you turn the world. Rotate the level so the falling 
 
 - Tap / click / Space to drop the ball
 - Drag or draw circles to rotate (keyboard: ← → or A D, Q/E snap 90°, R restart)
-- 50 levels in 10 chapters of rising difficulty, with ★ for speed
+- 60 levels in 12 chapters of rising difficulty, with ★ for speed
+- Chapters 11–12 add portals (linked pairs, keep your speed), ice (no grip) and glue (holds the ball while you turn)
 - Sound effects and background music (♫ toggles music, 🔊 mutes all, incl. vibration)
 - Dotted landing preview on the first 5 levels; a ghost replays your best run
 
