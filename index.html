@@ -16,6 +16,7 @@
   #hud .info b{font-size:16px}
   #hud .btns{display:flex;gap:6px}
   #hud button{pointer-events:auto}
+  @media (max-width:440px){ #hud{padding-left:8px;padding-right:8px;font-size:12px} #hud .btns{gap:4px} #hud button{padding:6px 8px;font-size:13px} #hud .info b{font-size:13px} }
   button{background:#1b1b2e;color:#e8e8f0;border:1px solid #3a3a5c;border-radius:10px;padding:8px 12px;font-size:15px;cursor:pointer;font-family:inherit}
   button:active{transform:scale(.96)}
   button.primary{background:#2d6b4a;border-color:#4fd18b}
@@ -41,7 +42,7 @@
 <div id="hud">
   <div class="btns"><button id="bMenu">☰</button><button id="bRestart">↻</button></div>
   <div class="info"><b id="lvlName"></b><br><span id="stats"></span></div>
-  <div class="btns"><button id="bSound">🔊</button><button id="bMode">Smooth</button></div>
+  <div class="btns"><button id="bMusic">♫</button><button id="bSound">🔊</button><button id="bMode">Smooth</button></div>
 </div>
 <div id="hint"></div>
 
@@ -51,7 +52,7 @@
     <p>You don't move the ball. You turn the world.</p>
     <div class="grid" id="levelGrid"></div>
     <p style="font-size:13px">Drag left/right or use ← → / A D to rotate<br>Q / E snap 90° · R restart · M toggle mode<br>Tap / click / Space to drop the ball</p>
-    <p style="font-size:11px;opacity:.45">prototype v0.3 · 20 levels</p>
+    <p style="font-size:11px;opacity:.45">prototype v0.4 · 20 levels</p>
   </div>
 </div>
 
@@ -76,6 +77,8 @@ const SUBSTEPS = 5;
 const START_FREEZE = 0.6; // seconds of "Ready…" before the player may drop the ball
 const SFX_VOLUME = 0.5;   // master volume 0..1
 const THUD_MIN_SPEED = 120; // impact speed below which wall hits are silent
+const MUSIC_VOLUME = 0.6; // background music level, relative to the master volume
+const MUSIC_BPM = 100;
 
 // ---------- Levels ----------
 // objs: rect centred at x,y with size w,h, rotated a degrees. t: wall | spike | goal | bounce
@@ -302,9 +305,63 @@ const Sfx = (() => {
       master = ac.createGain(); master.gain.value = muted ? 0 : SFX_VOLUME; master.connect(ac.destination);
       noiseBuf = ac.createBuffer(1, ac.sampleRate, ac.sampleRate);
       const d = noiseBuf.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+      musicBus = ac.createGain(); musicBus.gain.value = musicOn ? MUSIC_VOLUME : 0;
+      // soft echo on the music for a spacey feel
+      const dl = ac.createDelay(1), fb = ac.createGain(), lp = ac.createBiquadFilter();
+      dl.delayTime.value = 0.45; fb.gain.value = 0.3; lp.type = "lowpass"; lp.frequency.value = 2200;
+      musicBus.connect(master); musicBus.connect(dl); dl.connect(lp); lp.connect(fb); fb.connect(dl); lp.connect(master);
+      setInterval(scheduleMusic, 30);
     }
     if (ac.state === "suspended") ac.resume();
   }
+
+  // ---- background music: a looping 8-bar synth track, scheduled ahead of time ----
+  let musicBus = null, musicOn = true, nextStep = 0, step = 0;
+  try { musicOn = localStorage.getItem("ws_music") !== "0"; } catch (e) {}
+  const STEP = 60 / MUSIC_BPM / 2; // eighth notes
+  const midi = n => 440 * Math.pow(2, (n - 69) / 12);
+  // Am  F  C  G  |  Am  F  G  E   (bass root, arpeggio notes)
+  const CHORDS = [
+    [45, [69, 72, 76, 81]], [41, [65, 69, 72, 77]], [48, [67, 72, 76, 79]], [43, [67, 71, 74, 79]],
+    [45, [69, 72, 76, 81]], [41, [65, 69, 72, 77]], [43, [67, 71, 74, 79]], [40, [68, 71, 76, 80]],
+  ];
+  const ARP = [0, 1, 2, 3, 2, 1, 2, 3];
+  const ARP_B = [3, 2, 0, 1, 3, 2, 1, 0];
+  function note(freq, t, dur, type, vol, attack = 0.01) {
+    const o = ac.createOscillator(), g = ac.createGain();
+    o.type = type; o.frequency.value = freq;
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.exponentialRampToValueAtTime(vol, t + attack);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    o.connect(g); g.connect(musicBus); o.start(t); o.stop(t + dur + 0.05);
+  }
+  function scheduleMusic() {
+    if (!ac || ac.state !== "running") return;
+    if (nextStep < ac.currentTime) nextStep = ac.currentTime + 0.05; // resync after a pause
+    while (nextStep < ac.currentTime + 0.15) {
+      const bar = Math.floor(step / 8) % CHORDS.length, s = step % 8, loop = Math.floor(step / 64) % 2;
+      const [bass, arp] = CHORDS[bar], t = nextStep;
+      if (s === 0) { // pad: whole chord, slow swell
+        for (const n of arp.slice(0, 3)) note(midi(n - 12), t, STEP * 8, "triangle", 0.03, 0.4);
+      }
+      if (s === 0 || s === 4) note(midi(bass), t, STEP * 3.5, "triangle", 0.16, 0.02);
+      if (s === 6 && bar % 2 === 1) note(midi(bass + 12), t, STEP * 1.5, "triangle", 0.08);
+      const pat = loop ? ARP_B : ARP;
+      note(midi(arp[pat[s]] + (loop && s >= 4 ? 12 : 0)), t, STEP * 1.6, "sine", 0.07);
+      if (s % 2 === 1) { // soft hi-hat on off-beats
+        const src = ac.createBufferSource(), f = ac.createBiquadFilter(), g = ac.createGain();
+        src.buffer = noiseBuf; f.type = "highpass"; f.frequency.value = 7000;
+        g.gain.setValueAtTime(0.025, t); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.05);
+        src.connect(f); f.connect(g); g.connect(musicBus); src.start(t, Math.random() * 0.5); src.stop(t + 0.06);
+      }
+      nextStep += STEP; step++;
+    }
+  }
+  // pause all audio while the tab / app is in the background
+  document.addEventListener("visibilitychange", () => {
+    if (!ac) return;
+    if (document.hidden) ac.suspend(); else ac.resume();
+  });
   const ok = () => ac && !muted && ac.state === "running";
   function env(g, t, vol, dur) {
     g.gain.setValueAtTime(0.0001, t);
@@ -328,6 +385,13 @@ const Sfx = (() => {
   return {
     unlock,
     get muted() { return muted; },
+    get musicOn() { return musicOn; },
+    toggleMusic() {
+      musicOn = !musicOn;
+      try { localStorage.setItem("ws_music", musicOn ? "1" : "0"); } catch (e) {}
+      if (musicBus) musicBus.gain.setTargetAtTime(musicOn ? MUSIC_VOLUME : 0, ac.currentTime, 0.1);
+      return musicOn;
+    },
     toggle() {
       muted = !muted;
       try { localStorage.setItem("ws_muted", muted ? "1" : "0"); } catch (e) {}
@@ -736,6 +800,10 @@ document.addEventListener("click", e => { if (e.target.closest("button")) Sfx.cl
 const bSound = document.getElementById("bSound");
 bSound.textContent = Sfx.muted ? "🔇" : "🔊";
 bSound.onclick = () => { bSound.textContent = Sfx.toggle() ? "🔇" : "🔊"; };
+const bMusic = document.getElementById("bMusic");
+const paintMusic = () => { bMusic.style.opacity = Sfx.musicOn ? 1 : 0.4; bMusic.style.textDecoration = Sfx.musicOn ? "none" : "line-through"; };
+paintMusic();
+bMusic.onclick = () => { Sfx.toggleMusic(); paintMusic(); };
 document.getElementById("bMenu").onclick =() => { buildMenu(); show("menu"); state = state === "play" ? "paused" : state; };
 document.getElementById("bRestart").onclick = restart;
 document.getElementById("bMode").onclick = toggleMode;
