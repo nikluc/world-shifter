@@ -7,7 +7,10 @@ You don't move the ball — you turn the world. Rotate the level so the falling 
 - Tap / click / Space to drop the ball
 - Drag or draw circles to rotate (keyboard: ← → or A D, Q/E snap 90°, R restart)
 - 50 levels in 10 chapters of rising difficulty, with ★ for speed
-- Sound effects and background music (♫ toggles music, 🔊 mutes all)
+- Sound effects and background music (♫ toggles music, 🔊 mutes all, incl. vibration)
+- Dotted landing preview on the first 5 levels; a ghost replays your best run
+
+**Playtesters:** tap the version text in the menu 5 times (or open `?stats`) to see your stats, then press **Copy** and send them over.
 
 `tools/level_bot.py` checks every level is winnable and measures its difficulty (needs Playwright + Edge).
 

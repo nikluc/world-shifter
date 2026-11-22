@@ -33,6 +33,13 @@
   .grid small{display:block;font-size:12px;color:#ffd34d;min-height:14px}
   .row{display:flex;gap:10px;justify-content:center;margin-top:14px}
   .stars{font-size:34px;letter-spacing:6px;color:#ffd34d;margin:6px 0}
+  .panel.wide{max-width:680px}
+  .panel{touch-action:pan-y}
+  .tbl{overflow-x:auto;touch-action:pan-x pan-y}
+  .tbl table{border-collapse:collapse;width:100%;font-size:12px}
+  .tbl th,.tbl td{padding:4px 6px;border-bottom:1px solid #2c2c48;text-align:right;white-space:nowrap}
+  .tbl th:nth-child(2),.tbl td:nth-child(2){text-align:left}
+  .tbl tr.hot td{color:#ff8da1}
   #hint{position:fixed;bottom:calc(env(safe-area-inset-bottom) + 18px);left:0;right:0;text-align:center;opacity:.8;pointer-events:none;font-size:15px;padding:0 20px;text-shadow:0 1px 3px #000;transition:opacity .6s}
 </style>
 </head>
@@ -52,7 +59,18 @@
     <p>You don't move the ball. You turn the world.</p>
     <div class="grid" id="levelGrid"></div>
     <p style="font-size:13px">Drag or circle your finger to rotate · ← → / A D<br>Q / E snap 90° · R restart · M toggle mode<br>Tap / click / Space to drop the ball</p>
-    <p style="font-size:11px;opacity:.45">prototype v0.6 · 50 levels</p>
+    <p style="font-size:11px;opacity:.45" id="ver">prototype v0.7 · 50 levels</p>
+  </div>
+</div>
+
+<div class="overlay" id="statsPanel">
+  <div class="panel wide">
+    <h2>Playtest stats</h2>
+    <p id="statsSummary" style="font-size:13px"></p>
+    <div class="tbl"><table id="statsTable"></table></div>
+    <label style="font-size:13px;display:block;margin-top:10px"><input type="checkbox" id="chkDeaths"> Show death spots (✕) inside levels</label>
+    <div class="row"><button id="bCopyStats" class="primary">Copy</button><button id="bResetStats">Reset</button><button id="bCloseStats">Close</button></div>
+    <textarea id="statsText" readonly style="display:none;width:100%;height:90px;margin-top:10px;font-size:11px;background:#07070d;color:#e8e8f0;border:1px solid #2c2c48"></textarea>
   </div>
 </div>
 
@@ -81,6 +99,10 @@ const SFX_VOLUME = 0.5;   // master volume 0..1
 const THUD_MIN_SPEED = 120; // impact speed below which wall hits are silent
 const MUSIC_VOLUME = 0.6; // background music level, relative to the master volume
 const MUSIC_BPM = 100;
+const GUIDE_LEVELS = 5;   // dotted "where you'll fall" preview on the first N levels
+const GUIDE_TIME = 1.2;   // seconds of predicted path
+const GHOST_HZ = 30;      // best-run ghost samples per second
+const HIT_FEEDBACK_SPEED = 350; // wall hits harder than this shake the screen + vibrate
 
 // ---------- Levels ----------
 // objs: rect centred at x,y with size w,h, rotated a degrees. t: wall | spike | goal | bounce
@@ -762,6 +784,31 @@ const COARSE = window.matchMedia && window.matchMedia("(pointer: coarse)").match
 let snapMode = false;
 const keys = {};
 const stars = Array.from({ length: 160 }, () => ({ x: Math.random() * 2 - 1, y: Math.random() * 2 - 1, s: Math.random() * 1.6 + 0.3, a: Math.random() * 0.6 + 0.2 }));
+// ---------- Playtest stats (kept on this device; hidden screen: tap the version 5x, or add ?stats) ----------
+let stats = {}, runOpen = false;
+try { stats = JSON.parse(localStorage.getItem("ws_stats") || "{}"); } catch (e) { stats = {}; }
+function stat() { // keyed by level name so reordering levels keeps the data
+  return stats[level.name] || (stats[level.name] = { tries: 0, deaths: 0, spikes: 0, voids: 0, wins: 0, firstWin: 0, best: null, time: 0, resets: 0, gaveUp: 0, spots: [] });
+}
+function saveStats() { try { localStorage.setItem("ws_stats", JSON.stringify(stats)); } catch (e) {} }
+// called when the current run ends without a win or death (restart / other level / menu pick)
+function leaveRun(changingLevel) {
+  const st = stats[level.name];
+  if (runOpen && st) { st.resets++; st.time += timer; }
+  if (changingLevel && st && st.tries > 0 && st.wins === 0) st.gaveUp++;
+  runOpen = false; saveStats();
+}
+let showDeaths = false;
+try { showDeaths = localStorage.getItem("ws_showdeaths") === "1"; } catch (e) {}
+
+// ---------- Best-run ghost ----------
+let ghosts = {}, ghost = null, rec = [];
+try { ghosts = JSON.parse(localStorage.getItem("ws_ghosts") || "{}"); } catch (e) { ghosts = {}; }
+function recordGhost(force) {
+  if (timer > 90) return;
+  if (force || timer * GHOST_HZ >= rec.length / 2) rec.push(Math.round(ball.x), Math.round(ball.y));
+}
+
 let progress = {};
 try { progress = JSON.parse(localStorage.getItem("ws_progress") || "{}"); } catch (e) { progress = {}; }
 
@@ -774,7 +821,9 @@ window.addEventListener("resize", resize);
 resize();
 
 function loadLevel(i) {
+  if (level) leaveRun(i !== levelIdx);
   levelIdx = i; level = LEVELS[i];
+  rec = []; ghost = ghosts[level.name] || null;
   for (const o of level.objs) if (o.bx === undefined) { o.bx = o.x; o.by = o.y; o.ba = o.a || 0; }
   worldT = 0; placeObjs(0);
   ball ={ x: level.start[0], y: level.start[1], vx: 0, vy: 0, spin: 0 };
@@ -801,8 +850,8 @@ function placeObjs(t) {
 }
 
 // ---------- Collision: circle vs rotated rect ----------
-function collide(o, r) {
-  const dx = ball.x - o.x, dy = ball.y - o.y;
+function collide(o, r, b = ball) {
+  const dx = b.x - o.x, dy = b.y - o.y;
   const lx = dx * o._c + dy * o._s, ly = -dx * o._s + dy * o._c;
   const hw = o.w / 2, hh = o.h / 2;
   const cx = Math.max(-hw, Math.min(hw, lx)), cy = Math.max(-hh, Math.min(hh, ly));
@@ -815,6 +864,57 @@ function collide(o, r) {
     const d = Math.sqrt(d2); nx = ex / d; ny = ey / d; depth = r - d;
   } else return null;
   return { nx: nx * o._c - ny * o._s, ny: nx * o._s + ny * o._c, depth };
+}
+
+// push body b out of o, then bounce + rolling friction; returns impact speed (0 = no impact)
+// shared by the real ball and the trajectory preview so the preview never lies
+function respond(b, o, c, h) {
+  b.x += c.nx * c.depth; b.y += c.ny * c.depth;
+  const vn = b.vx * c.nx + b.vy * c.ny;
+  if (vn >= 0) return 0;
+  const e = o.t === "bounce" ? 1.0 : 0.15;
+  b.vx -= (1 + e) * vn * c.nx; b.vy -= (1 + e) * vn * c.ny;
+  if (o.t === "bounce") { b.vx += c.nx * 260; b.vy += c.ny * 260; }
+  const tx = -c.ny, ty = c.nx, vt = b.vx * tx + b.vy * ty, k = Math.min(1, 0.9 * h);
+  b.vx -= tx * vt * k; b.vy -= ty * vt * k;
+  return -vn;
+}
+function stepBody(b, gx, gy, h) {
+  b.vx += gx * h; b.vy += gy * h;
+  const sp = Math.hypot(b.vx, b.vy);
+  if (sp > MAX_SPEED) { b.vx *= MAX_SPEED / sp; b.vy *= MAX_SPEED / sp; }
+  b.x += b.vx * h; b.y += b.vy * h;
+}
+
+// ---------- Trajectory preview (early levels) ----------
+// simulates the ball from now with the world held at its current angle (objects frozen in place)
+function predictPath() {
+  const b = { x: ball.x, y: ball.y, vx: ball.vx, vy: ball.vy };
+  const gx = Math.sin(angle) * G, gy = Math.cos(angle) * G, h = 1 / 60 / SUBSTEPS, pts = [];
+  for (let f = 0; f < GUIDE_TIME * 60; f++) {
+    for (let s = 0; s < SUBSTEPS; s++) {
+      stepBody(b, gx, gy, h);
+      for (const o of level.objs) {
+        const c = collide(o, BALL_R, b);
+        if (!c) continue;
+        if (o.t === "spike" || o.t === "goal") { pts.push([b.x, b.y]); return { pts, end: o.t }; }
+        respond(b, o, c, h);
+      }
+    }
+    if (level.bounds && Math.hypot(b.x, b.y) > level.bounds) { pts.push([b.x, b.y]); return { pts, end: "void" }; }
+    if (f % 3 === 2) pts.push([b.x, b.y]);
+  }
+  return { pts, end: null };
+}
+
+// ---------- Haptics ----------
+let lastBuzz = 0;
+function buzz(pattern) {
+  if (Sfx.muted || !navigator.vibrate) return; // muting also silences vibration
+  const now = performance.now();
+  if (now - lastBuzz < 80) return;
+  lastBuzz = now;
+  try { navigator.vibrate(pattern); } catch (e) {}
 }
 
 // ---------- Update ----------
@@ -839,34 +939,28 @@ function update(dt) {
 
   if (freeze > 0) { freeze -= dt; return; }
   if (waiting) return; // hold the ball until the player taps / clicks
-  if (!dropped) { dropped = true; Sfx.drop(); }
+  if (!dropped) { dropped = true; Sfx.drop(); stat().tries++; runOpen = true; }
   timer += dt;
 
   const gx = Math.sin(angle) * G, gy = Math.cos(angle) * G;
   const h = dt / SUBSTEPS;
   for (let s = 0; s < SUBSTEPS; s++) {
-    ball.vx += gx * h; ball.vy += gy * h;
-    const sp = Math.hypot(ball.vx, ball.vy);
-    if (sp > MAX_SPEED) { ball.vx *= MAX_SPEED / sp; ball.vy *= MAX_SPEED / sp; }
-    ball.x += ball.vx * h; ball.y += ball.vy * h;
+    stepBody(ball, gx, gy, h);
     for (const o of level.objs) {
       const c = collide(o, BALL_R);
       if (!c) continue;
       if (o.t === "spike") return die("spike");
       if (o.t === "goal") return win();
-      ball.x += c.nx * c.depth; ball.y += c.ny * c.depth;
-      const vn = ball.vx * c.nx + ball.vy * c.ny;
-      if (vn < 0) {
-        const e = o.t === "bounce" ? 1.0 : 0.15;
-        ball.vx -= (1 + e) * vn * c.nx; ball.vy -= (1 + e) * vn * c.ny;
-        if (o.t === "bounce") { ball.vx += c.nx * 260; ball.vy += c.ny * 260; burst(ball.x, ball.y, "#ffa640", 10); Sfx.bounce(); }
-        else Sfx.thud(-vn);
-        // rolling friction along the surface
-        const tx = -c.ny, ty = c.nx, vt = ball.vx * tx + ball.vy * ty, k = Math.min(1, 0.9 * h);
-        ball.vx -= tx * vt * k; ball.vy -= ty * vt * k;
+      const imp = respond(ball, o, c, h);
+      if (!imp) continue;
+      if (o.t === "bounce") { burst(ball.x, ball.y, "#ffa640", 10); Sfx.bounce(); buzz(15); }
+      else {
+        Sfx.thud(imp);
+        if (imp > HIT_FEEDBACK_SPEED) { shake = Math.max(shake, Math.min(0.5, imp / 1600)); buzz(12); }
       }
     }
   }
+  recordGhost();
   if (level.bounds && Math.hypot(ball.x, ball.y) > level.bounds) return die("void");
 
   // rolling spin uses on-screen horizontal speed
@@ -880,12 +974,26 @@ function die(kind) {
   state = "dead"; deadT = 0.75; deaths.n++; shake = 1;
   burst(ball.x, ball.y, "#ff4d6d", 34);
   if (kind === "void") Sfx.fall(); else Sfx.spike();
+  buzz([30, 40, 60]);
+  const st = stat();
+  st.deaths++; st[kind === "void" ? "voids" : "spikes"]++; st.time += timer;
+  st.spots.push([Math.round(ball.x), Math.round(ball.y)]); if (st.spots.length > 60) st.spots.shift();
+  runOpen = false; saveStats();
 }
 function win() {
   state = "won";
   burst(ball.x, ball.y, "#4fd18b", 40);
   Sfx.win();
+  buzz([20, 60, 20, 60, 40]);
   const t = timer, st = t <= level.par[0] ? 3 : t <= level.par[1] ? 2 : 1;
+  const ls = stat();
+  ls.wins++; ls.time += t; if (!ls.firstWin) ls.firstWin = ls.tries;
+  if (ls.best === null || t < ls.best) ls.best = Math.round(t * 100) / 100;
+  runOpen = false; saveStats();
+  // keep the fastest run as a ghost
+  recordGhost(true);
+  const gk = level.name;
+  if (!ghosts[gk] || t < ghosts[gk].t) { ghosts[gk] = { t, p: rec }; try { localStorage.setItem("ws_ghosts", JSON.stringify(ghosts)); } catch (e) {} }
   const prev = progress[levelIdx] || 0;
   if (st > prev) { progress[levelIdx] = st; try { localStorage.setItem("ws_progress", JSON.stringify(progress)); } catch (e) {} }
   const wonLevel = levelIdx;
@@ -939,6 +1047,37 @@ function render(now) {
   }
 
   for (const o of level.objs) drawObj(o, now);
+
+  if (showDeaths && stats[level.name]) { // designer view: where players died
+    ctx.strokeStyle = "rgba(255,90,120,0.75)"; ctx.lineWidth = 3;
+    ctx.beginPath();
+    for (const [x, y] of stats[level.name].spots) { ctx.moveTo(x - 7, y - 7); ctx.lineTo(x + 7, y + 7); ctx.moveTo(x + 7, y - 7); ctx.lineTo(x - 7, y + 7); }
+    ctx.stroke();
+  }
+
+  // best-run ghost
+  if (ghost && dropped && (state === "play" || state === "dead") && timer <= ghost.t + 0.4) {
+    const n = ghost.p.length / 2, k = Math.min(n - 1, Math.floor(timer * GHOST_HZ));
+    ctx.globalAlpha = 0.28; ctx.fillStyle = "#9fe8ff";
+    ctx.beginPath(); ctx.arc(ghost.p[2 * k], ghost.p[2 * k + 1], BALL_R, 0, Math.PI * 2); ctx.fill();
+    ctx.globalAlpha = 1;
+  }
+
+  // where you'll fall (first few levels only)
+  if (levelIdx < GUIDE_LEVELS && state === "play") {
+    const { pts, end } = predictPath();
+    const col = end === "goal" ? "79,209,139" : end ? "255,77,109" : "220,225,255";
+    pts.forEach(([x, y], j) => {
+      ctx.globalAlpha = 0.65 * (1 - j / (pts.length + 2)); ctx.fillStyle = `rgb(${col})`;
+      ctx.beginPath(); ctx.arc(x, y, 3.2, 0, Math.PI * 2); ctx.fill();
+    });
+    if (end && pts.length) {
+      const [x, y] = pts[pts.length - 1];
+      ctx.globalAlpha = 0.8; ctx.strokeStyle = `rgb(${col})`; ctx.lineWidth = 2.5;
+      ctx.beginPath(); ctx.arc(x, y, BALL_R, 0, Math.PI * 2); ctx.stroke();
+    }
+    ctx.globalAlpha = 1;
+  }
 
   // trail
   for (let i = 0; i < trail.length; i++) {
@@ -1152,6 +1291,61 @@ document.getElementById("bRetry").onclick = () => { hide("win"); restart(); };
 document.getElementById("bNext").onclick = next;
 document.getElementById("menu").addEventListener("pointerdown", e => { if (e.target.id === "menu" && level) { hide("menu"); if (state === "paused") state = "play"; } });
 
+// ---------- Stats screen ----------
+function statsRows() {
+  const rows = [];
+  LEVELS.forEach((l, i) => {
+    const st = stats[l.name];
+    if (!st || !st.tries) return;
+    rows.push({ n: i + 1, name: l.name, ...st, avg: st.time / st.tries, winPct: st.wins / st.tries });
+  });
+  return rows;
+}
+function openStats() {
+  const rows = statsRows();
+  const total = rows.reduce((a, r) => a + r.time, 0), beaten = rows.filter(r => r.wins).length;
+  const furthest = rows.length ? Math.max(...rows.map(r => r.n)) : 0;
+  document.getElementById("statsSummary").textContent = rows.length
+    ? `${Math.round(total / 60)} min played · ${beaten} levels beaten · furthest level ${furthest} · red rows: hardest (lowest win rate, 3+ tries)`
+    : "No data yet: play a few levels first.";
+  const hard = rows.filter(r => r.tries >= 3).sort((a, b) => a.winPct - b.winPct).slice(0, 5).map(r => r.n);
+  document.getElementById("statsTable").innerHTML =
+    "<tr><th>#</th><th>Level</th><th>Tries</th><th>Wins</th><th>Win %</th><th>1st win on try</th><th>Spikes</th><th>Void</th><th>Resets</th><th>Gave up</th><th>Best</th><th>Avg try</th></tr>" +
+    rows.map(r => `<tr class="${hard.includes(r.n) ? "hot" : ""}"><td>${r.n}</td><td>${r.name}</td><td>${r.tries}</td><td>${r.wins}</td><td>${Math.round(r.winPct * 100)}%</td>` +
+      `<td>${r.firstWin || "–"}</td><td>${r.spikes}</td><td>${r.voids}</td><td>${r.resets}</td><td>${r.gaveUp}</td><td>${r.best !== null ? r.best + "s" : "–"}</td><td>${r.avg.toFixed(1)}s</td></tr>`).join("");
+  document.getElementById("chkDeaths").checked = showDeaths;
+  document.getElementById("statsText").style.display = "none";
+  show("statsPanel");
+}
+function statsTSV() {
+  const head = ["level", "name", "tries", "wins", "win_pct", "first_win_try", "spike_deaths", "void_deaths", "resets", "gave_up", "best_s", "avg_try_s"];
+  const lines = statsRows().map(r => [r.n, r.name, r.tries, r.wins, Math.round(r.winPct * 100), r.firstWin, r.spikes, r.voids, r.resets, r.gaveUp, r.best ?? "", r.avg.toFixed(1)].join("\t"));
+  return `World Shifter ${document.getElementById("ver").textContent} · ${new Date().toISOString().slice(0, 10)} · screen ${W}x${H}\n` + [head.join("\t"), ...lines].join("\n");
+}
+document.getElementById("bCopyStats").onclick = () => {
+  const txt = statsTSV(), ta = document.getElementById("statsText"), btn = document.getElementById("bCopyStats");
+  ta.value = txt; ta.style.display = "block";
+  const done = () => { btn.textContent = "Copied ✓"; setTimeout(() => btn.textContent = "Copy", 1500); };
+  if (navigator.clipboard && window.isSecureContext) navigator.clipboard.writeText(txt).then(done, () => ta.select());
+  else { ta.select(); try { document.execCommand("copy"); done(); } catch (e) {} }
+};
+document.getElementById("bResetStats").onclick = () => {
+  if (!confirm("Delete all playtest stats on this device?")) return;
+  stats = {}; saveStats(); openStats();
+};
+document.getElementById("bCloseStats").onclick = () => hide("statsPanel");
+document.getElementById("chkDeaths").onchange = e => {
+  showDeaths = e.target.checked;
+  try { localStorage.setItem("ws_showdeaths", showDeaths ? "1" : "0"); } catch (err) {}
+};
+let verTaps = [];
+document.getElementById("ver").addEventListener("click", () => {
+  const now = performance.now();
+  verTaps = verTaps.filter(t => now - t < 2000); verTaps.push(now);
+  if (verTaps.length >= 5) { verTaps = []; openStats(); }
+});
+window.addEventListener("pagehide", () => { if (level) leaveRun(false); });
+
 // ---------- Loop ----------
 let last = performance.now();
 function frame(now) {
@@ -1162,6 +1356,7 @@ function frame(now) {
 }
 buildMenu();
 loadLevel(0); show("menu"); state = "paused";
+if (/[?&]stats\b/.test(location.search)) openStats();
 requestAnimationFrame(frame);
 </script>
 </body>
