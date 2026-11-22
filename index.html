@@ -1,0 +1,651 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="theme-color" content="#07070d">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>World Shifter — demo</title>
+<style>
+  html,body{overscroll-behavior:none;margin:0;height:100%;background:#07070d;overflow:hidden;font-family:system-ui,-apple-system,Segoe UI,sans-serif;color:#e8e8f0;touch-action:none;user-select:none;-webkit-user-select:none}
+  canvas{display:block;width:100vw;height:100vh}
+  #hud{position:fixed;top:0;left:0;right:0;display:flex;justify-content:space-between;align-items:center;gap:8px;padding:calc(env(safe-area-inset-top) + 10px) 12px 10px;pointer-events:none;font-size:15px}
+  #hud .info{text-align:center;line-height:1.3;text-shadow:0 1px 3px #000}
+  #hud .info b{font-size:16px}
+  #hud .btns{display:flex;gap:6px}
+  #hud button{pointer-events:auto}
+  button{background:#1b1b2e;color:#e8e8f0;border:1px solid #3a3a5c;border-radius:10px;padding:8px 12px;font-size:15px;cursor:pointer;font-family:inherit}
+  button:active{transform:scale(.96)}
+  button.primary{background:#2d6b4a;border-color:#4fd18b}
+  .overlay{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:rgba(5,5,12,.8);z-index:5}
+  .overlay.show{display:flex}
+  .panel{background:#11111e;border:1px solid #2c2c48;border-radius:16px;padding:22px;max-width:420px;width:86%;text-align:center}
+  .panel h1{margin:0 0 4px;font-size:26px;letter-spacing:1px}
+  .panel h2{margin:0 0 8px;font-size:22px}
+  .panel p{opacity:.8;margin:6px 0}
+  .grid{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin:14px 0}
+  .grid button{padding:9px 0;font-size:17px;line-height:1.2}
+  .chap{grid-column:1/-1;text-align:left;font-size:12px;opacity:.6;letter-spacing:1px;text-transform:uppercase;margin-top:4px}
+  .panel{max-height:88vh;overflow-y:auto}
+  .grid small{display:block;font-size:12px;color:#ffd34d;min-height:14px}
+  .row{display:flex;gap:10px;justify-content:center;margin-top:14px}
+  .stars{font-size:34px;letter-spacing:6px;color:#ffd34d;margin:6px 0}
+  #hint{position:fixed;bottom:calc(env(safe-area-inset-bottom) + 18px);left:0;right:0;text-align:center;opacity:.8;pointer-events:none;font-size:15px;padding:0 20px;text-shadow:0 1px 3px #000;transition:opacity .6s}
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+
+<div id="hud">
+  <div class="btns"><button id="bMenu">☰</button><button id="bRestart">↻</button></div>
+  <div class="info"><b id="lvlName"></b><br><span id="stats"></span></div>
+  <div class="btns"><button id="bMode">Smooth</button></div>
+</div>
+<div id="hint"></div>
+
+<div class="overlay show" id="menu">
+  <div class="panel">
+    <h1>WORLD SHIFTER</h1>
+    <p>You don't move the ball. You turn the world.</p>
+    <div class="grid" id="levelGrid"></div>
+    <p style="font-size:13px">Drag left/right or use ← → / A D to rotate<br>Q / E snap 90° · R restart · M toggle mode</p>
+    <p style="font-size:11px;opacity:.45">prototype v0.2 · 20 levels</p>
+  </div>
+</div>
+
+<div class="overlay" id="win">
+  <div class="panel">
+    <h2>Landed!</h2>
+    <div class="stars" id="winStars"></div>
+    <p id="winInfo"></p>
+    <div class="row"><button id="bRetry">↻ Retry</button><button id="bNext" class="primary">Next ▶</button></div>
+  </div>
+</div>
+
+<script>
+"use strict";
+// ---------- Tuning ----------
+const G = 950;            // gravity, world units / s^2
+const MAX_SPEED = 1100;
+const BALL_R = 14;
+const ROT_SPEED = 2.6;    // rad/s for keyboard rotation
+const DRAG_RAD_PER_PX = 0.0065;
+const SUBSTEPS = 5;
+const START_FREEZE = 0.6; // seconds before gravity kicks in
+
+// ---------- Levels ----------
+// objs: rect centred at x,y with size w,h, rotated a degrees. t: wall | spike | goal | bounce
+//   m: [dx, dy, period]  → slides back and forth by ±dx/±dy every `period` seconds
+//   spin: degrees per second → rotates around its centre
+// cam: 'follow' (world rotates around the ball) or 'fixed' (rotates around the level centre)
+// bounds: open levels only — leave this circle and the void takes you
+// par: [3-star seconds, 2-star seconds]
+const box = (hw, hh, t = "wall") => [
+  { x: 0, y: hh + 12, w: 2 * hw + 48, h: 24, t },
+  { x: 0, y: -hh - 12, w: 2 * hw + 48, h: 24, t },
+  { x: -hw - 12, y: 0, w: 24, h: 2 * hh + 48, t },
+  { x: hw + 12, y: 0, w: 24, h: 2 * hh + 48, t },
+];
+
+const LEVELS = [
+  // ── Chapter 1: learn to turn ─────────────────────────────
+  { name: "Steer the Fall", cam: "follow", view: 820, bounds: 650, start: [0, -250], par: [3, 6],
+    hint: "Drag left/right (or ← →) to rotate the world. Miss the spikes, land on the green pad.",
+    objs: [
+      { x: 0, y: 200, w: 140, h: 24, t: "spike" },
+      { x: 190, y: 200, w: 160, h: 24, t: "goal" },
+    ] },
+  { name: "Over the Wall", cam: "fixed", view: 720, start: [-150, 234], par: [5, 10],
+    hint: "Turn the whole box to roll the ball over the wall.",
+    objs: [
+      ...box(250, 250),
+      { x: 0, y: 60, w: 24, h: 380, t: "wall" },
+      { x: 160, y: 240, w: 120, h: 20, t: "goal" },
+    ] },
+  { name: "Funnel", cam: "follow", view: 820, bounds: 650, start: [0, -250], par: [4, 8],
+    hint: "The funnel drops you on the spikes. Steer out the moment you leave it.",
+    objs: [
+      { x: -110, y: -40, w: 200, h: 16, a: 35, t: "wall" },
+      { x: 110, y: -40, w: 200, h: 16, a: -35, t: "wall" },
+      { x: 0, y: 220, w: 200, h: 24, t: "spike" },
+      { x: -230, y: 200, w: 120, h: 20, t: "goal" },
+    ] },
+  { name: "Spike Garden", cam: "follow", view: 860, bounds: 700, start: [0, -295], par: [5, 10],
+    hint: "Roll off the ledge, then steer the fall across.",
+    objs: [
+      { x: 0, y: -270, w: 120, h: 20, t: "wall" },
+      { x: 100, y: -60, w: 120, h: 24, t: "spike" },
+      { x: 0, y: 260, w: 800, h: 24, t: "spike" },
+      { x: 290, y: 40, w: 140, h: 20, t: "goal" },
+    ] },
+  { name: "Zigzag", cam: "fixed", view: 820, start: [-170, -204], par: [8, 16],
+    hint: "Shelf to shelf. Tilt, drop, tilt back.",
+    objs: [
+      ...box(220, 340),
+      { x: -50, y: -180, w: 340, h: 20, t: "wall" },
+      { x: 50, y: 0, w: 340, h: 20, t: "wall" },
+      { x: -50, y: 180, w: 340, h: 20, t: "wall" },
+      { x: -170, y: 330, w: 80, h: 20, t: "goal" },
+    ] },
+
+  // ── Chapter 2: use the whole world ───────────────────────
+  { name: "Island Hop", cam: "follow", view: 900, bounds: 760, start: [-340, -26], par: [8, 16],
+    hint: "Fall from island to island. The void is hungry.",
+    objs: [
+      { x: -320, y: 0, w: 140, h: 20, t: "wall" },
+      { x: -60, y: 140, w: 140, h: 20, t: "wall" },
+      { x: 170, y: -60, w: 140, h: 20, a: -20, t: "wall" },
+      { x: 60, y: -200, w: 90, h: 20, t: "bounce" },
+      { x: 380, y: 120, w: 120, h: 20, t: "goal" },
+    ] },
+  { name: "Labyrinth", cam: "fixed", view: 820, start: [-240, -128], par: [14, 28],
+    hint: "Snake down through the gaps. Spikes at the bottom: go across the ceiling instead.",
+    objs: [
+      ...box(300, 300),
+      { x: -60, y: -100, w: 480, h: 24, t: "wall" },
+      { x: 60, y: 100, w: 480, h: 24, t: "wall" },
+      { x: 0, y: 295, w: 110, h: 24, t: "spike" },
+      { x: 250, y: 290, w: 70, h: 20, t: "goal" },
+    ] },
+  { name: "Upside Down", cam: "fixed", view: 720, start: [-170, 236], par: [5, 10],
+    hint: "The goal is under the block. Roll into the cradle, then flip the world.",
+    objs: [
+      { x: -75, y: 238, w: 16, h: 24, t: "wall" },
+      { x: 75, y: 238, w: 16, h: 24, t: "wall" },
+      { x: 0, y: 262, w: 548, h: 24, t: "wall" },
+      { x: 0, y: -262, w: 548, h: 24, t: "spike" },
+      { x: -262, y: 0, w: 24, h: 548, t: "wall" },
+      { x: 262, y: 0, w: 24, h: 548, t: "wall" },
+      { x: -240, y: -140, w: 20, h: 180, t: "spike" },
+      { x: 240, y: -140, w: 20, h: 180, t: "spike" },
+      { x: 0, y: 0, w: 180, h: 60, t: "wall" },
+      { x: 0, y: 40, w: 120, h: 20, t: "goal" },
+    ] },
+  { name: "Bounce Gap", cam: "follow", view: 900, bounds: 700, start: [-300, -24], par: [5, 10],
+    hint: "Orange pads launch you. Hit it, then steer to the far side.",
+    objs: [
+      { x: -300, y: 0, w: 140, h: 20, t: "wall" },
+      { x: -170, y: 170, w: 200, h: 24, t: "spike" },
+      { x: 0, y: 170, w: 120, h: 20, t: "bounce" },
+      { x: 170, y: 170, w: 200, h: 24, t: "spike" },
+      { x: 320, y: 0, w: 120, h: 20, t: "goal" },
+    ] },
+  { name: "Corner Shot", cam: "fixed", view: 720, start: [-200, 226], par: [4, 8],
+    hint: "Spikes on floor and ceiling. Point gravity straight at the far corner.",
+    objs: [
+      ...box(240, 240),
+      { x: 40, y: 230, w: 400, h: 20, t: "spike" },
+      { x: -40, y: -230, w: 400, h: 20, t: "spike" },
+      { x: 200, y: -230, w: 80, h: 20, t: "goal" },
+    ] },
+
+  // ── Chapter 3: things that move ──────────────────────────
+  { name: "Slider", cam: "fixed", view: 720, start: [0, -212], par: [5, 10],
+    hint: "Hazards move now. Wait for your moment.",
+    objs: [
+      ...box(250, 250),
+      { x: 0, y: -190, w: 100, h: 16, t: "wall" },
+      { x: 0, y: 20, w: 100, h: 24, t: "spike", m: [170, 0, 2.6] },
+      { x: -240, y: 130, w: 20, h: 200, t: "spike" },
+      { x: 240, y: 130, w: 20, h: 200, t: "spike" },
+      { x: 0, y: 240, w: 100, h: 20, t: "goal" },
+    ] },
+  { name: "Spinner", cam: "fixed", view: 820, bounds: 600, start: [-250, -244], par: [5, 10],
+    hint: "Slip past the spinning blade.",
+    objs: [
+      { x: -250, y: -220, w: 120, h: 20, t: "wall" },
+      { x: 0, y: 0, w: 280, h: 20, t: "spike", spin: 70 },
+      { x: 250, y: 230, w: 120, h: 20, t: "goal" },
+    ] },
+  { name: "Crusher Corridor", cam: "fixed", view: 860, start: [-340, 66], par: [8, 16],
+    hint: "Floor or ceiling? Flip to whichever side is open.",
+    objs: [
+      ...box(380, 80),
+      { x: -170, y: 0, w: 24, h: 100, t: "spike", m: [0, 50, 2.2] },
+      { x: 0, y: 0, w: 24, h: 100, t: "spike", m: [0, -50, 2.2] },
+      { x: 170, y: 0, w: 24, h: 100, t: "spike", m: [0, 50, 1.6] },
+      { x: 370, y: 0, w: 20, h: 120, t: "goal" },
+    ] },
+  { name: "Needle", cam: "follow", view: 860, bounds: 700, start: [0, -320], par: [4, 8],
+    hint: "Thread the moving gap, then find the pad.",
+    objs: [
+      { x: -96, y: -60, w: 140, h: 24, t: "spike", m: [120, 0, 4] },
+      { x: 96, y: -60, w: 140, h: 24, t: "spike", m: [120, 0, 4] },
+      { x: 0, y: 300, w: 800, h: 24, t: "spike" },
+      { x: 150, y: 250, w: 70, h: 20, t: "goal" },
+    ] },
+  { name: "Crossroads", cam: "fixed", view: 720, start: [-110, -26], par: [8, 16],
+    hint: "Two ways round. Each one has a gatekeeper.",
+    objs: [
+      ...box(260, 260),
+      { x: 0, y: 0, w: 300, h: 24, t: "wall" },
+      { x: 0, y: 0, w: 24, h: 300, t: "wall" },
+      { x: 0, y: -205, w: 24, h: 60, t: "spike", m: [0, 40, 2] },
+      { x: -205, y: 0, w: 60, h: 24, t: "spike", m: [40, 0, 2] },
+      { x: 200, y: 245, w: 80, h: 20, t: "goal" },
+    ] },
+
+  // ── Chapter 4: everything at once ────────────────────────
+  { name: "Moving Target", cam: "follow", view: 860, bounds: 700, start: [0, -295], par: [5, 10],
+    hint: "The pad won't wait for you.",
+    objs: [
+      { x: 0, y: -270, w: 120, h: 20, t: "wall" },
+      { x: 0, y: -60, w: 100, h: 24, t: "spike", spin: 90 },
+      { x: 0, y: 280, w: 800, h: 24, t: "spike" },
+      { x: 0, y: 150, w: 90, h: 20, t: "goal", m: [220, 0, 3.2] },
+    ] },
+  { name: "Long Fall", cam: "follow", view: 900, bounds: 1150, start: [0, -900], par: [6, 12],
+    hint: "A long way down. Keep weaving.",
+    objs: [
+      { x: -100, y: -600, w: 240, h: 24, t: "spike" },
+      { x: 120, y: -300, w: 240, h: 24, t: "spike" },
+      { x: -80, y: 0, w: 280, h: 24, t: "spike" },
+      { x: 100, y: 300, w: 260, h: 24, t: "spike" },
+      { x: 0, y: 600, w: 220, h: 24, t: "spike" },
+      { x: 0, y: 900, w: 140, h: 20, t: "goal" },
+    ] },
+  { name: "Corkscrew", cam: "fixed", view: 820, start: [-170, -204], par: [12, 24],
+    hint: "Zigzag again — but the shelves have pop-up spikes. Roll across while they're down.",
+    objs: [
+      ...box(220, 340),
+      { x: -50, y: -180, w: 340, h: 20, t: "wall" },
+      { x: 50, y: 0, w: 340, h: 20, t: "wall" },
+      { x: -50, y: 180, w: 340, h: 20, t: "wall" },
+      // pop-up spikes: rise out of the shelf and sink back (down ≈ 1/3 of the cycle)
+      { x: 40, y: -6, w: 40, h: 24, t: "spike", m: [0, 16, 2.2] },
+      { x: -40, y: 174, w: 40, h: 24, t: "spike", m: [0, 16, 1.8] },
+      { x: -170, y: 330, w: 80, h: 20, t: "goal" },
+    ] },
+  { name: "Twin Blades", cam: "fixed", view: 760, start: [0, -242], par: [5, 10],
+    hint: "Two blades, one narrow path through the middle.",
+    objs: [
+      ...box(280, 280),
+      { x: 0, y: -220, w: 100, h: 16, t: "wall" },
+      { x: -120, y: 0, w: 180, h: 18, t: "spike", spin: 80 },
+      { x: 120, y: 0, w: 180, h: 18, t: "spike", spin: -80 },
+      { x: -200, y: 270, w: 120, h: 20, t: "spike" },
+      { x: 200, y: 270, w: 120, h: 20, t: "spike" },
+      { x: 0, y: 270, w: 90, h: 20, t: "goal" },
+    ] },
+  { name: "Final Shift", cam: "fixed", view: 820, start: [-230, 178], par: [10, 20],
+    hint: "Everything you've learned. Good luck.",
+    objs: [
+      ...box(300, 300),
+      { x: -230, y: 200, w: 120, h: 16, t: "wall" },
+      { x: 0, y: -290, w: 600, h: 20, t: "spike" },
+      { x: -100, y: 290, w: 400, h: 20, t: "spike" },
+      { x: -40, y: -20, w: 260, h: 18, t: "spike", spin: 90 },
+      { x: 290, y: 150, w: 20, h: 240, t: "spike" },
+      // goal sits in a pocket on the right wall, guarded by a sliding spike
+      { x: 255, y: -152, w: 90, h: 16, t: "wall" },
+      { x: 255, y: -48, w: 90, h: 16, t: "wall" },
+      { x: 195, y: -100, w: 20, h: 60, t: "spike", m: [0, 80, 2] },
+      { x: 290, y: -100, w: 20, h: 70, t: "goal" },
+    ] },
+];
+
+// ---------- State ----------
+const cv = document.getElementById("c");
+const ctx = cv.getContext("2d");
+let W = 0, H = 0, DPR = 1;
+let levelIdx = 0, level = null;
+let ball, angle, angVel, targetAngle, cam, state, timer, deaths, freeze, deadT, trail, particles, shake, worldT = 0;
+let snapMode = false;
+const keys = {};
+const stars = Array.from({ length: 160 }, () => ({ x: Math.random() * 2 - 1, y: Math.random() * 2 - 1, s: Math.random() * 1.6 + 0.3, a: Math.random() * 0.6 + 0.2 }));
+let progress = {};
+try { progress = JSON.parse(localStorage.getItem("ws_progress") || "{}"); } catch (e) { progress = {}; }
+
+function resize() {
+  DPR = Math.min(window.devicePixelRatio || 1, 2);
+  W = window.innerWidth; H = window.innerHeight;
+  cv.width = W * DPR; cv.height = H * DPR;
+}
+window.addEventListener("resize", resize);
+resize();
+
+function loadLevel(i) {
+  levelIdx = i; level = LEVELS[i];
+  for (const o of level.objs) if (o.bx === undefined) { o.bx = o.x; o.by = o.y; o.ba = o.a || 0; }
+  worldT = 0; placeObjs(0);
+  ball ={ x: level.start[0], y: level.start[1], vx: 0, vy: 0, spin: 0 };
+  angle = 0; angVel = 0; targetAngle = 0;
+  cam = level.cam === "fixed" ? { x: 0, y: 0 } : { x: ball.x, y: ball.y };
+  state = "play"; timer = 0; freeze = START_FREEZE; trail = []; particles = []; shake = 0;
+  if (deaths === undefined || deaths.level !== i) deaths = { level: i, n: 0 };
+  document.getElementById("lvlName").textContent = `${i + 1}. ${level.name}`;
+  const hint = document.getElementById("hint");
+  hint.textContent = level.hint; hint.style.opacity = 0.85;
+  hide("menu"); hide("win");
+}
+function restart() { loadLevel(levelIdx); }
+
+// moving / spinning objects are a pure function of level time
+function placeObjs(t) {
+  for (const o of level.objs) {
+    if (o.m) { const s = Math.sin(2 * Math.PI * t / o.m[2]); o.x = o.bx + o.m[0] * s; o.y = o.by + o.m[1] * s; }
+    o._ang = (o.ba + (o.spin || 0) * t) * Math.PI / 180;
+    o._c = Math.cos(o._ang); o._s = Math.sin(o._ang);
+  }
+}
+
+// ---------- Collision: circle vs rotated rect ----------
+function collide(o, r) {
+  const dx = ball.x - o.x, dy = ball.y - o.y;
+  const lx = dx * o._c + dy * o._s, ly = -dx * o._s + dy * o._c;
+  const hw = o.w / 2, hh = o.h / 2;
+  const cx = Math.max(-hw, Math.min(hw, lx)), cy = Math.max(-hh, Math.min(hh, ly));
+  let ex = lx - cx, ey = ly - cy, d2 = ex * ex + ey * ey, nx, ny, depth;
+  if (d2 === 0) { // centre inside rect: push out along the nearest side
+    const dl = lx + hw, dr = hw - lx, dt = ly + hh, db = hh - ly, m = Math.min(dl, dr, dt, db);
+    if (m === dl) { nx = -1; ny = 0; } else if (m === dr) { nx = 1; ny = 0; } else if (m === dt) { nx = 0; ny = -1; } else { nx = 0; ny = 1; }
+    depth = m + r;
+  } else if (d2 < r * r) {
+    const d = Math.sqrt(d2); nx = ex / d; ny = ey / d; depth = r - d;
+  } else return null;
+  return { nx: nx * o._c - ny * o._s, ny: nx * o._s + ny * o._c, depth };
+}
+
+// ---------- Update ----------
+function update(dt) {
+  // hint fades after a few seconds
+  if (state === "play" && timer > 3.5) document.getElementById("hint").style.opacity = 0;
+
+  if (state === "dead") { deadT -= dt; if (deadT <= 0) restart(); }
+  updateParticles(dt);
+  shake = Math.max(0, shake - dt * 3);
+  if (state === "play" || state === "dead") { worldT += dt; placeObjs(worldT); }
+  if (state !== "play") return;
+
+  // rotation input
+  if (snapMode) {
+    angle += (targetAngle - angle) * Math.min(1, dt * 10);
+  } else {
+    const dir = (keys.right ? 1 : 0) - (keys.left ? 1 : 0);
+    angVel += (dir * ROT_SPEED - angVel) * Math.min(1, dt * 14);
+    angle += angVel * dt;
+  }
+
+  if (freeze > 0) { freeze -= dt; return; }
+  timer += dt;
+
+  const gx = Math.sin(angle) * G, gy = Math.cos(angle) * G;
+  const h = dt / SUBSTEPS;
+  for (let s = 0; s < SUBSTEPS; s++) {
+    ball.vx += gx * h; ball.vy += gy * h;
+    const sp = Math.hypot(ball.vx, ball.vy);
+    if (sp > MAX_SPEED) { ball.vx *= MAX_SPEED / sp; ball.vy *= MAX_SPEED / sp; }
+    ball.x += ball.vx * h; ball.y += ball.vy * h;
+    for (const o of level.objs) {
+      const c = collide(o, BALL_R);
+      if (!c) continue;
+      if (o.t === "spike") return die();
+      if (o.t === "goal") return win();
+      ball.x += c.nx * c.depth; ball.y += c.ny * c.depth;
+      const vn = ball.vx * c.nx + ball.vy * c.ny;
+      if (vn < 0) {
+        const e = o.t === "bounce" ? 1.0 : 0.15;
+        ball.vx -= (1 + e) * vn * c.nx; ball.vy -= (1 + e) * vn * c.ny;
+        if (o.t === "bounce") { ball.vx += c.nx * 260; ball.vy += c.ny * 260; burst(ball.x, ball.y, "#ffa640", 10); }
+        // rolling friction along the surface
+        const tx = -c.ny, ty = c.nx, vt = ball.vx * tx + ball.vy * ty, k = Math.min(1, 0.9 * h);
+        ball.vx -= tx * vt * k; ball.vy -= ty * vt * k;
+      }
+    }
+  }
+  if (level.bounds && Math.hypot(ball.x, ball.y) > level.bounds) return die();
+
+  // rolling spin uses on-screen horizontal speed
+  const sx = ball.vx * Math.cos(angle) - ball.vy * Math.sin(angle);
+  ball.spin += sx / BALL_R * dt;
+  trail.push({ x: ball.x, y: ball.y }); if (trail.length > 18) trail.shift();
+  if (level.cam === "follow") { const k = Math.min(1, dt * 6); cam.x += (ball.x - cam.x) * k; cam.y += (ball.y - cam.y) * k; }
+}
+
+function die() {
+  state = "dead"; deadT = 0.75; deaths.n++; shake = 1;
+  burst(ball.x, ball.y, "#ff4d6d", 34);
+}
+function win() {
+  state = "won";
+  burst(ball.x, ball.y, "#4fd18b", 40);
+  const t = timer, st = t <= level.par[0] ? 3 : t <= level.par[1] ? 2 : 1;
+  const prev = progress[levelIdx] || 0;
+  if (st > prev) { progress[levelIdx] = st; try { localStorage.setItem("ws_progress", JSON.stringify(progress)); } catch (e) {} }
+  const wonLevel = levelIdx;
+  setTimeout(() => {
+    if (state !== "won" || levelIdx !== wonLevel) return; // player restarted / left meanwhile
+    document.getElementById("winStars").textContent = "★".repeat(st) + "☆".repeat(3 - st);
+    document.getElementById("winInfo").textContent = `Time ${t.toFixed(2)}s · Deaths ${deaths.n} · 3★ under ${level.par[0]}s`;
+    document.getElementById("bNext").textContent = levelIdx < LEVELS.length - 1 ? "Next ▶" : "Menu";
+    show("win");
+  }, 650);
+}
+
+function burst(x, y, color, n) {
+  for (let i = 0; i < n; i++) {
+    const a = Math.random() * Math.PI * 2, s = 80 + Math.random() * 320;
+    particles.push({ x, y, vx: Math.cos(a) * s, vy: Math.sin(a) * s, life: 0.5 + Math.random() * 0.5, color });
+  }
+}
+function updateParticles(dt) {
+  for (const p of particles) { p.x += p.vx * dt; p.y += p.vy * dt; p.vx *= 0.96; p.vy *= 0.96; p.life -= dt; }
+  particles = particles.filter(p => p.life > 0);
+}
+
+// ---------- Render ----------
+function render(now) {
+  ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+  const g = ctx.createRadialGradient(W / 2, H / 2, 0, W / 2, H / 2, Math.max(W, H) * 0.7);
+  g.addColorStop(0, "#14142a"); g.addColorStop(1, "#05050b");
+  ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+  if (!level) return;
+
+  const scale = Math.min(W, H) / level.view;
+  const R = Math.hypot(W, H) / 2;
+
+  // starfield rotates with the world so turning is always readable
+  ctx.save(); ctx.translate(W / 2, H / 2); ctx.rotate(angle);
+  for (const s of stars) { ctx.globalAlpha = s.a; ctx.fillStyle = "#c9c9ff"; ctx.fillRect(s.x * R, s.y * R, s.s, s.s); }
+  ctx.restore(); ctx.globalAlpha = 1;
+
+  ctx.save();
+  const sh = shake * 8;
+  ctx.translate(W / 2 + (Math.random() - 0.5) * sh, H / 2 + (Math.random() - 0.5) * sh);
+  ctx.scale(scale, scale);
+  ctx.rotate(angle);
+  ctx.translate(-cam.x, -cam.y);
+
+  if (level.bounds) {
+    ctx.strokeStyle = "rgba(255,77,109,0.18)"; ctx.lineWidth = 3; ctx.setLineDash([14, 14]);
+    ctx.beginPath(); ctx.arc(0, 0, level.bounds, 0, Math.PI * 2); ctx.stroke(); ctx.setLineDash([]);
+  }
+
+  for (const o of level.objs) drawObj(o, now);
+
+  // trail
+  for (let i = 0; i < trail.length; i++) {
+    const p = trail[i], a = i / trail.length;
+    ctx.globalAlpha = a * 0.35; ctx.fillStyle = "#9fb4ff";
+    ctx.beginPath(); ctx.arc(p.x, p.y, BALL_R * a, 0, Math.PI * 2); ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+
+  if (state !== "dead") drawBall(now);
+
+  for (const p of particles) {
+    ctx.globalAlpha = Math.max(0, p.life); ctx.fillStyle = p.color;
+    ctx.beginPath(); ctx.arc(p.x, p.y, 4, 0, Math.PI * 2); ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+  ctx.restore();
+
+  // "down" marker: gravity always points to screen bottom
+  ctx.fillStyle = "rgba(255,255,255,0.25)";
+  ctx.beginPath(); ctx.moveTo(W / 2 - 9, H - 46); ctx.lineTo(W / 2 + 9, H - 46); ctx.lineTo(W / 2, H - 34); ctx.fill();
+
+  if (state === "dead") { ctx.fillStyle = `rgba(255,40,70,${Math.min(0.35, deadT * 0.5)})`; ctx.fillRect(0, 0, W, H); }
+  if (state === "play" && freeze > 0) {
+    ctx.fillStyle = "rgba(255,255,255,0.7)"; ctx.font = "bold 22px system-ui"; ctx.textAlign = "center";
+    ctx.fillText("Ready…", W / 2, H * 0.3);
+  }
+
+  document.getElementById("stats").textContent = `⏱ ${timer.toFixed(1)}s   ☠ ${deaths.n}`;
+}
+
+function drawObj(o, now) {
+  ctx.save(); ctx.translate(o.x, o.y); ctx.rotate(o._ang);
+  const hw = o.w / 2, hh = o.h / 2;
+  if (o.t === "wall") {
+    ctx.fillStyle = "#23233f"; ctx.fillRect(-hw, -hh, o.w, o.h);
+    ctx.strokeStyle = "#6b6bff"; ctx.lineWidth = 2; ctx.shadowColor = "#6b6bff"; ctx.shadowBlur = 10;
+    ctx.strokeRect(-hw, -hh, o.w, o.h);
+  } else if (o.t === "spike") {
+    ctx.fillStyle = "#3a0f1c"; ctx.fillRect(-hw, -hh, o.w, o.h);
+    ctx.fillStyle = "#ff4d6d"; ctx.shadowColor = "#ff4d6d"; ctx.shadowBlur = 12;
+    const horiz = o.w >= o.h, len = horiz ? o.w : o.h, th = horiz ? o.h : o.w, n = Math.max(2, Math.round(len / 18)), step = len / n;
+    ctx.beginPath();
+    for (let i = 0; i < n; i++) {
+      const a = -len / 2 + i * step, b = a + step, m = a + step / 2;
+      if (horiz) {
+        ctx.moveTo(a, -th / 2); ctx.lineTo(m, -th / 2 - 10); ctx.lineTo(b, -th / 2);
+        ctx.moveTo(a, th / 2); ctx.lineTo(m, th / 2 + 10); ctx.lineTo(b, th / 2);
+      } else {
+        ctx.moveTo(-th / 2, a); ctx.lineTo(-th / 2 - 10, m); ctx.lineTo(-th / 2, b);
+        ctx.moveTo(th / 2, a); ctx.lineTo(th / 2 + 10, m); ctx.lineTo(th / 2, b);
+      }
+    }
+    ctx.fill();
+  } else if (o.t === "goal") {
+    const pulse = 0.6 + 0.4 * Math.sin(now / 250);
+    ctx.fillStyle = "#123d29"; ctx.fillRect(-hw, -hh, o.w, o.h);
+    ctx.strokeStyle = "#4fd18b"; ctx.lineWidth = 3; ctx.shadowColor = "#4fd18b"; ctx.shadowBlur = 18 * pulse;
+    ctx.strokeRect(-hw, -hh, o.w, o.h);
+  } else if (o.t === "bounce") {
+    ctx.fillStyle = "#4a2a08"; ctx.fillRect(-hw, -hh, o.w, o.h);
+    ctx.strokeStyle = "#ffa640"; ctx.lineWidth = 2; ctx.shadowColor = "#ffa640"; ctx.shadowBlur = 12;
+    ctx.strokeRect(-hw, -hh, o.w, o.h);
+    ctx.beginPath();
+    for (let x = -hw + 12; x < hw - 6; x += 18) { ctx.moveTo(x - 5, 3); ctx.lineTo(x, -3); ctx.lineTo(x + 5, 3); }
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+
+function drawBall(now) {
+  ctx.save(); ctx.translate(ball.x, ball.y);
+  ctx.shadowColor = "#cfd8ff"; ctx.shadowBlur = 20;
+  ctx.fillStyle = "#f2f4ff"; ctx.beginPath(); ctx.arc(0, 0, BALL_R, 0, Math.PI * 2); ctx.fill();
+  ctx.shadowBlur = 0; ctx.rotate(ball.spin - angle);
+  ctx.strokeStyle = "#5a6aa8"; ctx.lineWidth = 3;
+  ctx.beginPath(); ctx.moveTo(-BALL_R * 0.6, 0); ctx.lineTo(BALL_R * 0.6, 0); ctx.stroke();
+  if (state === "play" && freeze > 0) {
+    ctx.strokeStyle = "rgba(255,255,255,0.6)"; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.arc(0, 0, BALL_R + 6 + freeze * 30, 0, Math.PI * 2); ctx.stroke();
+  }
+  ctx.restore();
+}
+
+// ---------- Input ----------
+const KEYMAP = { ArrowLeft: "left", KeyA: "left", ArrowRight: "right", KeyD: "right" };
+window.addEventListener("keydown", e => {
+  if (KEYMAP[e.code]) {
+    keys[KEYMAP[e.code]] = true;
+    if (snapMode && !e.repeat && state === "play") targetAngle += (KEYMAP[e.code] === "right" ? 1 : -1) * Math.PI / 2;
+    e.preventDefault();
+  }
+  if (e.code === "KeyQ" && state === "play") { snapTo(-1); }
+  if (e.code === "KeyE" && state === "play") { snapTo(1); }
+  if (e.code === "KeyR") restart();
+  if (e.code === "KeyM") toggleMode();
+  if ((e.code === "Enter" || e.code === "Space") && isShown("win")) next();
+});
+window.addEventListener("keyup", e => { if (KEYMAP[e.code]) keys[KEYMAP[e.code]] = false; });
+
+function snapTo(dir) {
+  // in smooth mode Q/E still work: jump the target to the next quarter turn
+  if (!snapMode) { targetAngle = angle; }
+  const q = Math.PI / 2;
+  targetAngle = (dir > 0 ? Math.floor(targetAngle / q + 1e-6) + 1 : Math.ceil(targetAngle / q - 1e-6) - 1) * q;
+  if (!snapMode) animateSnap();
+}
+let snapAnim = null;
+function animateSnap() {
+  cancelAnimationFrame(snapAnim);
+  const step = () => {
+    const d = targetAngle - angle;
+    if (Math.abs(d) < 0.002 || state !== "play") { if (state === "play") angle = targetAngle; return; }
+    angle += d * 0.2; snapAnim = requestAnimationFrame(step);
+  };
+  step();
+}
+
+let drag = null;
+cv.addEventListener("pointerdown", e => { drag = { x: e.clientX, x0: e.clientX, t: performance.now() }; cv.setPointerCapture(e.pointerId); });
+cv.addEventListener("pointermove", e => {
+  if (!drag) return;
+  const dx = e.clientX - drag.x; drag.x = e.clientX;
+  if (!snapMode && state === "play") angle += dx * DRAG_RAD_PER_PX;
+});
+cv.addEventListener("pointerup", e => {
+  if (!drag) return;
+  const moved = Math.abs(e.clientX - drag.x0);
+  if (snapMode && state === "play" && moved < 15) targetAngle += (e.clientX > W / 2 ? 1 : -1) * Math.PI / 2;
+  drag = null;
+});
+cv.addEventListener("pointercancel", () => drag = null);
+
+function toggleMode() {
+  snapMode = !snapMode;
+  targetAngle = Math.round(angle / (Math.PI / 2)) * (Math.PI / 2);
+  angVel = 0;
+  document.getElementById("bMode").textContent = snapMode ? "90° Snap" : "Smooth";
+  const hint = document.getElementById("hint");
+  hint.textContent = snapMode ? "90° mode: tap left/right side (or ← →) to turn a quarter." : "Smooth mode: drag left/right (or hold ← →).";
+  hint.style.opacity = 0.85;
+}
+
+// ---------- UI ----------
+function show(id) { document.getElementById(id).classList.add("show"); }
+function hide(id) { document.getElementById(id).classList.remove("show"); }
+function isShown(id) { return document.getElementById(id).classList.contains("show"); }
+function buildMenu() {
+  const grid = document.getElementById("levelGrid"); grid.innerHTML = "";
+  const CHAPTERS = { 0: "1 · Learn to turn", 5: "2 · Use the whole world", 10: "3 · Things that move", 15: "4 · Everything at once" };
+  LEVELS.forEach((l, i) => {
+    if (CHAPTERS[i]) { const c = document.createElement("div"); c.className = "chap"; c.textContent = CHAPTERS[i]; grid.appendChild(c); }
+    const b = document.createElement("button");
+    const st = progress[i] || 0;
+    b.innerHTML = `${i + 1}<small>${st ? "★".repeat(st) : ""}</small>`;
+    b.title = l.name;
+    b.onclick = () => loadLevel(i);
+    grid.appendChild(b);
+  });
+}
+function next() {
+  hide("win");
+  if (levelIdx < LEVELS.length - 1) loadLevel(levelIdx + 1); else { buildMenu(); show("menu"); }
+}
+document.getElementById("bMenu").onclick = () => { buildMenu(); show("menu"); state = state === "play" ? "paused" : state; };
+document.getElementById("bRestart").onclick = restart;
+document.getElementById("bMode").onclick = toggleMode;
+document.getElementById("bRetry").onclick = () => { hide("win"); restart(); };
+document.getElementById("bNext").onclick = next;
+document.getElementById("menu").addEventListener("pointerdown", e => { if (e.target.id === "menu" && level) { hide("menu"); if (state === "paused") state = "play"; } });
+
+// ---------- Loop ----------
+let last = performance.now();
+function frame(now) {
+  const dt = Math.min(1 / 30, (now - last) / 1000); last = now;
+  if (level) update(dt);
+  render(now);
+  requestAnimationFrame(frame);
+}
+buildMenu();
+loadLevel(0); show("menu"); state = "paused";
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>
