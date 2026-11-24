@@ -11,6 +11,8 @@ You don't move the ball — you turn the world. Rotate the level so the falling 
 - Along the way: portals (linked pairs, keep your speed), ice (no grip) and glue (holds the ball while you turn)
 - Sound effects and 6 synthesized songs (a new one every 50 levels) whose arrangement and melody keep evolving
 - ⚙ settings: music, sound, vibration, and controls (drag/circle or 90° buttons); the game pauses when you switch apps
+- 10 worlds of 50 levels, each with its own colours and song; a 📅 daily challenge level (same for everyone) with its own share text; an ending after level 500
+- First-time help: an animated circle gesture on level 1, and a short card the first time each new piece appears
 - Dotted landing preview on the first 5 levels, and on any level after 20 deaths there; a ghost replays your best run
 
 **Playtesters:** tap the version text in the menu 5 times (or open `?stats`) to see your stats, then press **Copy** (or **Save file**) and send it over. It includes where you died and your best route on each level.

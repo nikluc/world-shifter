@@ -77,11 +77,13 @@
     <h1>WORLD SHIFTER</h1>
     <p>You don't move the ball. You turn the world.</p>
     <button id="bContinue" class="primary big">▶ Play</button>
+    <button id="bDaily" class="big" style="font-size:16px;font-weight:500">📅 Daily challenge</button>
+    <p id="worldName" style="font-size:13px;margin:12px 0 0;letter-spacing:1px;text-transform:uppercase;opacity:.7"></p>
     <p id="totals" style="font-size:13px;margin:8px 0 0"></p>
     <div class="pages" id="pageTabs"></div>
     <div class="grid" id="levelGrid"></div>
     <p class="help" id="helpText"></p>
-    <p style="font-size:11px;opacity:.45" id="ver">prototype v0.13</p>
+    <p style="font-size:11px;opacity:.45" id="ver">prototype v0.14</p>
   </div>
 </div>
 
@@ -105,6 +107,26 @@
     <button class="setrow" id="bMode">🎮 Controls <span></span></button>
     <p class="help" id="modeHelp"></p>
     <button class="primary big" id="bCloseSettings">Done</button>
+  </div>
+</div>
+
+<div class="overlay" id="card">
+  <div class="panel">
+    <div id="cardIcon" style="font-size:44px;line-height:1.2"></div>
+    <h2 id="cardTitle"></h2>
+    <p id="cardText" style="font-size:16px"></p>
+    <button class="primary big" id="bCard">Got it</button>
+  </div>
+</div>
+
+<div class="overlay" id="ending">
+  <div class="panel">
+    <h1>You turned every world</h1>
+    <p>All 500 levels of World Shifter, done.</p>
+    <div class="stars" id="endStars"></div>
+    <p id="endInfo"></p>
+    <button class="primary big" id="bEndShare">Share</button>
+    <button class="big" id="bEndMenu">Back to the menu</button>
   </div>
 </div>
 
@@ -1784,8 +1806,9 @@ if (!progress) { // one-time migration from v0.8 and earlier, which keyed stars 
   } catch (e) {}
 }
 
+let lowFx = false; // set by watchFrameRate() on phones that can't keep up
 function resize() {
-  DPR = Math.min(window.devicePixelRatio || 1, 2);
+  DPR = Math.min(window.devicePixelRatio || 1, lowFx ? 1.5 : 2);
   W = window.innerWidth; H = window.innerHeight;
   cv.width = W * DPR; cv.height = H * DPR;
 }
@@ -1819,6 +1842,9 @@ function loadLevel(i) {
   hint.textContent = level.hint; hint.style.opacity = 0.85;
   if (levelIdx >= GUIDE_LEVELS && guideOn()) hint.textContent = "Tough one: the landing guide is back. " + level.hint;
   hide("menu"); hide("win");
+  dailyRun = dailyNext; dailyNext = false;
+  if (i % MENU_PAGE === 0 && i > 0 && !window.__botQuiet) banner = { text: `World ${i / MENU_PAGE + 1}`, sub: worldOf(i).name, t: 2.6 };
+  if (!window.__botQuiet) maybeCard();
 }
 function restart() { loadLevel(levelIdx); }
 
@@ -1930,6 +1956,76 @@ function predictPath() {
   return { pts, end: null };
 }
 
+// ---------- First-time help: tutorial finger, piece cards, world banner ----------
+let banner = null, dailyRun = false, dailyNext = false;
+let seen = {};
+try { seen = JSON.parse(localStorage.getItem("ws_seen") || "{}"); } catch (e) { seen = {}; }
+const CARDS = {
+  moving: { icon: "↔", title: "Things move now", text: "Spikes slide and spin. Watch the rhythm, then go." },
+  bounce: { icon: "🟧", title: "Bounce pads", text: "Orange pads launch you. Use them to reach high places." },
+  glue: { icon: "🟩", title: "Glue", text: "Green glue holds the ball still while you turn the world. Turn far enough and it lets go." },
+  ice: { icon: "🧊", title: "Ice", text: "Blue ice has no grip: whatever speed you build, you keep. Tilt back to slow down." },
+  portal: { icon: "🌀", title: "Portals", text: "Portals come in pairs. Go in one, come out the other at the same speed." },
+  gem: { icon: "◆", title: "Hidden gems", text: "Some levels hide a ◆ gem off the safe path. Grab it and still finish to collect it." },
+};
+function maybeCard() {
+  const has = {
+    moving: level.objs.some(o => o.m || o.spin), bounce: level.objs.some(o => o.t === "bounce"),
+    glue: level.objs.some(o => o.t === "glue"), ice: level.objs.some(o => o.t === "ice"),
+    portal: level.objs.some(o => o.t === "portal"), gem: levelIdx > 0 && level.objs.some(o => o.t === "gem"),
+  };
+  const k = Object.keys(CARDS).find(m => has[m] && !seen[m]);
+  if (!k) return;
+  seen[k] = true; try { localStorage.setItem("ws_seen", JSON.stringify(seen)); } catch (e) {}
+  const c = CARDS[k];
+  document.getElementById("cardIcon").textContent = c.icon;
+  document.getElementById("cardTitle").textContent = c.title;
+  document.getElementById("cardText").textContent = c.text;
+  state = "paused"; show("card");
+}
+// level 1, first time: an animated finger drawing a circle until the player turns the world
+function tutorialOn() { return levelIdx === 0 && !progress[level.name] && !(stats[level.name] && stats[level.name].wins) && Math.abs(angle) < 0.35 && state === "play"; }
+function drawTutorial(now) {
+  const t = now / 1000, r = Math.min(W, H) * 0.22, cx = W / 2, cy = H / 2;
+  const a = -Math.PI / 2 + (t % 2.4) / 2.4 * Math.PI * 1.5; // sweep three quarters of a circle, then restart
+  ctx.save();
+  ctx.strokeStyle = "rgba(255,255,255,0.35)"; ctx.lineWidth = 6; ctx.lineCap = "round"; ctx.setLineDash([2, 14]);
+  ctx.beginPath(); ctx.arc(cx, cy, r, -Math.PI / 2, a); ctx.stroke(); ctx.setLineDash([]);
+  const fx = cx + Math.cos(a) * r, fy = cy + Math.sin(a) * r;
+  ctx.fillStyle = "rgba(255,255,255,0.9)"; ctx.shadowColor = "#fff"; ctx.shadowBlur = 16;
+  ctx.beginPath(); ctx.arc(fx, fy, 16, 0, Math.PI * 2); ctx.fill();
+  ctx.shadowBlur = 0; ctx.font = "bold 18px system-ui"; ctx.textAlign = "center"; ctx.fillStyle = "rgba(255,255,255,0.9)";
+  ctx.fillText(COARSE ? "Draw a circle to turn the world" : "Drag in a circle (or ← →) to turn the world", W / 2, Math.max(110, cy - r - 30));
+  ctx.restore();
+}
+function drawBanner(dt) {
+  if (!banner) return;
+  banner.t -= dt;
+  if (banner.t <= 0) { banner = null; return; }
+  const a = Math.min(1, banner.t / 0.6, (2.6 - banner.t) / 0.4);
+  ctx.save(); ctx.globalAlpha = a; ctx.textAlign = "center";
+  const by = Math.max(118, H * 0.13); // just under the top bar, clear of the level
+  ctx.fillStyle = "rgba(10,10,22,0.55)"; ctx.fillRect(0, by - 40, W, 74);
+  ctx.fillStyle = "#fff"; ctx.font = "bold 30px system-ui"; ctx.fillText(banner.text, W / 2, by);
+  ctx.font = "17px system-ui"; ctx.fillStyle = "rgba(255,255,255,0.85)"; ctx.fillText(banner.sub, W / 2, by + 24);
+  ctx.restore();
+}
+
+// ---------- Auto low-effects: if this phone can't keep up, drop the glows ----------
+let slowFrames = 0, fastFrames = 0;
+function watchFrameRate(rawMs) {
+  if (lowFx || document.hidden) return;
+  if (rawMs > 26) slowFrames++; else fastFrames++;
+  if (slowFrames + fastFrames >= 180) { // ~3 s sample
+    if (slowFrames > 90) { // mostly under ~38 fps
+      lowFx = true;
+      Object.defineProperty(ctx, "shadowBlur", { set() {}, get() { return 0; } }); // glows are the costliest draw
+      DPR = Math.min(DPR, 1.5); resize();
+    }
+    slowFrames = fastFrames = 0;
+  }
+}
+
 // ---------- Haptics ----------
 let lastBuzz = 0;
 let vibeOn = true;
@@ -2015,7 +2111,8 @@ function win() {
   if (st > prev) { progress[level.name] = st; try { localStorage.setItem("ws_stars", JSON.stringify(progress)); } catch (e) {} }
   const gem = level.objs.find(o => o.t === "gem"), gotGem = !!(gem && gem.got);
   if (gotGem && !gems[level.name]) { gems[level.name] = true; try { localStorage.setItem("ws_gems", JSON.stringify(gems)); } catch (e) {} }
-  lastWin = { n: levelIdx + 1, name: level.name, st, t, deaths: deaths.n, gem: gem ? gotGem : null };
+  lastWin = { n: levelIdx + 1, name: level.name, st, t, deaths: deaths.n, gem: gem ? gotGem : null, daily: dailyRun ? today() : null };
+  if (dailyRun && (!daily[today()] || t < daily[today()])) { daily[today()] = Math.round(t * 100) / 100; try { localStorage.setItem("ws_daily", JSON.stringify(daily)); } catch (e) {} }
   const wonLevel = levelIdx;
   setTimeout(() => {
     if (state !== "won" || levelIdx !== wonLevel) return; // player restarted / left meanwhile
@@ -2024,7 +2121,7 @@ function win() {
     document.getElementById("winGem").innerHTML = !gem ? "" : gotGem ? '<span style="color:#ff6ad5">◆ Gem collected</span>'
       : gems[level.name] ? '<span style="opacity:.6">◆ Gem already found earlier</span>' : '<span style="opacity:.6">◇ A gem is hidden somewhere here…</span>';
     document.getElementById("bShare").textContent = "Share";
-    document.getElementById("bNext").textContent = levelIdx < LEVELS.length - 1 ? "Next ▶" : "Menu";
+    document.getElementById("bNext").textContent = dailyRun ? "Back to the menu" : levelIdx < LEVELS.length - 1 ? "Next ▶" : "Finish ▶";
     show("win");
     for (let i = 0; i < st; i++) Sfx.star(i);
   }, 650);
@@ -2044,8 +2141,9 @@ function updateParticles(dt) {
 // ---------- Render ----------
 function render(now) {
   ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+  const wd = worldOf(levelIdx || 0);
   const g = ctx.createRadialGradient(W / 2, H / 2, 0, W / 2, H / 2, Math.max(W, H) * 0.7);
-  g.addColorStop(0, "#14142a"); g.addColorStop(1, "#05050b");
+  g.addColorStop(0, wd.c0); g.addColorStop(1, wd.c1);
   ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
   if (!level) return;
 
@@ -2054,7 +2152,7 @@ function render(now) {
 
   // starfield rotates with the world so turning is always readable
   ctx.save(); ctx.translate(W / 2, H / 2); ctx.rotate(angle);
-  for (const s of stars) { ctx.globalAlpha = s.a; ctx.fillStyle = "#c9c9ff"; ctx.fillRect(s.x * R, s.y * R, s.s, s.s); }
+  for (const s of stars) { ctx.globalAlpha = s.a; ctx.fillStyle = wd.star; ctx.fillRect(s.x * R, s.y * R, s.s, s.s); }
   ctx.restore(); ctx.globalAlpha = 1;
 
   ctx.save();
@@ -2124,6 +2222,8 @@ function render(now) {
   ctx.beginPath(); ctx.moveTo(W / 2 - 9, H - 46); ctx.lineTo(W / 2 + 9, H - 46); ctx.lineTo(W / 2, H - 34); ctx.fill();
 
   if (state === "dead") { ctx.fillStyle = `rgba(255,40,70,${Math.min(0.35, deadT * 0.5)})`; ctx.fillRect(0, 0, W, H); }
+  if (tutorialOn()) drawTutorial(now);
+  drawBanner(1 / 60);
   if (state === "play" && (freeze > 0 || waiting)) {
     // in 90° mode the pill sits between the ⟲ ⟳ buttons, so narrow screens get the short text
     const between = snapMode && H >= 500, txt = freeze > 0 ? "Ready…" : between && W < 480 ? "Tap to drop" : COARSE ? "Tap or turn to drop" : "Click, turn or press Space to drop";
@@ -2325,9 +2425,23 @@ function show(id) { document.getElementById(id).classList.add("show"); }
 function hide(id) { document.getElementById(id).classList.remove("show"); }
 function isShown(id) { return document.getElementById(id).classList.contains("show"); }
 const MENU_PAGE = 50;
+// a "world" per page of 50 levels: its own name and background colours (the song changes with it too)
+const WORLDS = [
+  { name: "Drift Fields", c0: "#14142a", c1: "#05050b", star: "#c9c9ff" },
+  { name: "Bloom Gardens", c0: "#1c1430", c1: "#07050d", star: "#f0c9ff" },
+  { name: "Pulse Works", c0: "#0f1f2a", c1: "#04080b", star: "#a9e6ff" },
+  { name: "Glass Caves", c0: "#102424", c1: "#040a0a", star: "#b9fff0" },
+  { name: "Comet Reach", c0: "#2a1a10", c1: "#0b0604", star: "#ffe0b0" },
+  { name: "Deep Halls", c0: "#0c1028", c1: "#03040b", star: "#b0b8ff" },
+  { name: "Ember Rift", c0: "#2a1014", c1: "#0b0405", star: "#ffb0b8" },
+  { name: "Frost Hollow", c0: "#142630", c1: "#05090c", star: "#e0f6ff" },
+  { name: "Neon Spire", c0: "#22102a", c1: "#09040b", star: "#ffa8f0" },
+  { name: "World's End", c0: "#1a1a1a", c1: "#050505", star: "#ffffff" },
+];
+const worldOf = i => WORLDS[Math.floor(i / MENU_PAGE) % WORLDS.length];
 let menuPage = null;
 function buildMenu() {
-  paintContinue();
+  paintContinue(); paintDaily();
   const stars = LEVELS.reduce((a, l) => a + (progress[l.name] || 0), 0);
   const gemTotal = LEVELS.filter(l => l.objs.some(o => o.t === "gem")).length;
   const gemsGot = LEVELS.filter(l => gems[l.name]).length;
@@ -2346,6 +2460,7 @@ function buildMenu() {
     t.onclick = () => { menuPage = k; buildMenu(); };
     tabs.appendChild(t);
   }
+  document.getElementById("worldName").textContent = `World ${menuPage + 1} · ${WORLDS[menuPage % WORLDS.length].name}`;
   const grid = document.getElementById("levelGrid"); grid.innerHTML = "";
   LEVELS.forEach((l, i) => {
     if (Math.floor(i / MENU_PAGE) !== menuPage) return;
@@ -2359,7 +2474,8 @@ function buildMenu() {
 }
 function next() {
   hide("win");
-  if (levelIdx < LEVELS.length - 1) loadLevel(levelIdx + 1); else { buildMenu(); show("menu"); }
+  if (dailyRun) { buildMenu(); show("menu"); return; } // the daily is a one-off: back to the menu
+  if (levelIdx < LEVELS.length - 1) loadLevel(levelIdx + 1); else showEnding();
 }
 // UI click sound on every button (level grid included)
 document.addEventListener("click", e => { if (e.target.closest("button") && !e.target.closest("#snapBtns")) Sfx.click(); });
@@ -2429,6 +2545,7 @@ document.addEventListener("visibilitychange", () => {
 // text + a link that opens this exact level (?level=N), for WhatsApp / Discord / anywhere
 function shareText(w) {
   const link = location.origin + location.pathname + "?level=" + w.n;
+  if (w.daily) return `World Shifter Daily ${w.daily} · Level ${w.n} “${w.name}” · ${w.t.toFixed(2)}s · ☠ ${w.deaths}\nBeat my time: ${link}`;
   return `World Shifter · Level ${w.n} “${w.name}” · ${"★".repeat(w.st)}${"☆".repeat(3 - w.st)} in ${w.t.toFixed(2)}s · ☠ ${w.deaths}` +
     (w.gem === true ? " · ◆ gem" : "") + `\nCan you beat it? ${link}`;
 }
@@ -2442,6 +2559,40 @@ document.getElementById("bShare").onclick = async () => {
     if (e && e.name === "AbortError") return; // closed the share sheet
     window.prompt("Copy and send:", text);
   }
+};
+
+document.getElementById("bCard").onclick = () => { hide("card"); if (state === "paused") state = "play"; };
+
+// ---------- Daily challenge: one level a day, the same for everyone ----------
+const today = () => new Date().toISOString().slice(0, 10);
+function dailyIndex(d = today()) {
+  let h = 2166136261; for (const ch of d) h = Math.imul(h ^ ch.charCodeAt(0), 16777619) >>> 0;
+  const lo = Math.min(80, LEVELS.length - 1), hi = Math.max(lo + 1, Math.min(LEVELS.length - 60, 420)); // mid-game difficulty
+  return lo + h % (hi - lo);
+}
+let daily = {};
+try { daily = JSON.parse(localStorage.getItem("ws_daily") || "{}"); } catch (e) { daily = {}; }
+function paintDaily() {
+  const b = document.getElementById("bDaily"), best = daily[today()];
+  b.textContent = best ? `📅 Daily challenge · done ✓ ${best.toFixed(2)}s` : `📅 Daily challenge · level ${dailyIndex() + 1}`;
+}
+document.getElementById("bDaily").onclick = () => { dailyNext = true; loadLevel(dailyIndex()); };
+
+// ---------- Ending: after level 500 ----------
+function showEnding() {
+  const stars = LEVELS.reduce((a, l) => a + (progress[l.name] || 0), 0);
+  const gemTotal = LEVELS.filter(l => l.objs.some(o => o.t === "gem")).length, gemsGot = LEVELS.filter(l => gems[l.name]).length;
+  const totals = Object.values(stats).reduce((a, st) => ({ deaths: a.deaths + st.deaths, time: a.time + st.time }), { deaths: 0, time: 0 });
+  document.getElementById("endStars").textContent = `★ ${stars} / ${LEVELS.length * 3}`;
+  document.getElementById("endInfo").textContent = `◆ ${gemsGot} / ${gemTotal} gems · ☠ ${totals.deaths} deaths · ${Math.round(totals.time / 60)} minutes of turning`;
+  show("ending");
+}
+document.getElementById("bEndMenu").onclick = () => { hide("ending"); buildMenu(); show("menu"); };
+document.getElementById("bEndShare").onclick = async () => {
+  const stars = LEVELS.reduce((a, l) => a + (progress[l.name] || 0), 0);
+  const text = `I finished all ${LEVELS.length} levels of World Shifter · ★ ${stars} / ${LEVELS.length * 3}\n${location.origin + location.pathname}`;
+  try { if (navigator.share) await navigator.share({ text }); else { await navigator.clipboard.writeText(text); document.getElementById("bEndShare").textContent = "Copied ✓"; } }
+  catch (e) { if (!e || e.name !== "AbortError") window.prompt("Copy and send:", text); }
 };
 
 // ---------- Stats screen ----------
@@ -2518,6 +2669,7 @@ window.addEventListener("pagehide", () => { if (level) leaveRun(false); });
 // ---------- Loop ----------
 let last = performance.now();
 function frame(now) {
+  watchFrameRate(now - last);
   const dt = Math.min(1 / 30, (now - last) / 1000); last = now;
   if (level) update(dt);
   render(now);
