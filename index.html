@@ -26,6 +26,10 @@
   .panel h1{margin:0 0 4px;font-size:26px;letter-spacing:1px}
   .panel h2{margin:0 0 8px;font-size:22px}
   .panel p{opacity:.8;margin:6px 0}
+  .pages{display:grid;grid-template-columns:repeat(5,1fr);gap:5px;margin:12px 0 0}
+  .pages button{padding:5px 0;font-size:12px;line-height:1.2}
+  .pages button small{display:block;font-size:10px;color:#ffd34d;min-height:12px}
+  .pages button.sel{border-color:#ffd34d;background:#2a2a40}
   .grid{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin:14px 0}
   .grid button{padding:9px 0;font-size:17px;line-height:1.2}
   .panel{max-height:88vh;overflow-y:auto}
@@ -60,9 +64,11 @@
   <div class="panel">
     <h1>WORLD SHIFTER</h1>
     <p>You don't move the ball. You turn the world.</p>
+    <p id="totals" style="font-size:13px;margin:8px 0 0"></p>
+    <div class="pages" id="pageTabs"></div>
     <div class="grid" id="levelGrid"></div>
     <p style="font-size:13px">Drag or circle your finger to rotate · ← → / A D<br>Q / E snap 90° · R restart · M toggle mode<br>Tap, click, Space or any turn drops the ball</p>
-    <p style="font-size:11px;opacity:.45" id="ver">prototype v0.11 · 60 levels</p>
+    <p style="font-size:11px;opacity:.45" id="ver">prototype v0.12</p>
   </div>
 </div>
 
@@ -82,7 +88,8 @@
     <h2>Landed!</h2>
     <div class="stars" id="winStars"></div>
     <p id="winInfo"></p>
-    <div class="row"><button id="bRetry">↻ Retry</button><button id="bNext" class="primary">Next ▶</button></div>
+    <p id="winGem" style="font-size:14px;margin:4px 0"></p>
+    <div class="row"><button id="bRetry">↻ Retry</button><button id="bShare">Share</button><button id="bNext" class="primary">Next ▶</button></div>
   </div>
 </div>
 
@@ -112,6 +119,7 @@ const HIT_FEEDBACK_SPEED = 350; // wall hits harder than this shake the screen +
 // objs: rect centred at x,y with size w,h, rotated a degrees. t: wall | spike | goal | bounce | ice | glue | portal
 //   ice: no grip, barely bounces · glue: holds the ball until gravity pulls it away (GLUE_RELEASE)
 //   portal: needs link: "a" — touching one sends the ball to the centre of the other with the same velocity
+//   gem: optional collectible (one per level, placed by tools/place_gems.py); counts if you win in the same run
 //   m: [dx, dy, period]  → slides back and forth by ±dx/±dy every `period` seconds
 //   spin: degrees per second → rotates around its centre
 // cam: 'follow' (world rotates around the ball) or 'fixed' (rotates around the level centre)
@@ -124,7 +132,7 @@ const box = (hw, hh, t = "wall") => [
   { x: hw + 12, y: 0, w: 24, h: 2 * hh + 48, t },
 ];
 
-const LEVELS = [
+const HAND_LEVELS = [
   // One run, easiest first: sorted by the level bot's difficulty score (attempts a
   // learning bot needs + how precise the timing must be), at G = 998. Each mechanic's
   // intro level (Slider, Bounce Gap, Sticky Start, Black Ice, First Portal) comes before
@@ -138,6 +146,7 @@ const LEVELS = [
     objs: [
       { x: 0, y: 200, w: 140, h: 24, t: "spike" },
       { x: 190, y: 200, w: 160, h: 24, t: "goal" },
+      { x: 18, y: -31, w: 26, h: 26, t: "gem" },
     ] },
   { name: "Over the Wall", cam: "fixed", view: 720, start: [-150, 234], par: [7, 14],
     hint: "Turn the whole box to roll the ball over the wall.",
@@ -145,6 +154,7 @@ const LEVELS = [
       ...box(250, 250),
       { x: 0, y: 60, w: 24, h: 380, t: "wall" },
       { x: 160, y: 240, w: 120, h: 20, t: "goal" },
+      { x: 138, y: 134, w: 26, h: 26, t: "gem" },
     ] },
   { name: "Upside Down", cam: "fixed", view: 720, start: [-170, 236], par: [4, 8],
     hint: "The goal is under the block. Roll into the cradle, then flip the world.",
@@ -159,6 +169,7 @@ const LEVELS = [
       { x: 240, y: -140, w: 20, h: 180, t: "spike" },
       { x: 0, y: 0, w: 180, h: 60, t: "wall" },
       { x: 0, y: 40, w: 120, h: 20, t: "goal" },
+      { x: 200, y: 73, w: 26, h: 26, t: "gem" },
     ] },
   { name: "Zigzag", cam: "fixed", view: 820, start: [-170, -204], par: [12, 24],
     hint: "Shelf to shelf. Tilt, drop, tilt back.",
@@ -168,6 +179,7 @@ const LEVELS = [
       { x: 50, y: 0, w: 340, h: 20, t: "wall" },
       { x: -50, y: 180, w: 340, h: 20, t: "wall" },
       { x: -170, y: 330, w: 80, h: 20, t: "goal" },
+      { x: 201, y: -316, w: 26, h: 26, t: "gem" },
     ] },
   { name: "Slider", cam: "fixed", view: 720, start: [0, -212], par: [4, 8],
     hint: "Hazards move now. Wait for your moment.",
@@ -178,6 +190,7 @@ const LEVELS = [
       { x: -240, y: 130, w: 20, h: 200, t: "spike" },
       { x: 240, y: 130, w: 20, h: 200, t: "spike" },
       { x: 0, y: 240, w: 100, h: 20, t: "goal" },
+      { x: 194, y: 71, w: 26, h: 26, t: "gem" },
     ] },
   { name: "Pendulum", cam: "fixed", view: 720, start: [0, -222], par: [4, 8],
     hint: "Two blades swinging in opposite directions.",
@@ -189,6 +202,7 @@ const LEVELS = [
       { x: -250, y: 180, w: 20, h: 140, t: "spike" },
       { x: 250, y: 180, w: 20, h: 140, t: "spike" },
       { x: 0, y: 250, w: 100, h: 20, t: "goal" },
+      { x: -205, y: 134, w: 26, h: 26, t: "gem" },
     ] },
   { name: "Gears", cam: "fixed", view: 760, start: [0, -252], par: [4, 8],
     hint: "Two blades turning against each other.",
@@ -200,6 +214,7 @@ const LEVELS = [
       { x: -180, y: 270, w: 200, h: 20, t: "spike" },
       { x: 180, y: 270, w: 200, h: 20, t: "spike" },
       { x: 0, y: 270, w: 100, h: 20, t: "goal" },
+      { x: -148, y: 110, w: 26, h: 26, t: "gem" },
     ] },
   { name: "Labyrinth", cam: "fixed", view: 820, start: [-240, -128], par: [12, 24],
     hint: "Snake down through the gaps. Spikes at the bottom: go across the ceiling instead.",
@@ -209,6 +224,7 @@ const LEVELS = [
       { x: 60, y: 100, w: 480, h: 24, t: "wall" },
       { x: 0, y: 295, w: 110, h: 24, t: "spike" },
       { x: 250, y: 290, w: 70, h: 20, t: "goal" },
+      { x: -51, y: 248, w: 26, h: 26, t: "gem" },
     ] },
   { name: "Keyhole", cam: "fixed", view: 720, start: [-180, -222], par: [6, 12],
     hint: "One tiny gap. Line it up, drop through, then dodge.",
@@ -219,6 +235,7 @@ const LEVELS = [
       { x: 135, y: 0, w: 210, h: 20, t: "wall" },
       { x: -40, y: 230, w: 240, h: 20, t: "spike" },
       { x: 180, y: 230, w: 80, h: 20, t: "goal" },
+      { x: -167, y: 122, w: 26, h: 26, t: "gem" },
     ] },
   { name: "Blade Run", cam: "fixed", view: 880, start: [-370, 106], par: [7, 14],
     hint: "Three blades in a corridor. Go when they lie flat.",
@@ -228,6 +245,7 @@ const LEVELS = [
       { x: 0, y: 0, w: 200, h: 16, t: "spike", spin: -90 },
       { x: 200, y: 0, w: 200, h: 16, t: "spike", spin: 120 },
       { x: 390, y: 0, w: 20, h: 160, t: "goal" },
+      { x: -46, y: 46, w: 26, h: 26, t: "gem" },
     ] },
 
   // ── 11–20 ──────────────────────────────────────────────────
@@ -243,6 +261,7 @@ const LEVELS = [
       { x: -150, y: 290, w: 300, h: 20, t: "spike" },
       { x: 220, y: 290, w: 160, h: 20, t: "spike" },
       { x: 70, y: 290, w: 60, h: 20, t: "goal" },
+      { x: 187, y: -245, w: 26, h: 26, t: "gem" },
     ] },
   { name: "Gauntlet", cam: "fixed", view: 900, start: [-340, -262], par: [12, 24],
     hint: "Piston, drop, blade, landing. One run.",
@@ -255,6 +274,7 @@ const LEVELS = [
       { x: -300, y: 150, w: 120, h: 16, t: "spike", spin: 90 },
       { x: 150, y: 290, w: 500, h: 20, t: "spike" },
       { x: -340, y: 290, w: 100, h: 20, t: "goal" },
+      { x: -321, y: 186, w: 26, h: 26, t: "gem" },
     ] },
   { name: "Clockwork", cam: "fixed", view: 820, start: [-240, -272], par: [8, 16],
     hint: "Ceiling-roll past the slider, dodge the blade, catch the drifting pad.",
@@ -267,6 +287,7 @@ const LEVELS = [
       { x: 60, y: 150, w: 480, h: 20, t: "wall" },
       { x: 60, y: 290, w: 480, h: 20, t: "spike" },
       { x: -240, y: 290, w: 70, h: 20, t: "goal", m: [30, 0, 1.5] },
+      { x: 97, y: -17, w: 26, h: 26, t: "gem" },
     ] },
   { name: "Sticky Start", cam: "fixed", view: 720, start: [0, -24], par: [5, 10],
     hint: "Green glue holds the ball while you turn. Turn far enough and it lets go.",
@@ -279,6 +300,7 @@ const LEVELS = [
       { x: -180, y: -230, w: 120, h: 20, t: "spike" },
       { x: 180, y: -230, w: 120, h: 20, t: "spike" },
       { x: 0, y: -230, w: 120, h: 20, t: "goal" },
+      { x: -84, y: -125, w: 26, h: 26, t: "gem" },
     ] },
   { name: "First Portal", cam: "fixed", view: 720, start: [-180, -222], par: [5, 10],
     hint: "Portals come in pairs. In one, out the other, same speed. Steer once you're through.",
@@ -291,6 +313,7 @@ const LEVELS = [
       { x: -120, y: 230, w: 240, h: 20, t: "spike" },
       { x: 60, y: 230, w: 120, h: 20, t: "spike" },
       { x: 180, y: 230, w: 80, h: 20, t: "goal" },
+      { x: -100, y: 91, w: 26, h: 26, t: "gem" },
     ] },
   { name: "Locked Room", cam: "fixed", view: 720, start: [-150, 78], par: [5, 10],
     hint: "The pad is sealed in. Park on the glue, aim, release — the portal is the only door.",
@@ -305,6 +328,7 @@ const LEVELS = [
       { x: -90, y: 250, w: 340, h: 20, t: "spike" },
       { x: -60, y: -250, w: 400, h: 20, t: "spike" },
       { x: -250, y: -60, w: 20, h: 260, t: "spike" },
+      { x: 80, y: -176, w: 26, h: 26, t: "gem" },
     ] },
   { name: "Black Ice", cam: "fixed", view: 760, start: [-260, 136], par: [4, 8],
     hint: "Blue ice has no grip. Whatever speed you build, you keep. Ease into the gap.",
@@ -316,6 +340,7 @@ const LEVELS = [
       { x: 290, y: 40, w: 20, h: 200, t: "spike" },
       { x: -290, y: 40, w: 20, h: 200, t: "spike" },
       { x: 0, y: -190, w: 600, h: 20, t: "spike" },
+      { x: 254, y: 128, w: 26, h: 26, t: "gem" },
     ] },
   { name: "Ice Rink", cam: "fixed", view: 860, start: [-320, 116], par: [6, 12],
     hint: "Slide under the blades. You can't brake on ice, only tilt back.",
@@ -326,6 +351,7 @@ const LEVELS = [
       { x: -120, y: 50, w: 160, h: 16, t: "spike", spin: 80 },
       { x: 120, y: 50, w: 160, h: 16, t: "spike", spin: -80 },
       { x: 350, y: 60, w: 20, h: 120, t: "goal" },
+      { x: 106, y: 95, w: 26, h: 26, t: "gem" },
     ] },
   { name: "Sync", cam: "fixed", view: 820, start: [0, -302], par: [4, 8],
     hint: "Three sliders out of step. Find the line through.",
@@ -338,6 +364,7 @@ const LEVELS = [
       { x: -170, y: 310, w: 180, h: 20, t: "spike" },
       { x: 170, y: 310, w: 180, h: 20, t: "spike" },
       { x: 0, y: 310, w: 80, h: 20, t: "goal" },
+      { x: -133, y: 157, w: 26, h: 26, t: "gem" },
     ] },
   { name: "Crossroads", cam: "fixed", view: 720, start: [-110, -26], par: [7, 14],
     hint: "Two ways round. Each one has a gatekeeper.",
@@ -348,6 +375,7 @@ const LEVELS = [
       { x: 0, y: -205, w: 24, h: 60, t: "spike", m: [0, 40, 2] },
       { x: -205, y: 0, w: 60, h: 24, t: "spike", m: [40, 0, 2] },
       { x: 200, y: 245, w: 80, h: 20, t: "goal" },
+      { x: 46, y: -215, w: 26, h: 26, t: "gem" },
     ] },
 
   // ── 21–30 ──────────────────────────────────────────────────
@@ -358,6 +386,7 @@ const LEVELS = [
       { x: 100, y: -60, w: 120, h: 24, t: "spike" },
       { x: 0, y: 260, w: 800, h: 24, t: "spike" },
       { x: 290, y: 40, w: 140, h: 20, t: "goal" },
+      { x: 213, y: -102, w: 26, h: 26, t: "gem" },
     ] },
   { name: "Clock Face", cam: "fixed", view: 720, start: [0, -232], par: [7, 14],
     hint: "The hand sweeps the whole room. Ride it or dodge it.",
@@ -368,6 +397,7 @@ const LEVELS = [
       { x: -150, y: 250, w: 220, h: 20, t: "spike" },
       { x: 150, y: 250, w: 220, h: 20, t: "spike" },
       { x: 0, y: 250, w: 80, h: 20, t: "goal" },
+      { x: -240, y: -95, w: 26, h: 26, t: "gem" },
     ] },
   { name: "Funnel", cam: "follow", view: 820, bounds: 650, start: [0, -250], par: [4, 8],
     hint: "The funnel drops you on the spikes. Steer out the moment you leave it.",
@@ -376,6 +406,7 @@ const LEVELS = [
       { x: 110, y: -40, w: 200, h: 16, a: -35, t: "wall" },
       { x: 0, y: 220, w: 200, h: 24, t: "spike" },
       { x: -230, y: 200, w: 120, h: 20, t: "goal" },
+      { x: -11, y: -73, w: 26, h: 26, t: "gem" },
     ] },
   { name: "Corkscrew", cam: "fixed", view: 820, start: [-170, -204], par: [13, 26],
     hint: "Zigzag again — but the shelves have pop-up spikes. Roll across while they're down.",
@@ -388,6 +419,7 @@ const LEVELS = [
       { x: 40, y: -6, w: 40, h: 24, t: "spike", m: [0, 16, 2.2] },
       { x: -40, y: 174, w: 40, h: 24, t: "spike", m: [0, 16, 1.8] },
       { x: -170, y: 330, w: 80, h: 20, t: "goal" },
+      { x: -7, y: 31, w: 26, h: 26, t: "gem" },
     ] },
   { name: "Crusher Corridor", cam: "fixed", view: 860, start: [-340, 66], par: [7, 14],
     hint: "Floor or ceiling? Flip to whichever side is open.",
@@ -397,6 +429,7 @@ const LEVELS = [
       { x: 0, y: 0, w: 24, h: 100, t: "spike", m: [0, -50, 2.2] },
       { x: 170, y: 0, w: 24, h: 100, t: "spike", m: [0, 50, 1.6] },
       { x: 370, y: 0, w: 20, h: 120, t: "goal" },
+      { x: 45, y: -63, w: 26, h: 26, t: "gem" },
     ] },
   { name: "Twin Blades", cam: "fixed", view: 760, start: [0, -242], par: [4, 8],
     hint: "Two blades, one narrow path through the middle.",
@@ -410,6 +443,7 @@ const LEVELS = [
       { x: 0, y: 270, w: 90, h: 20, t: "goal" },
       { x: -270, y: 0, w: 20, h: 140, t: "spike" },
       { x: 270, y: 0, w: 20, h: 140, t: "spike" },
+      { x: -228, y: -33, w: 26, h: 26, t: "gem" },
     ] },
   { name: "Bounce Gap", cam: "follow", view: 900, bounds: 700, start: [-300, -24], par: [5, 10],
     hint: "Orange pads launch you. Hit it, then steer to the far side.",
@@ -419,7 +453,8 @@ const LEVELS = [
       { x: 0, y: 170, w: 120, h: 20, t: "bounce" },
       { x: 170, y: 170, w: 200, h: 24, t: "spike" },
       { x: 320, y: 0, w: 120, h: 20, t: "goal" },
-      { x: 150, y: 20, w: 20, h: 260, t: "wall" } // barricade wall: you need the pad to get over,
+      { x: 150, y: 20, w: 20, h: 260, t: "wall" }, // barricade wall: you need the pad to get over
+      { x: 106, y: -12, w: 26, h: 26, t: "gem" },
     ] },
   { name: "Island Hop", cam: "follow", view: 900, bounds: 760, start: [-340, -26], par: [4, 8],
     hint: "Fall from island to island. The void is hungry.",
@@ -429,7 +464,8 @@ const LEVELS = [
       { x: 170, y: -60, w: 140, h: 20, a: -20, t: "wall" },
       { x: 60, y: -200, w: 90, h: 20, t: "bounce" },
       { x: 380, y: 120, w: 120, h: 20, t: "goal" },
-      { x: 280, y: -100, w: 20, h: 400, t: "wall" } // barricade wall: no straight flight to the pad,
+      { x: 280, y: -100, w: 20, h: 400, t: "wall" }, // barricade wall: no straight flight to the pad
+      { x: 262, y: -318, w: 26, h: 26, t: "gem" },
     ] },
   { name: "Narrow Ledge", cam: "fixed", view: 800, bounds: 650, start: [0, -24], par: [4, 8],
     hint: "Small targets now. Gentle hands.",
@@ -438,6 +474,7 @@ const LEVELS = [
       { x: 140, y: 120, w: 220, h: 20, a: 40, t: "spike" },
       { x: -120, y: 200, w: 200, h: 24, t: "spike" },
       { x: 280, y: 240, w: 60, h: 20, t: "goal" },
+      { x: 187, y: 107, w: 26, h: 26, t: "gem" },
     ] },
   { name: "Moving Target", cam: "follow", view: 860, bounds: 700, start: [0, -295], par: [4, 8],
     hint: "The pad won't wait for you.",
@@ -468,6 +505,7 @@ const LEVELS = [
       { x: 0, y: 30, w: 180, h: 16, t: "spike", spin: 110 },
       { x: 180, y: 200, w: 60, h: 16, t: "bounce" },
       { x: -180, y: 200, w: 60, h: 20, t: "goal" },
+      { x: -216, y: 96, w: 26, h: 26, t: "gem" },
     ] },
   { name: "Trampoline", cam: "fixed", view: 860, bounds: 700, start: [-300, -24], par: [6, 12],
     hint: "Use the pad to reach the high ground.",
@@ -476,7 +514,8 @@ const LEVELS = [
       { x: -60, y: 220, w: 140, h: 20, t: "bounce" },
       { x: 150, y: 240, w: 300, h: 24, t: "spike" },
       { x: 300, y: -120, w: 100, h: 20, t: "goal" },
-      { x: 100, y: -60, w: 20, h: 240, t: "wall" } // barricade wall: no straight flight to the pad,
+      { x: 100, y: -60, w: 20, h: 240, t: "wall" }, // barricade wall: no straight flight to the pad
+      { x: -26, y: 191, w: 26, h: 26, t: "gem" },
     ] },
   { name: "Spike Box", cam: "fixed", view: 640, start: [0, -144], par: [4, 8],
     hint: "Every wall bites. Land soft.",
@@ -485,6 +524,7 @@ const LEVELS = [
       { x: 0, y: -120, w: 120, h: 20, t: "wall" },
       { x: 0, y: 40, w: 160, h: 20, t: "wall" },
       { x: 150, y: 160, w: 60, h: 20, t: "goal" },
+      { x: 187, y: 4, w: 26, h: 26, t: "gem" },
     ] },
   { name: "Long Fall", cam: "follow", view: 900, bounds: 1150, start: [0, -900], par: [6, 12],
     hint: "A long way down. Keep weaving.",
@@ -497,6 +537,7 @@ const LEVELS = [
       { x: 0, y: 900, w: 140, h: 20, t: "goal" },
       { x: -300, y: 50, w: 20, h: 1800, t: "wall" },
       { x: 300, y: 50, w: 20, h: 1800, t: "wall" },
+      { x: -2, y: 346, w: 26, h: 26, t: "gem" },
     ] },
   { name: "Ice Stairs", cam: "fixed", view: 820, start: [-250, -202], par: [4, 8],
     hint: "Every step is ice. Don't fly off the end.",
@@ -530,7 +571,8 @@ const LEVELS = [
       { x: 300, y: -50, w: 100, h: 20, a: -30, t: "bounce" },
       { x: 0, y: 400, w: 600, h: 24, t: "spike" },
       { x: -300, y: -250, w: 80, h: 20, t: "goal" },
-      { x: -150, y: -250, w: 20, h: 300, t: "wall" } // barricade wall: no straight flight to the pad,
+      { x: -150, y: -250, w: 20, h: 300, t: "wall" }, // barricade wall: no straight flight to the pad
+      { x: -315, y: -403, w: 26, h: 26, t: "gem" },
     ] },
   { name: "Hop Scotch", cam: "fixed", view: 860, start: [-330, -62], par: [4, 8],
     hint: "Pillars in the way, spikes below. Hop pad to pad.",
@@ -544,6 +586,7 @@ const LEVELS = [
       { x: 0, y: 128, w: 90, h: 16, t: "bounce" },
       { x: 220, y: 128, w: 90, h: 16, t: "bounce" },
       { x: 370, y: 0, w: 20, h: 120, t: "goal" },
+      { x: -247, y: 100, w: 26, h: 26, t: "gem" },
     ] },
   { name: "Moving Spring", cam: "fixed", view: 720, start: [-200, -82], par: [7, 14],
     hint: "The floor bites. Catch the moving pad.",
@@ -555,7 +598,8 @@ const LEVELS = [
       { x: 250, y: 60, w: 20, h: 380, t: "spike" },
       { x: 0, y: -250, w: 520, h: 20, t: "spike" },
       { x: 180, y: -100, w: 100, h: 20, t: "goal" },
-      { x: 0, y: -60, w: 20, h: 380, t: "wall" } // divider: go low, past the spring,
+      { x: 0, y: -60, w: 20, h: 380, t: "wall" }, // divider: go low, past the spring
+      { x: 64, y: -14, w: 26, h: 26, t: "gem" },
     ] },
 
   // ── 41–50 ──────────────────────────────────────────────────
@@ -568,7 +612,8 @@ const LEVELS = [
       { x: 300, y: 40, w: 120, h: 20, t: "spike" },
       { x: -300, y: 300, w: 200, h: 20, t: "spike" },
       { x: 100, y: 250, w: 110, h: 20, t: "goal" },
-      { x: -80, y: 0, w: 20, h: 1200, t: "wall" } // the portal is the only way across,
+      { x: -80, y: 0, w: 20, h: 1200, t: "wall" }, // the portal is the only way across
+      { x: -202, y: 256, w: 26, h: 26, t: "gem" },
     ] },
   { name: "Orbit", cam: "fixed", view: 820, bounds: 560, start: [0, -304], par: [4, 8],
     hint: "Two blades nearly meet in the middle. Time the drop.",
@@ -592,6 +637,7 @@ const LEVELS = [
       { x: -120, y: -180, w: 20, h: 140, t: "wall" },
       { x: 130, y: -180, w: 20, h: 140, t: "wall" },
       { x: 420, y: -100, w: 70, h: 20, t: "goal" },
+      { x: -199, y: -214, w: 26, h: 26, t: "gem" },
     ] },
   { name: "Tower", cam: "follow", view: 900, start: [-100, 586], par: [18, 36],
     hint: "The goal is at the top. Gravity is whatever you say it is.",
@@ -607,6 +653,7 @@ const LEVELS = [
       { x: -140, y: -100, w: 20, h: 120, t: "spike" },
       { x: 140, y: -300, w: 20, h: 120, t: "spike" },
       { x: 0, y: -590, w: 100, h: 20, t: "goal" },
+      { x: 131, y: -394, w: 26, h: 26, t: "gem" },
     ] },
   { name: "Piston Hall", cam: "fixed", view: 900, start: [-390, 86], par: [7, 14],
     hint: "Five pistons, five rhythms. Floor or ceiling, every time.",
@@ -618,6 +665,7 @@ const LEVELS = [
       { x: 140, y: 0, w: 24, h: 120, t: "spike", m: [0, -60, 2.6] },
       { x: 280, y: 0, w: 24, h: 120, t: "spike", m: [0, 60, 2.0] },
       { x: 410, y: 0, w: 20, h: 120, t: "goal" },
+      { x: -48, y: 73, w: 26, h: 26, t: "gem" },
     ] },
   { name: "Spinner", cam: "fixed", view: 820, bounds: 600, start: [-250, -244], par: [4, 8],
     hint: "Slip past the spinning blade.",
@@ -627,6 +675,7 @@ const LEVELS = [
       { x: 250, y: 230, w: 120, h: 20, t: "goal" },
       { x: -375, y: 0, w: 450, h: 20, t: "wall" },
       { x: 375, y: 0, w: 450, h: 20, t: "wall" },
+      { x: -452, y: 145, w: 26, h: 26, t: "gem" },
     ] },
   { name: "Needle", cam: "follow", view: 860, bounds: 700, start: [0, -320], par: [4, 8],
     hint: "Thread the moving gap, then find the pad.",
@@ -644,7 +693,8 @@ const LEVELS = [
       { x: 120, y: 0, w: 90, h: 20, t: "wall", m: [80, 0, 2.5] },
       { x: 0, y: 330, w: 900, h: 24, t: "spike" },
       { x: 350, y: 100, w: 80, h: 20, t: "goal", m: [0, 100, 3.5] },
-      { x: 270, y: 150, w: 20, h: 500, t: "wall" } // barricade wall: go over, using the isles,
+      { x: 270, y: 150, w: 20, h: 500, t: "wall" }, // barricade wall: go over, using the isles
+      { x: 47, y: -67, w: 26, h: 26, t: "gem" },
     ] },
   { name: "Double Back", cam: "fixed", view: 900, start: [-360, -24], par: [12, 24],
     hint: "Out along the top, back along the bottom — upside down.",
@@ -675,6 +725,7 @@ const LEVELS = [
       { x: 150, y: 60, w: 100, h: 20, a: -30, t: "bounce" },
       { x: 0, y: 60, w: 80, h: 80, t: "spike" },
       { x: 0, y: 200, w: 80, h: 20, t: "goal" },
+      { x: -52, y: -10, w: 26, h: 26, t: "gem" },
     ] },
   { name: "Wall Walker", cam: "fixed", view: 820, start: [0, 278], par: [17, 34],
     hint: "Climb the walls. Glue patches are safe spots to stop and re-aim.",
@@ -704,6 +755,7 @@ const LEVELS = [
       { x: 105, y: 204, w: 50, h: 12, t: "spike" },
       { x: 45, y: 320, w: 170, h: 20, t: "spike" },
       { x: -80, y: 320, w: 80, h: 20, t: "goal" },
+      { x: 102, y: -125, w: 26, h: 26, t: "gem" },
     ] },
   { name: "Fall Up", cam: "fixed", view: 800, bounds: 600, start: [0, 306], par: [11, 22],
     hint: "The goal is above you. Turn the sky into the floor.",
@@ -729,6 +781,7 @@ const LEVELS = [
       { x: -60, y: 310, w: 520, h: 20, t: "spike" },
       { x: -310, y: 160, w: 20, h: 300, t: "spike" },
       { x: 270, y: 310, w: 80, h: 20, t: "goal" },
+      { x: -2, y: 109, w: 26, h: 26, t: "gem" },
     ] },
   { name: "Final Shift", cam: "fixed", view: 820, start: [-230, 178], par: [9, 18],
     hint: "Everything you've learned. Good luck.",
@@ -744,6 +797,7 @@ const LEVELS = [
       { x: 255, y: -48, w: 90, h: 16, t: "wall" },
       { x: 195, y: -100, w: 20, h: 60, t: "spike", m: [0, 80, 2] },
       { x: 290, y: -100, w: 20, h: 70, t: "goal" },
+      { x: 175, y: -36, w: 26, h: 26, t: "gem" },
     ] },
   { name: "Long Way Round", cam: "fixed", view: 1000, bounds: 600, start: [0, -274], par: [8, 16],
     hint: "The pad faces the wrong way. Go round and come at it from below.",
@@ -793,6 +847,687 @@ const LEVELS = [
       { x: 310, y: 120, w: 20, h: 130, t: "goal" },
     ] },
 ];
+
+// ---------- Generated levels ----------
+// A generated level is stored as a recipe [type, seed, difficulty 0..1, 3★ seconds] and rebuilt the
+// same way every time by genLevel(). tools/gen_levels.py tries thousands of recipes, and the level
+// bot keeps only ones a human can win (sloppy timing) that a single fixed tilt can't (no shortcut).
+function mulberry32(a) {
+  return () => { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; };
+}
+const GEN_A = ["Quiet", "Crimson", "Hollow", "Tilted", "Silent", "Broken", "Velvet", "Iron", "Glass", "Bitter", "Lucky", "Restless", "Frozen", "Burning", "Lonely", "Crooked", "Golden", "Hidden", "Narrow", "Wild", "Sleepy", "Hungry", "Twisted", "Distant", "Fragile", "Sudden", "Gentle", "Rusty", "Shimmering", "Upside"];
+const GEN_B = ["Drop", "Gate", "Spiral", "Chamber", "Ledge", "Drift", "Corner", "Shaft", "Garden", "Orbit", "Maze", "Ramp", "Hollow", "Crossing", "Well", "Ladder", "Passage", "Vault", "Turn", "Cradle", "Fall", "Edge", "Loop", "Pocket", "Rift", "Teeth", "Lantern", "Harbor", "Echo", "Hinge"];
+const GEN_HINTS = {
+  room: ["Find the way through. Every room has one.", "Look before you drop.", "Turn the room until the path appears.", "Some walls are friends. Some bite."],
+  corridor: ["One long hall. Watch the rhythm.", "Floor or ceiling? Choose at every gap.", "Keep moving. Hesitation gets you hit."],
+  void: ["Nothing to hold on to out here.", "The void is patient. Be precise.", "Pick a line and commit."],
+  tower: ["All the way through the tower.", "Switch sides at every floor.", "Gravity is whatever you say it is."],
+};
+const GEN_TYPES = ["room", "corridor", "void", "tower"];
+
+function genLevel(spec) {
+  const [type, seed, d, par3] = spec;
+  const R = mulberry32(seed * 7919 + GEN_TYPES.indexOf(type) * 104729 + 17);
+  const r = (a, b) => a + R() * (b - a), ri = (a, b) => Math.floor(r(a, b + 1));
+  const pick = a => a[Math.floor(R() * a.length)], chance = p => R() < p;
+  const rd = v => Math.round(v);
+  const objs = [], zones = [];
+  // rectangle-to-point distance, for keeping hazards off the start and the goal
+  const rdist = (o, x, y) => {
+    const a = (o.a || 0) * Math.PI / 180, c = Math.cos(a), s = Math.sin(a), dx = x - o.x, dy = y - o.y;
+    const lx = dx * c + dy * s, ly = -dx * s + dy * c;
+    const sw = Math.abs(o.m ? o.m[0] : 0) + (o.spin ? Math.max(o.w, o.h) / 2 : 0), sh = Math.abs(o.m ? o.m[1] : 0) + (o.spin ? Math.max(o.w, o.h) / 2 : 0);
+    return Math.hypot(Math.max(Math.abs(lx) - o.w / 2 - sw, 0), Math.max(Math.abs(ly) - o.h / 2 - sh, 0));
+  };
+  const free = o => zones.every(([x, y, rr]) => rdist(o, x, y) > rr);
+  // pieces keep ~30 units apart: sample points along the new piece, check them against every placed piece
+  let firstPiece = 0; // objects before this index are the outer box: ignore them
+  const spaced = o => {
+    const a = (o.a || 0) * Math.PI / 180, long = Math.max(o.w, o.h), alongW = o.w >= o.h;
+    const ux = alongW ? Math.cos(a) : -Math.sin(a), uy = alongW ? Math.sin(a) : Math.cos(a);
+    for (const t of [-0.5, -0.25, 0, 0.25, 0.5]) {
+      const px = o.x + ux * t * long, py = o.y + uy * t * long;
+      for (let k = firstPiece; k < objs.length; k++) if (rdist(objs[k], px, py) < 30 + Math.min(o.w, o.h) / 2) return false;
+    }
+    return true;
+  };
+  const place = (make, tries = 25) => { for (let k = 0; k < tries; k++) { const o = make(); if (free(o) && spaced(o)) { objs.push(o); return o; } } return null; };
+  // which mechanics this difficulty may use
+  const can = { moving: d >= 0.12, bounce: d >= 0.08, glue: d >= 0.3, ice: d >= 0.4, portal: d >= 0.5 };
+  const spikeP = 0.35 + 0.5 * d;
+  // one random hazard inside the rectangle [x0..x1] x [y0..y1]
+  const hazard = (x0, x1, y0, y1) => {
+    const kinds = ["bar", "bar", "bar"];
+    if (can.moving) kinds.push("mover", "mover", "spinner");
+    if (can.bounce) kinds.push("bounce");
+    if (can.glue) kinds.push("glue");
+    if (can.ice) kinds.push("ice");
+    const k = pick(kinds), x = rd(r(x0, x1)), y = rd(r(y0, y1));
+    if (k === "bar") {
+      const len = rd(r(80, 260)), ang = pick([0, 0, 90, rd(r(-40, 40))]);
+      return { x, y, w: len, h: 20, a: ang || undefined, t: chance(spikeP) ? "spike" : "wall" };
+    }
+    if (k === "mover") {
+      const vert = chance(0.5), amp = rd(r(50, 150)) * (chance(0.5) ? 1 : -1);
+      return { x, y, w: vert ? 22 : rd(r(60, 140)), h: vert ? rd(r(60, 140)) : 22, t: "spike", m: vert ? [amp, 0, +r(1.6, 3.2).toFixed(1)] : [0, amp, +r(1.6, 3.2).toFixed(1)] };
+    }
+    if (k === "spinner") return { x, y, w: rd(r(120, 220)), h: 16, t: "spike", spin: rd(r(40, 50 + 60 * d)) * (chance(0.5) ? 1 : -1) };
+    if (k === "bounce") return { x, y, w: rd(r(80, 110)), h: 16, a: pick([0, 0, rd(r(-30, 30))]) || undefined, t: "bounce" };
+    if (k === "glue") return { x, y, w: rd(r(80, 120)), h: 16, a: pick([0, 90]) || undefined, t: "glue" };
+    return { x, y, w: rd(r(140, 280)), h: 16, a: rd(r(-25, 25)) || undefined, t: "ice" };
+  };
+  const portals = (x0, x1, y0, y1) => {
+    if (!can.portal || !chance(0.35)) return;
+    const p1 = place(() => ({ x: rd(r(x0, x1)), y: rd(r(y0, y1)), w: 50, h: 50, t: "portal", link: "a" }));
+    if (!p1) return;
+    const p2 = place(() => ({ x: rd(r(x0, x1)), y: rd(r(y0, y1)), w: 50, h: 50, t: "portal", link: "a" }));
+    if (!p2 || Math.hypot(p1.x - p2.x, p1.y - p2.y) < 200) objs.splice(objs.indexOf(p1), 1 + (p2 ? 1 : 0));
+  };
+  const gw = rd(r(105, 125) - 45 * d); // goals shrink as difficulty rises
+  let L;
+
+  if (type === "room") {
+    const hw = rd(r(200, 320)), hh = rd(r(200, 320)), f = chance(0.5) ? 1 : -1;
+    objs.push(...box(hw, hh)); firstPiece = objs.length;
+    const sx = f * (-hw + 70), sy = -hh + 60;
+    objs.push({ x: sx, y: sy + 22, w: 100, h: 16, t: "wall" });
+    let goal;
+    const gk = pick(["floor", "floor", "wall", d > 0.3 ? "ceiling" : "floor"]);
+    if (gk === "floor") goal = { x: rd(-f * r(hw * 0.2, hw - gw / 2 - 12)), y: hh - 10, w: gw, h: 20, t: "goal" };
+    else if (gk === "wall") goal = { x: -f * (hw - 10), y: rd(r(-hh * 0.1, hh - gw / 2 - 12)), w: 20, h: gw, t: "goal" };
+    else goal = { x: rd(-f * r(hw * 0.3, hw - gw / 2 - 12)), y: -hh + 10, w: gw, h: 20, t: "goal" };
+    zones.push([sx, sy, 85], [goal.x, goal.y, 70]);
+    objs.push(goal);
+    // spikes along the inside walls, never on the goal
+    const strips = ri(0, 1 + Math.round(3 * d));
+    for (let k = 0; k < strips; k++) {
+      const side = pick(["floor", "floor", "ceiling", "left", "right"]), len = rd(r(120, (side === "floor" || side === "ceiling" ? hw : hh) * 1.2));
+      const o = side === "floor" ? { x: rd(r(-hw + len / 2, hw - len / 2)), y: hh - 10, w: len, h: 20, t: "spike" }
+        : side === "ceiling" ? { x: rd(r(-hw + len / 2, hw - len / 2)), y: -hh + 10, w: len, h: 20, t: "spike" }
+        : { x: side === "left" ? -hw + 10 : hw - 10, y: rd(r(-hh + len / 2, hh - len / 2)), w: 20, h: len, t: "spike" };
+      if (free(o)) objs.push(o);
+    }
+    const n = 2 + Math.round(d * 5 + r(0, 1.5));
+    for (let k = 0; k < n; k++) place(() => hazard(-hw + 60, hw - 60, -hh + 60, hh - 60));
+    portals(-hw + 60, hw - 60, -hh + 60, hh - 60);
+    L = { cam: "fixed", view: 2 * Math.max(hw, hh) + 130, start: [sx, sy], objs };
+  } else if (type === "corridor") {
+    const hw = rd(r(360, 440)), hh = rd(r(95, 135)), f = chance(0.5) ? 1 : -1;
+    objs.push(...box(hw, hh));
+    const sx = f * (-hw + 30), sy = hh - 14;
+    const goal = { x: -f * (hw - 10), y: rd(r(-hh + gw / 2 + 5, hh - gw / 2 - 5)), w: 20, h: Math.min(gw, 2 * hh - 20), t: "goal" };
+    zones.push([sx, sy, 70], [goal.x, goal.y, 60]);
+    objs.push(goal);
+    if (chance(0.3 + 0.5 * d)) { const len = rd(r(hw * 0.6, hw * 1.4)); const o = { x: rd(-f * r(0, hw - len / 2 - 60)), y: chance(0.5) ? hh - 10 : -hh + 10, w: len, h: 20, t: "spike" }; if (free(o)) objs.push(o); }
+    const n = 2 + Math.round(d * 4 + r(0, 1));
+    for (let k = 0; k < n; k++) {
+      const x = rd(f * (-hw + 130 + (k + r(0.2, 0.8)) * (2 * hw - 260) / n));
+      const kind = pick(can.moving ? ["piston", "piston", "spinner", "bar"] : ["bar", "bar"]);
+      if (kind === "piston") objs.push({ x, y: 0, w: 22, h: rd(r(hh * 0.9, hh * 1.3)), t: "spike", m: [0, rd(r(40, hh * 0.6)) * (chance(0.5) ? 1 : -1), +r(1.5, 2.8).toFixed(1)] });
+      else if (kind === "spinner") objs.push({ x, y: 0, w: rd(r(hh * 1.1, hh * 1.7)), h: 16, t: "spike", spin: rd(r(50, 70 + 50 * d)) * (chance(0.5) ? 1 : -1) });
+      else objs.push({ x, y: (chance(0.5) ? 1 : -1) * rd(hh * r(0.35, 0.6)), w: 22, h: rd(hh * r(0.8, 1.2)), t: chance(spikeP) ? "spike" : "wall" });
+    }
+    L = { cam: "fixed", view: 2 * hw + 90, start: [sx, sy], objs };
+  } else if (type === "void") {
+    const B = rd(r(560, 700)), f = chance(0.5) ? 1 : -1;
+    const sx = rd(f * -r(180, 320)), sy = rd(-r(200, 320));
+    objs.push({ x: sx, y: sy + 22, w: 100, h: 16, t: "wall" });
+    const goal = { x: rd(-f * r(150, 320)), y: rd(r(180, 320)), w: gw, h: 20, a: pick([0, 0, rd(r(-30, 30))]) || undefined, t: "goal" };
+    zones.push([sx, sy, 85], [goal.x, goal.y, 70]);
+    objs.push(goal);
+    // a barricade line across the middle so you can't just swing round everything
+    const yc = rd(r(-60, 80));
+    if (chance(0.75)) {
+      const gap = rd(r(110, 220) - 60 * d), gx = rd(r(-200, 200));
+      for (const o of [{ x: rd((gx - gap / 2 - B) / 2), y: yc, w: rd(B + gx - gap / 2), h: 20, t: chance(spikeP * 0.6) ? "spike" : "wall" },
+                       { x: rd((gx + gap / 2 + B) / 2), y: yc, w: rd(B - gx - gap / 2), h: 20, t: chance(spikeP * 0.6) ? "spike" : "wall" }]) objs.push(o);
+      if (can.moving && chance(0.5 + 0.4 * d)) objs.push({ x: gx, y: yc, w: rd(gap * r(0.9, 1.3)), h: 16, t: "spike", spin: rd(r(40, 60 + 50 * d)) * (chance(0.5) ? 1 : -1) });
+    }
+    const n = 2 + Math.round(d * 4 + r(0, 1));
+    for (let k = 0; k < n; k++) place(() => hazard(-B * 0.6, B * 0.6, -B * 0.55, B * 0.6));
+    portals(-B * 0.6, B * 0.6, -B * 0.6, B * 0.6);
+    L = { cam: "fixed", view: rd(B * 1.6), bounds: B, start: [sx, sy], objs };
+  } else { // tower
+    const hw = rd(r(130, 170)), hh = rd(r(430, 620)), up = chance(0.5);
+    objs.push(...box(hw, hh));
+    const sy = up ? hh - 14 : -hh + 60, sx = rd(r(-hw + 40, hw - 40));
+    if (!up) objs.push({ x: sx, y: sy + 22, w: 80, h: 16, t: "wall" });
+    const goal = { x: rd(r(-hw + gw / 2 + 12, hw - gw / 2 - 12)), y: up ? -hh + 10 : hh - 10, w: gw, h: 20, t: "goal" };
+    zones.push([sx, sy, 80], [goal.x, goal.y, 60]);
+    objs.push(goal);
+    const step = r(170, 230), gap = rd(r(80, 120) - 30 * d);
+    let side = chance(0.5) ? 1 : -1;
+    for (let y = -hh + step; y < hh - step * 0.6; y += step) {
+      const len = 2 * hw - gap;
+      const o = { x: rd(side * (gap / 2)), y: rd(y), w: len, h: 20, t: chance(0.15 + 0.35 * d) ? "ice" : "wall" };
+      if (!can.ice && o.t === "ice") o.t = "wall";
+      if (free(o)) objs.push(o);
+      if (chance(0.25 + 0.6 * d)) { const s = { x: -side * (hw - 10), y: rd(y + step / 2), w: 20, h: rd(step * r(0.35, 0.6)), t: "spike" }; if (free(s)) objs.push(s); }
+      if (can.moving && chance(0.2 + 0.5 * d)) { const g = { x: rd(-side * (hw - gap / 2)), y: rd(y + step * 0.5), w: rd(gap * 0.8), h: 18, t: "spike", m: [rd(r(20, 40)), 0, +r(1.4, 2.4).toFixed(1)] }; if (free(g)) objs.push(g); }
+      side = -side;
+    }
+    L = { cam: "follow", view: 900, start: [sx, sy], objs };
+  }
+  // two-word name from a hash of the seed (tools/gen_levels.py never picks two levels with the same name)
+  const hsh = Math.imul(seed ^ 0x9E3779B9, 2654435761) >>> 0;
+  L.name = `${GEN_A[hsh % GEN_A.length]} ${GEN_B[Math.floor(hsh / GEN_A.length) % GEN_B.length]}`;
+  L.hint = pick(GEN_HINTS[type]);
+  L.par = [par3 || 10, 2 * (par3 || 10)];
+  L.gen = spec;
+  return L;
+}
+
+// The run: hand-made levels by name, generated ones as recipes. Written by tools/gen_levels.py;
+// null = just the hand-made levels in their own order.
+const RUN = [
+  "Steer the Fall",
+  ["room", 725, 0.05, 4],
+  ["room", 973, 0.05, 4],
+  "Over the Wall",
+  ["room", 897, 0.06, 4],
+  ["room", 929, 0.07, 4],
+  ["tower", 786, 0.05, 9],
+  "Slider",
+  ["room", 2094, 0.01, 4],
+  ["room", 2835, 0.01, 5],
+  ["room", 382, 0.14, 5],
+  ["room", 747, 0.63, 4],
+  ["room", 849, 0.05, 8],
+  ["room", 2587, 0.17, 4],
+  ["room", 1363, 0.08, 5],
+  ["tower", 345, 0.01, 11],
+  ["room", 1505, 0.08, 9],
+  "Upside Down",
+  ["room", 257, 0.1, 5],
+  ["room", 1076, 0.03, 4],
+  ["tower", 252, 0.02, 18],
+  ["room", 624, 0.03, 5],
+  ["room", 2890, 0.05, 5],
+  ["room", 2303, 0.28, 6],
+  "Bounce Gap",
+  ["room", 1126, 0.24, 4],
+  ["room", 1037, 0.67, 4],
+  ["room", 2411, 0.23, 4],
+  ["room", 340, 0.09, 5],
+  ["room", 2096, 0.1, 4],
+  ["room", 91, 0.17, 4],
+  ["room", 114, 0.1, 4],
+  ["room", 615, 0.08, 4],
+  ["room", 204, 0.09, 5],
+  ["room", 985, 0.22, 5],
+  ["room", 418, 0.11, 5],
+  ["room", 309, 0.0, 7],
+  ["room", 928, 0.54, 4],
+  ["room", 2784, 0.02, 6],
+  ["room", 1271, 0.54, 5],
+  "Zigzag",
+  ["room", 1724, 0.49, 5],
+  ["room", 1855, 0.55, 6],
+  ["room", 717, 0.15, 6],
+  ["room", 2678, 0.23, 4],
+  ["room", 31, 0.11, 4],
+  ["room", 458, 0.53, 4],
+  ["room", 2259, 0.27, 7],
+  ["room", 430, 0.14, 6],
+  ["room", 954, 0.05, 8],
+  ["room", 336, 0.75, 7],
+  ["room", 2330, 0.16, 4],
+  ["room", 1971, 0.07, 6],
+  "Pendulum",
+  ["tower", 238, 0.09, 14],
+  ["room", 909, 0.4, 4],
+  ["room", 1011, 0.03, 4],
+  ["room", 338, 0.28, 6],
+  ["room", 2340, 0.14, 4],
+  "Sticky Start",
+  ["room", 817, 0.32, 4],
+  ["room", 397, 0.39, 5],
+  ["room", 1507, 0.38, 6],
+  ["room", 1621, 0.64, 4],
+  ["room", 367, 0.53, 6],
+  ["room", 1772, 0.38, 6],
+  ["room", 469, 0.3, 5],
+  ["room", 721, 0.41, 5],
+  ["room", 827, 0.28, 5],
+  ["room", 1, 0.85, 8],
+  ["tower", 495, 0.19, 10],
+  ["room", 87, 0.19, 5],
+  ["room", 2466, 0.33, 8],
+  ["room", 696, 0.24, 5],
+  ["room", 234, 0.87, 8],
+  ["room", 269, 0.88, 4],
+  ["room", 2180, 0.58, 6],
+  ["room", 820, 0.92, 4],
+  ["room", 2299, 0.17, 6],
+  ["room", 1586, 0.13, 6],
+  ["room", 321, 0.13, 4],
+  ["room", 991, 0.66, 5],
+  ["room", 354, 0.09, 8],
+  ["room", 2215, 0.56, 7],
+  ["room", 966, 0.66, 7],
+  ["room", 2468, 0.48, 4],
+  ["room", 1272, 0.01, 4],
+  ["room", 76, 0.95, 4],
+  ["tower", 86, 0.03, 12],
+  ["room", 960, 0.17, 4],
+  ["room", 2109, 0.44, 7],
+  ["room", 201, 0.33, 4],
+  ["room", 298, 0.65, 4],
+  ["room", 1185, 0.1, 7],
+  ["room", 1518, 0.74, 4],
+  ["room", 2194, 0.13, 6],
+  ["room", 1824, 0.03, 4],
+  ["room", 1838, 0.08, 6],
+  ["room", 2867, 0.2, 6],
+  ["tower", 402, 0.1, 13],
+  ["room", 1353, 0.61, 10],
+  ["room", 1545, 0.24, 6],
+  ["room", 2191, 0.36, 5],
+  ["room", 123, 0.09, 4],
+  ["room", 138, 0.45, 4],
+  ["room", 2845, 0.34, 4],
+  ["room", 1358, 0.09, 7],
+  ["room", 465, 0.22, 4],
+  ["tower", 1044, 0.36, 18],
+  "Black Ice",
+  ["room", 463, 0.47, 4],
+  ["room", 260, 0.94, 6],
+  ["room", 301, 0.8, 6],
+  ["room", 1485, 0.9, 9],
+  ["room", 2097, 0.8, 6],
+  ["room", 464, 0.55, 7],
+  ["room", 870, 0.45, 6],
+  ["room", 43, 0.7, 6],
+  ["room", 109, 0.46, 7],
+  ["room", 803, 0.49, 5],
+  ["room", 186, 0.41, 7],
+  ["room", 72, 0.59, 4],
+  ["room", 294, 0.48, 4],
+  ["room", 676, 0.83, 4],
+  ["room", 13, 0.69, 6],
+  ["room", 922, 0.93, 6],
+  ["room", 541, 0.47, 4],
+  ["tower", 69, 0.1, 21],
+  ["room", 896, 0.12, 4],
+  ["room", 412, 0.71, 4],
+  ["room", 284, 0.28, 7],
+  ["room", 808, 0.65, 8],
+  ["room", 184, 0.24, 7],
+  ["room", 2160, 0.98, 9],
+  ["room", 452, 0.66, 8],
+  ["tower", 443, 0.02, 13],
+  ["tower", 1209, 0.02, 19],
+  ["room", 1012, 0.14, 5],
+  ["room", 1016, 0.39, 5],
+  ["room", 224, 0.19, 4],
+  ["room", 524, 0.01, 6],
+  ["room", 449, 0.19, 8],
+  ["room", 1801, 0.28, 4],
+  ["room", 1125, 0.35, 6],
+  "Sync",
+  ["room", 777, 0.45, 4],
+  ["room", 1083, 0.48, 7],
+  ["room", 652, 0.58, 6],
+  ["room", 1340, 0.86, 5],
+  ["room", 88, 0.19, 4],
+  ["room", 2080, 0.42, 5],
+  ["tower", 1412, 0.03, 15],
+  ["room", 847, 0.85, 6],
+  ["room", 467, 0.4, 11],
+  ["room", 885, 0.95, 4],
+  ["tower", 832, 0.54, 14],
+  ["room", 1521, 0.29, 7],
+  "Blade Run",
+  ["room", 713, 0.28, 7],
+  ["room", 1914, 0.24, 7],
+  ["room", 379, 0.54, 6],
+  ["tower", 1662, 0.3, 13],
+  ["tower", 1077, 0.22, 15],
+  ["room", 2984, 0.76, 5],
+  ["tower", 1441, 0.28, 21],
+  ["room", 2557, 0.6, 4],
+  ["room", 1925, 0.08, 5],
+  ["room", 2307, 0.48, 5],
+  ["room", 36, 0.98, 4],
+  "First Portal",
+  ["room", 1091, 0.84, 7],
+  ["room", 173, 0.67, 7],
+  ["void", 1241, 0.5, 4],
+  ["room", 262, 0.53, 6],
+  ["room", 1259, 0.71, 7],
+  ["room", 18, 0.66, 7],
+  ["room", 85, 0.62, 8],
+  ["room", 374, 0.72, 6],
+  ["room", 2055, 0.94, 5],
+  ["room", 1424, 0.5, 6],
+  ["room", 915, 0.8, 5],
+  ["room", 2305, 0.64, 4],
+  ["room", 936, 0.94, 4],
+  ["room", 259, 0.55, 15],
+  ["room", 232, 0.23, 5],
+  ["room", 393, 0.17, 9],
+  ["room", 1343, 0.21, 4],
+  ["tower", 26, 0.2, 28],
+  ["tower", 639, 0.61, 16],
+  ["room", 737, 0.19, 7],
+  ["room", 1933, 0.35, 6],
+  ["room", 1228, 0.17, 6],
+  "Clockwork",
+  ["tower", 1988, 0.12, 12],
+  "Labyrinth",
+  ["tower", 415, 0.25, 17],
+  ["tower", 194, 0.07, 25],
+  "Keyhole",
+  ["room", 1733, 0.53, 4],
+  ["room", 2058, 0.99, 6],
+  ["tower", 704, 0.37, 15],
+  ["room", 1113, 0.2, 4],
+  ["tower", 202, 0.64, 12],
+  ["room", 772, 0.83, 5],
+  "Clock Face",
+  ["room", 1373, 0.18, 4],
+  ["room", 2997, 0.23, 4],
+  ["room", 2281, 0.74, 5],
+  ["tower", 2291, 0.1, 26],
+  "Spike Garden",
+  ["room", 952, 0.05, 4],
+  ["room", 190, 0.75, 7],
+  ["tower", 2762, 0.48, 20],
+  ["tower", 362, 0.52, 21],
+  ["room", 1403, 0.14, 4],
+  ["room", 316, 0.95, 8],
+  ["room", 187, 0.48, 10],
+  ["tower", 248, 0.72, 16],
+  ["room", 1032, 0.55, 8],
+  ["room", 1469, 0.16, 6],
+  ["room", 2952, 0.91, 5],
+  "Gauntlet",
+  ["room", 962, 0.65, 7],
+  ["tower", 1379, 0.25, 14],
+  ["tower", 220, 0.23, 19],
+  ["room", 49, 0.41, 5],
+  ["room", 1361, 0.34, 8],
+  ["room", 28, 0.13, 4],
+  ["room", 1912, 0.57, 4],
+  ["room", 1523, 0.73, 4],
+  ["room", 1449, 0.76, 6],
+  "Crossroads",
+  "Twin Blades",
+  ["room", 608, 0.89, 6],
+  ["room", 774, 0.12, 6],
+  "Locked Room",
+  ["tower", 376, 0.72, 15],
+  ["room", 427, 0.82, 11],
+  ["tower", 2015, 0.64, 17],
+  ["tower", 1401, 0.44, 21],
+  ["room", 371, 0.41, 4],
+  ["tower", 881, 0.17, 16],
+  "Crusher Corridor",
+  ["tower", 1721, 0.41, 25],
+  ["tower", 2857, 0.11, 20],
+  "Funnel",
+  ["tower", 510, 0.55, 20],
+  ["room", 906, 0.99, 6],
+  ["room", 1799, 0.14, 8],
+  ["room", 1790, 0.9, 5],
+  "Shifting Maze",
+  ["room", 113, 0.87, 9],
+  ["room", 55, 0.95, 5],
+  ["tower", 312, 0.66, 15],
+  ["room", 342, 0.58, 8],
+  ["tower", 2101, 0.99, 17],
+  ["room", 678, 0.32, 4],
+  ["room", 303, 0.97, 4],
+  ["tower", 702, 0.79, 21],
+  ["tower", 111, 0.21, 24],
+  ["tower", 599, 0.34, 22],
+  ["tower", 732, 0.86, 17],
+  ["room", 741, 0.53, 5],
+  "Gears",
+  ["tower", 68, 0.94, 25],
+  "Corkscrew",
+  ["room", 485, 0.76, 4],
+  ["room", 1265, 0.59, 7],
+  ["tower", 2031, 0.33, 25],
+  "Ice Rink",
+  ["void", 1459, 0.1, 4],
+  ["room", 787, 0.63, 12],
+  ["tower", 1493, 0.22, 19],
+  ["room", 442, 0.45, 5],
+  ["room", 1475, 0.6, 7],
+  ["room", 1758, 0.87, 4],
+  ["void", 163, 0.46, 4],
+  ["tower", 972, 0.54, 13],
+  ["tower", 2683, 0.75, 27],
+  ["void", 1178, 0.34, 4],
+  ["tower", 1525, 0.88, 15],
+  ["room", 2292, 0.96, 10],
+  ["room", 1875, 0.31, 4],
+  ["room", 1352, 0.89, 4],
+  ["tower", 1252, 0.3, 27],
+  ["room", 579, 0.4, 10],
+  ["room", 1078, 0.44, 6],
+  ["room", 448, 0.12, 11],
+  ["room", 2878, 0.35, 9],
+  ["room", 669, 0.52, 6],
+  ["room", 2736, 0.42, 6],
+  ["tower", 714, 0.07, 32],
+  ["void", 99, 0.2, 4],
+  ["tower", 323, 0.73, 23],
+  ["room", 629, 0.49, 4],
+  ["tower", 1423, 0.5, 14],
+  ["tower", 1638, 0.81, 28],
+  ["void", 445, 0.25, 4],
+  ["tower", 84, 0.91, 22],
+  ["tower", 461, 0.76, 33],
+  ["tower", 931, 0.39, 23],
+  ["room", 605, 0.57, 6],
+  ["room", 1163, 0.44, 9],
+  ["room", 1377, 0.0, 6],
+  ["room", 1356, 0.66, 9],
+  ["void", 120, 0.19, 4],
+  ["room", 199, 0.39, 10],
+  ["room", 892, 0.31, 4],
+  ["void", 1591, 0.16, 4],
+  ["room", 102, 0.62, 4],
+  ["room", 411, 0.33, 10],
+  ["tower", 688, 0.93, 21],
+  ["void", 977, 0.05, 4],
+  ["room", 159, 0.67, 8],
+  ["room", 1071, 0.8, 4],
+  ["room", 441, 0.8, 7],
+  ["room", 969, 0.66, 7],
+  ["room", 1434, 0.13, 6],
+  ["room", 2072, 0.78, 6],
+  ["room", 592, 0.94, 8],
+  ["void", 2093, 0.55, 5],
+  ["room", 2254, 0.8, 10],
+  ["room", 308, 0.97, 4],
+  ["room", 1040, 0.57, 4],
+  ["room", 1542, 0.74, 6],
+  ["room", 172, 0.21, 11],
+  ["void", 307, 0.3, 6],
+  ["void", 1512, 0.15, 4],
+  ["room", 2026, 0.5, 6],
+  ["room", 344, 0.1, 7],
+  ["room", 2677, 0.99, 4],
+  ["room", 2965, 0.85, 7],
+  ["tower", 236, 0.5, 30],
+  ["room", 2946, 0.26, 6],
+  "Needle's Eye",
+  "Narrow Ledge",
+  ["room", 131, 0.77, 6],
+  ["void", 157, 0.22, 4],
+  ["void", 584, 0.25, 4],
+  ["void", 1813, 0.4, 4],
+  "Hop Scotch",
+  ["tower", 171, 0.56, 12],
+  ["tower", 951, 0.18, 24],
+  ["tower", 782, 0.25, 21],
+  ["void", 959, 0.11, 4],
+  ["room", 995, 0.29, 6],
+  ["void", 1616, 0.14, 4],
+  ["void", 2163, 0.3, 4],
+  "Sky Hopper",
+  ["tower", 1342, 0.9, 23],
+  ["void", 425, 0.17, 4],
+  ["void", 1450, 0.15, 4],
+  ["void", 1957, 0.25, 4],
+  ["tower", 1968, 0.05, 29],
+  ["room", 2962, 0.17, 7],
+  ["void", 836, 0.56, 4],
+  ["tower", 983, 0.76, 25],
+  ["tower", 1192, 0.28, 30],
+  ["tower", 2553, 0.23, 27],
+  ["tower", 753, 0.07, 26],
+  ["room", 860, 0.67, 6],
+  ["void", 2925, 0.88, 5],
+  ["room", 79, 0.35, 6],
+  ["tower", 720, 0.16, 49],
+  ["void", 1439, 0.15, 4],
+  ["room", 1499, 0.18, 6],
+  ["void", 381, 0.97, 4],
+  ["void", 390, 0.09, 4],
+  ["void", 1236, 0.74, 4],
+  ["void", 2642, 0.18, 4],
+  ["room", 399, 0.71, 7],
+  ["tower", 1182, 0.24, 25],
+  ["void", 112, 0.67, 4],
+  ["tower", 407, 0.1, 17],
+  ["room", 1304, 0.85, 11],
+  ["room", 2632, 0.77, 4],
+  "Island Hop",
+  ["tower", 292, 0.77, 23],
+  ["room", 1465, 0.52, 4],
+  ["room", 739, 0.69, 6],
+  ["tower", 543, 0.98, 18],
+  ["room", 1108, 0.63, 6],
+  ["void", 1326, 0.97, 6],
+  ["room", 2612, 0.43, 4],
+  ["room", 71, 0.62, 9],
+  ["room", 650, 0.68, 15],
+  ["void", 1029, 0.7, 4],
+  ["room", 1906, 0.91, 6],
+  ["void", 136, 0.53, 5],
+  ["tower", 331, 0.32, 26],
+  ["room", 604, 0.91, 5],
+  ["tower", 899, 0.08, 53],
+  ["room", 1137, 0.21, 17],
+  ["room", 953, 0.39, 5],
+  ["tower", 1167, 0.98, 24],
+  "Spike Box",
+  ["room", 614, 0.6, 9],
+  ["tower", 878, 0.57, 36],
+  ["room", 1464, 1.0, 5],
+  ["void", 2006, 0.07, 4],
+  ["tower", 2914, 0.76, 23],
+  "Stepping Stones",
+  ["tower", 536, 0.63, 17],
+  ["void", 253, 0.38, 4],
+  ["void", 910, 0.45, 5],
+  ["void", 1017, 0.64, 4],
+  ["tower", 1166, 0.95, 32],
+  ["room", 1346, 0.67, 4],
+  ["tower", 1581, 0.81, 17],
+  ["void", 156, 0.89, 4],
+  ["void", 1520, 0.23, 5],
+  ["tower", 2491, 0.81, 19],
+  ["void", 2941, 0.5, 4],
+  "Long Fall",
+  "Moving Spring",
+  "Ricochet",
+  ["tower", 1275, 0.94, 28],
+  "Trampoline",
+  ["void", 1289, 0.66, 4],
+  ["tower", 265, 0.48, 21],
+  ["tower", 562, 0.7, 22],
+  ["tower", 191, 0.79, 20],
+  ["tower", 576, 0.59, 13],
+  ["tower", 2973, 0.67, 21],
+  ["tower", 158, 1.0, 17],
+  ["tower", 976, 0.74, 24],
+  ["tower", 222, 0.24, 22],
+  ["void", 306, 0.52, 4],
+  ["void", 1456, 0.15, 4],
+  ["tower", 1146, 0.7, 21],
+  ["room", 1682, 0.89, 8],
+  ["tower", 413, 0.64, 18],
+  ["void", 1184, 0.25, 4],
+  ["void", 491, 0.4, 5],
+  ["void", 313, 0.97, 4],
+  ["void", 2483, 0.94, 5],
+  ["void", 126, 0.58, 6],
+  ["void", 898, 0.08, 4],
+  ["void", 938, 0.37, 4],
+  ["void", 2390, 0.07, 10],
+  ["tower", 1143, 0.92, 21],
+  ["void", 349, 0.43, 8],
+  ["room", 1852, 0.68, 12],
+  "Portal Hop",
+  ["tower", 174, 0.44, 23],
+  ["void", 414, 0.35, 4],
+  ["void", 2156, 0.44, 4],
+  "Moving Target",
+  ["void", 934, 0.0, 8],
+  ["room", 831, 0.91, 11],
+  ["room", 2986, 0.69, 18],
+  ["tower", 1956, 0.92, 26],
+  "Bounce Gauntlet",
+  "Ice Stairs",
+  ["void", 38, 0.43, 10],
+  ["void", 821, 0.98, 6],
+  ["tower", 1000, 0.67, 23],
+  ["void", 1455, 0.04, 5],
+  ["void", 507, 0.62, 5],
+  ["void", 1309, 0.73, 9],
+  ["void", 44, 0.54, 6],
+  ["void", 862, 0.2, 6],
+  ["tower", 955, 0.45, 23],
+  ["room", 879, 0.54, 4],
+  ["tower", 151, 0.85, 25],
+  "Tower",
+  ["void", 10, 0.43, 11],
+  ["tower", 2392, 0.73, 16],
+  ["tower", 1442, 0.9, 25],
+  ["void", 1811, 0.86, 4],
+  ["void", 2465, 0.1, 6],
+  ["void", 1376, 0.27, 4],
+  "Piston Hall",
+  ["room", 1843, 0.23, 10],
+  ["room", 2428, 0.64, 17],
+  ["void", 391, 0.96, 5],
+  "Wormhole",
+  "Fall Up",
+  ["room", 108, 0.82, 11],
+  ["room", 1229, 0.55, 8],
+  ["void", 1003, 0.36, 8],
+  "Long Way Round",
+  "Corner Shot",
+  ["void", 1041, 0.45, 9],
+  ["void", 561, 0.2, 6],
+  ["void", 1921, 0.01, 4],
+  ["void", 2515, 0.22, 10],
+  "Strange Matter",
+  "Switchback",
+  "Wall Walker",
+  "Drifting Isles",
+  ["tower", 1561, 0.75, 15],
+  "Orbit",
+  "Pinwheel",
+  "Double Back",
+  "Spinner",
+  "Needle",
+  "Final Shift",
+  "Windmill",
+  "World's End",
+];
+function buildLevels() {
+  if (!RUN) return HAND_LEVELS;
+  const byName = Object.fromEntries(HAND_LEVELS.map(l => [l.name, l]));
+  return RUN.map(e => typeof e === "string" ? byName[e] : genLevel(e));
+}
+const LEVELS = buildLevels();
+document.getElementById("ver").textContent += ` · ${LEVELS.length} levels`;
 
 // ---------- Sound (synthesized with Web Audio — no files) ----------
 const Sfx = (() => {
@@ -918,6 +1653,7 @@ const Sfx = (() => {
     star(i) { tone(1047 * Math.pow(1.26, i), 0.4, { type: "sine", vol: 0.2, delay: i * 0.15 }); tone(2094 * Math.pow(1.26, i), 0.25, { vol: 0.06, delay: i * 0.15 }); },
     snap() { tone(240, 0.12, { type: "triangle", vol: 0.15, slide: 1.6 }); noise(0.08, { vol: 0.06, freq: 2000, type: "highpass" }); },
     click() { tone(720, 0.05, { type: "triangle", vol: 0.1 }); },
+    gem() { [1319, 1568, 2093].forEach((f, i) => tone(f, 0.22, { type: "triangle", vol: 0.13, delay: i * 0.05 })); },
     portal() { tone(300, 0.25, { type: "sine", vol: 0.2, slide: 4 }); tone(900, 0.2, { type: "triangle", vol: 0.08, slide: 0.5, delay: 0.05 }); },
     splat(v) { noise(0.12, { vol: 0.25 * v + 0.05, freq: 380 }); tone(140, 0.12, { vol: 0.15 * v + 0.03, slide: 0.5 }); },
   };
@@ -962,6 +1698,8 @@ function recordGhost(force) {
 }
 
 // stars, keyed by level name so reordering levels never moves them
+let gems = {}, lastWin = null;
+try { gems = JSON.parse(localStorage.getItem("ws_gems") || "{}"); } catch (e) { gems = {}; }
 let progress = {};
 try { progress = JSON.parse(localStorage.getItem("ws_stars") || "null"); } catch (e) { progress = null; }
 if (!progress) { // one-time migration from v0.8 and earlier, which keyed stars by level position
@@ -988,6 +1726,7 @@ function loadLevel(i) {
   rec = []; ghost = ghosts[level.name] || null;
   for (const o of level.objs) if (o.bx === undefined) { o.bx = o.x; o.by = o.y; o.ba = o.a || 0; }
   for (const o of level.objs) if (o.t === "portal") o.pair = level.objs.find(q => q !== o && q.t === "portal" && q.link === o.link);
+  for (const o of level.objs) if (o.t === "gem") o.got = false;
   worldT = 0; placeObjs(0);
   ball ={ x: level.start[0], y: level.start[1], vx: 0, vy: 0, spin: 0 };
   angle = 0; angVel = 0; targetAngle = 0;
@@ -1068,6 +1807,7 @@ function physStep(b, gx, gy, h, onEvent) {
   for (const o of level.objs) {
     const c = collide(o, BALL_R, b);
     if (!c) continue;
+    if (o.t === "gem") { if (b === ball && !o.got) { o.got = true; if (onEvent) onEvent("gem", o, 0); } continue; }
     if (o.t === "spike" || o.t === "goal") return o.t;
     if (o.t === "portal") {
       if (b.lock === o || !o.pair) continue;
@@ -1081,6 +1821,7 @@ function physStep(b, gx, gy, h, onEvent) {
   return null;
 }
 function onBallEvent(kind, o, imp) {
+  if (kind === "gem") { burst(o.x, o.y, "#ff6ad5", 22); Sfx.gem(); buzz([10, 30, 10]); return; }
   if (kind === "portal") { burst(ball.x, ball.y, PORTAL_COLORS[o.link] || "#b36bff", 14); Sfx.portal(); buzz(10); trail = []; return; }
   if (o.t === "bounce") { burst(ball.x, ball.y, "#ffa640", 10); Sfx.bounce(); buzz(15); }
   else if (o.t === "glue") { if (imp > 80) { Sfx.splat(Math.min(1, imp / 700)); buzz(10); } }
@@ -1191,11 +1932,17 @@ function win() {
   if (!ghosts[gk] || t < ghosts[gk].t) { ghosts[gk] = { t, p: rec }; try { localStorage.setItem("ws_ghosts", JSON.stringify(ghosts)); } catch (e) {} }
   const prev = progress[level.name] || 0;
   if (st > prev) { progress[level.name] = st; try { localStorage.setItem("ws_stars", JSON.stringify(progress)); } catch (e) {} }
+  const gem = level.objs.find(o => o.t === "gem"), gotGem = !!(gem && gem.got);
+  if (gotGem && !gems[level.name]) { gems[level.name] = true; try { localStorage.setItem("ws_gems", JSON.stringify(gems)); } catch (e) {} }
+  lastWin = { n: levelIdx + 1, name: level.name, st, t, deaths: deaths.n, gem: gem ? gotGem : null };
   const wonLevel = levelIdx;
   setTimeout(() => {
     if (state !== "won" || levelIdx !== wonLevel) return; // player restarted / left meanwhile
     document.getElementById("winStars").textContent = "★".repeat(st) + "☆".repeat(3 - st);
     document.getElementById("winInfo").textContent = `Time ${t.toFixed(2)}s · Deaths ${deaths.n} · 3★ under ${level.par[0]}s`;
+    document.getElementById("winGem").innerHTML = !gem ? "" : gotGem ? '<span style="color:#ff6ad5">◆ Gem collected</span>'
+      : gems[level.name] ? '<span style="opacity:.6">◆ Gem already found earlier</span>' : '<span style="opacity:.6">◇ A gem is hidden somewhere here…</span>';
+    document.getElementById("bShare").textContent = "Share";
     document.getElementById("bNext").textContent = levelIdx < LEVELS.length - 1 ? "Next ▶" : "Menu";
     show("win");
     for (let i = 0; i < st; i++) Sfx.star(i);
@@ -1305,10 +2052,22 @@ function render(now) {
     ctx.fillText(COARSE ? "Tap or turn to drop" : "Click, turn or press Space to drop", W / 2, H * 0.3);
   }
 
-  document.getElementById("stats").textContent = `⏱ ${timer.toFixed(1)}s   ☠ ${deaths.n}`;
+  const hudGem = level.objs.find(o => o.t === "gem");
+  document.getElementById("stats").textContent = `⏱ ${timer.toFixed(1)}s   ☠ ${deaths.n}` + (hudGem ? `   ${hudGem.got ? "◆" : "◇"}` : "");
 }
 
+function drawGem(o, now) {
+  const r = 12, bob = Math.sin(now / 320 + o.x) * 3, pulse = 0.65 + 0.35 * Math.sin(now / 200);
+  ctx.save(); ctx.translate(o.x, o.y + bob); ctx.rotate(-angle); // always upright on screen
+  ctx.shadowColor = "#ff6ad5"; ctx.shadowBlur = 18 * pulse;
+  ctx.fillStyle = "#ff6ad5";
+  ctx.beginPath(); ctx.moveTo(0, -r); ctx.lineTo(r * 0.8, -r * 0.2); ctx.lineTo(0, r); ctx.lineTo(-r * 0.8, -r * 0.2); ctx.closePath(); ctx.fill();
+  ctx.shadowBlur = 0; ctx.fillStyle = "rgba(255,255,255,0.75)";
+  ctx.beginPath(); ctx.moveTo(0, -r); ctx.lineTo(r * 0.35, -r * 0.2); ctx.lineTo(0, r * 0.15); ctx.lineTo(-r * 0.35, -r * 0.2); ctx.closePath(); ctx.fill();
+  ctx.restore();
+}
 function drawObj(o, now) {
+  if (o.t === "gem") { if (!o.got) drawGem(o, now); return; }
   ctx.save(); ctx.translate(o.x, o.y); ctx.rotate(o._ang);
   const hw = o.w / 2, hh = o.h / 2;
   if (o.t === "wall") {
@@ -1481,12 +2240,33 @@ function toggleMode() {
 function show(id) { document.getElementById(id).classList.add("show"); }
 function hide(id) { document.getElementById(id).classList.remove("show"); }
 function isShown(id) { return document.getElementById(id).classList.contains("show"); }
+const MENU_PAGE = 50;
+let menuPage = null;
 function buildMenu() {
+  const stars = LEVELS.reduce((a, l) => a + (progress[l.name] || 0), 0);
+  const gemTotal = LEVELS.filter(l => l.objs.some(o => o.t === "gem")).length;
+  const gemsGot = LEVELS.filter(l => gems[l.name]).length;
+  document.getElementById("totals").innerHTML = `<span style="color:#ffd34d">★ ${stars} / ${LEVELS.length * 3}</span>` +
+    (gemTotal ? ` &nbsp;·&nbsp; <span style="color:#ff6ad5">◆ ${gemsGot} / ${gemTotal}</span>` : "");
+  // pages of MENU_PAGE levels; opens on the page with your first level without stars
+  const pages = Math.ceil(LEVELS.length / MENU_PAGE);
+  if (menuPage === null) { const k = LEVELS.findIndex(l => !progress[l.name]); menuPage = Math.floor(Math.max(0, k) / MENU_PAGE); }
+  const tabs = document.getElementById("pageTabs"); tabs.innerHTML = "";
+  tabs.style.display = pages > 1 ? "grid" : "none";
+  for (let k = 0; k < pages; k++) {
+    const t = document.createElement("button"), a = k * MENU_PAGE, z = Math.min(LEVELS.length, a + MENU_PAGE);
+    const pageStars = LEVELS.slice(a, z).reduce((n, l) => n + (progress[l.name] || 0), 0);
+    t.innerHTML = `${a + 1}–${z}<small>${pageStars ? "★" + pageStars : ""}</small>`;
+    if (k === menuPage) t.classList.add("sel");
+    t.onclick = () => { menuPage = k; buildMenu(); };
+    tabs.appendChild(t);
+  }
   const grid = document.getElementById("levelGrid"); grid.innerHTML = "";
   LEVELS.forEach((l, i) => {
+    if (Math.floor(i / MENU_PAGE) !== menuPage) return;
     const b = document.createElement("button");
     const st = progress[l.name] || 0;
-    b.innerHTML = `${i + 1}<small>${st ? "★".repeat(st) : ""}</small>`;
+    b.innerHTML = `${i + 1}<small>${st ? "★".repeat(st) : ""}${gems[l.name] ? '<span style="color:#ff6ad5">◆</span>' : ""}</small>`;
     b.title = l.name;
     b.onclick = () => loadLevel(i);
     grid.appendChild(b);
@@ -1511,12 +2291,31 @@ const bMusic = document.getElementById("bMusic");
 const paintMusic = () => { bMusic.style.opacity = Sfx.musicOn ? 1 : 0.4; bMusic.style.textDecoration = Sfx.musicOn ? "none" : "line-through"; };
 paintMusic();
 bMusic.onclick = () => { Sfx.toggleMusic(); paintMusic(); };
-document.getElementById("bMenu").onclick =() => { buildMenu(); show("menu"); state = state === "play" ? "paused" : state; };
+document.getElementById("bMenu").onclick =() => { menuPage = Math.floor(levelIdx / MENU_PAGE); buildMenu(); show("menu"); state = state === "play" ? "paused" : state; };
 document.getElementById("bRestart").onclick = restart;
 document.getElementById("bMode").onclick = toggleMode;
 document.getElementById("bRetry").onclick = () => { hide("win"); restart(); };
 document.getElementById("bNext").onclick = next;
 document.getElementById("menu").addEventListener("pointerdown", e => { if (e.target.id === "menu" && level) { hide("menu"); if (state === "paused") state = "play"; } });
+
+// ---------- Share a result ----------
+// text + a link that opens this exact level (?level=N), for WhatsApp / Discord / anywhere
+function shareText(w) {
+  const link = location.origin + location.pathname + "?level=" + w.n;
+  return `World Shifter · Level ${w.n} “${w.name}” · ${"★".repeat(w.st)}${"☆".repeat(3 - w.st)} in ${w.t.toFixed(2)}s · ☠ ${w.deaths}` +
+    (w.gem === true ? " · ◆ gem" : "") + `\nCan you beat it? ${link}`;
+}
+document.getElementById("bShare").onclick = async () => {
+  if (!lastWin) return;
+  const text = shareText(lastWin), btn = document.getElementById("bShare");
+  try {
+    if (navigator.share) { await navigator.share({ text }); return; }
+    await navigator.clipboard.writeText(text); btn.textContent = "Copied ✓";
+  } catch (e) {
+    if (e && e.name === "AbortError") return; // closed the share sheet
+    window.prompt("Copy and send:", text);
+  }
+};
 
 // ---------- Stats screen ----------
 function statsRows() {
@@ -1557,7 +2356,7 @@ function fullExport() {
     for (let k = 0; k < g.p.length / 2; k += step) pts.push(g.p[2 * k], g.p[2 * k + 1]);
     ghostsLite[name] = { t: Math.round(g.t * 100) / 100, hz: GHOST_HZ / step, p: pts };
   }
-  return statsTSV() + "\n---WSDATA---\n" + JSON.stringify({ v: document.getElementById("ver").textContent, order: LEVELS.map(l => l.name), stats, ghosts: ghostsLite, stars: progress });
+  return statsTSV() + "\n---WSDATA---\n" + JSON.stringify({ v: document.getElementById("ver").textContent, order: LEVELS.map(l => l.name), stats, ghosts: ghostsLite, stars: progress, gems });
 }
 document.getElementById("bSaveStats").onclick = () => {
   const a = document.createElement("a");
@@ -1598,7 +2397,9 @@ function frame(now) {
   requestAnimationFrame(frame);
 }
 buildMenu();
-loadLevel(0); show("menu"); state = "paused";
+const linkLevel = parseInt(new URLSearchParams(location.search).get("level"), 10);
+if (linkLevel >= 1 && linkLevel <= LEVELS.length) loadLevel(linkLevel - 1); // shared link: straight in
+else { loadLevel(0); show("menu"); state = "paused"; }
 if (/[?&]stats\b/.test(location.search)) openStats();
 requestAnimationFrame(frame);
 </script>

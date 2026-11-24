@@ -21,14 +21,24 @@ from playwright.sync_api import sync_playwright
 
 HTML = pathlib.Path(__file__).resolve().parent.parent / "index.html"
 HUMAN_PASS = 0.25
+GEM_PASS = 0.125   # gems are an optional extra challenge: allowed to be harder than the level itself
 
 BOT_JS = r"""
-([i, trials, climbIters, seed]) => {
+([i, trials, climbIters, seed, opts]) => {
+  opts = opts || {};  // gem: a win only counts with the gem collected; explore: always explore and return the spots reached
+                      // lazy: also test 24 fixed tilts (no input after the drop) - a win means a trivial/shortcut level
+                      // keep: how many winning plans to keep for the human-timing check (default 25)
+  const won = () => state === "won" && (!opts.gem || level.objs.some(o => o.t === "gem" && o.got));
+  // the bot must not save anything: the game writes stats/ghosts to localStorage after every attempt, and
+  // over thousands of attempts in one page that blob grows until each attempt crawls (looked like a hang)
+  if (!window.__botQuiet) { window.__botQuiet = true; Storage.prototype.setItem = () => {}; saveStats = () => {}; }
+  stats = {}; ghosts = {};
+  const deadline = performance.now() + (opts.timeLimit || 120) * 1000; // safety net per level
   frame = () => {};                       // stop the game's own render loop
   let s = seed >>> 0;
   const rnd = () => { s = (s * 1664525 + 1013904223) >>> 0; return s / 4294967296; };
   const gauss = () => Math.sqrt(-2 * Math.log(rnd() + 1e-12)) * Math.cos(2 * Math.PI * rnd());
-  const MAX_T = 40, DT = 1 / 60, MIN_SEG = 0.18, JITTER = 0.06, JITTER_RUNS = 8, KEEP = 25;
+  const MAX_T = 40, DT = 1 / 60, MIN_SEG = 0.18, JITTER = 0.06, JITTER_RUNS = 8, KEEP = opts.keep || 25;
   const randSeg = () => [Math.floor(rnd() * 3) - 1, MIN_SEG + rnd() * 1.0];
   const randPlan = () => { const p = []; let t = 0; while (t < MAX_T) { const g = randSeg(); p.push(g); t += g[1]; } return p; };
 
@@ -43,7 +53,7 @@ BOT_JS = r"""
       keys.left = dir < 0; keys.right = dir > 0;
       update(DT); t += DT; segT += DT;
       if (path && f++ % 3 === 0) path.push(Math.round(ball.x), Math.round(ball.y));
-      if (state === "won") return { win: true, t: timer, minD: 0, path };
+      if (state === "won") return won() ? { win: true, t: timer, minD: 0, path } : { win: false, t, minD, path };
       if (state !== "play") return { win: false, t, minD, path };
       minD = Math.min(minD, Math.hypot(ball.x - goal.x, ball.y - goal.y));
     }
@@ -63,15 +73,15 @@ BOT_JS = r"""
   // explore: like a player learning a level. Remember every spot reached (position + world angle)
   // with the controls that got there, then keep trying new moves from the least-explored spots.
   // Finds multi-step routes (go round a barricade, flip, come back) that random play never strings together.
-  let climbed = false, exploreIters = 0;
-  if (wins < 3) {
+  let climbed = false, exploreIters = 0, spots = null;
+  if (wins < 3 || opts.explore) {
     const cells = new Map(), list = [];
     const cut = (plan, t) => { const out = []; let acc = 0; for (const [d, len] of plan) { if (acc + len >= t) { out.push([d, Math.max(0.01, t - acc)]); break; } out.push([d, len]); acc += len; } return out; };
     const visit = (plan, t) => {
       const a = ((angle % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI);
       const key = Math.floor(ball.x / 35) + "," + Math.floor(ball.y / 35) + "," + Math.floor(a / (Math.PI / 4));
       const c = cells.get(key);
-      if (!c) { const n = { plan: cut(plan, t), t, sel: 0 }; cells.set(key, n); list.push(n); }
+      if (!c) { const n = { plan: cut(plan, t), t, sel: 0, x: ball.x, y: ball.y }; cells.set(key, n); list.push(n); }
       else if (t < c.t - 0.05) { c.plan = cut(plan, t); c.t = t; }
     };
     function run(plan) { // play the plan only (no idle tail), recording cells
@@ -83,31 +93,42 @@ BOT_JS = r"""
         const dir = seg < plan.length ? plan[seg][0] : 0;
         keys.left = dir < 0; keys.right = dir > 0;
         update(DT); t += DT; segT += DT;
-        if (state === "won") return { win: true, t: timer };
+        if (state === "won") return won() ? { win: true, t: timer } : { win: false };
         if (state !== "play") return { win: false };
         visit(plan, t);
       }
       return { win: false };
     }
     run([[0, 0.5]]);
-    for (; exploreIters < climbIters && winners.length < 3; exploreIters++) {
+    for (; exploreIters < climbIters && (opts.explore || winners.length < 3) && performance.now() < deadline; exploreIters++) {
       let pick = list[Math.floor(rnd() * list.length)];
       for (let k = 0; k < 3; k++) { const c = list[Math.floor(rnd() * list.length)]; if (c.sel < pick.sel) pick = c; }
       pick.sel++;
       const plan = pick.plan.map(g => g.slice()), n = 1 + Math.floor(rnd() * 3);
       for (let k = 0; k < n; k++) plan.push(randSeg());
       const r = run(plan);
-      if (r.win) { climbed = true; winners.push(plan); if (!best || r.t < best) best = r.t; }
+      if (r.win) { climbed = true; if (winners.length < KEEP) winners.push(plan); if (!best || r.t < best) best = r.t; }
     }
+    if (opts.explore) spots = list.map(c => [Math.round(c.x), Math.round(c.y)]);
   }
   let robust = 0, robustSum = 0, robustPlan = null;
   for (const p of winners) { const r = robustness(p); robustSum += r; if (r > robust || !robustPlan) { robust = r; robustPlan = p; } }
   const path = robustPlan ? trial(robustPlan, true).path : null;
+  let lazy = null;
+  if (opts.lazy) {
+    lazy = false;
+    for (let k = 0; k < 24 && !lazy; k++) {
+      loadLevel(i); freeze = 0; waiting = false; angVel = 0; keys.left = keys.right = false;
+      angle = targetAngle = k * Math.PI / 12;
+      for (let f = 0; f < 12 * 60 && state === "play"; f++) update(DT);
+      if (won()) lazy = true;
+    }
+  }
   state = "paused";
   // effort = how many attempts it took to find a win (random tries per win, or random + explore tries)
   const effort = wins >= 3 ? trials / wins : trials + exploreIters;
   return { level: i + 1, name: LEVELS[i].name, rate: wins / trials, best, climbed, closest: Math.round(bestScore),
-           robust, robustAvg: winners.length ? robustSum / winners.length : 0, effort, path };
+           robust, robustAvg: winners.length ? robustSum / winners.length : 0, effort, path, spots, lazy };
 }
 """
 
@@ -165,8 +186,14 @@ def main():
             tag = "OK  " if human else ("FRAGILE" if ok else "FAIL")
             best = f"{r['best']:.1f}s" if ok else "-"
             note = " (explored)" if r["climbed"] else ""
+            gem = ""
+            if pg.evaluate(f"LEVELS[{i}].objs.some(o => o.t === 'gem')"):
+                g = pg.evaluate(BOT_JS, [i, trials, 6000, 54321 + i, {"gem": True}])
+                r["gem_robust"] = g["robust"] if g["best"] is not None else None
+                gem = ("  gem OK" if g["robust"] >= GEM_PASS else "  gem FRAGILE") if g["best"] is not None else "  gem FAIL"
+                bad += g["best"] is None
             print(f"{tag:<7} {r['level']:>2}. {r['name']:<20} solve {r['rate']*100:5.1f}%  human {r['robust']*100:3.0f}%  "
-                  f"difficulty {r['score']:4.2f}  best {best}{note}", flush=True)
+                  f"difficulty {r['score']:4.2f}  best {best}{note}{gem}", flush=True)
         print("page errors:", errs)
         if sheet:
             from PIL import Image, ImageDraw
@@ -182,7 +209,7 @@ def main():
                 out.paste(im.resize((S, S)), (x, y))
                 ImageDraw.Draw(out).text((x + 6, y + 6), f"{r['level']}. {r['name']}  d{r['score']}", fill="yellow")
             out.save(sheet)
-        json.dump([{k: v for k, v in r.items() if k != "path"} for r in results],
+        json.dump([{k: v for k, v in r.items() if k not in ("path", "spots")} for r in results],
                   open(pathlib.Path(__file__).parent / "last_bot_run.json", "w"), indent=1)
         b.close()
         sys.exit(1 if bad or errs else 0)
