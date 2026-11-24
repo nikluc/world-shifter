@@ -9,30 +9,39 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <title>World Shifter — demo</title>
 <style>
-  html,body{overscroll-behavior:none;margin:0;height:100%;background:#07070d;overflow:hidden;font-family:system-ui,-apple-system,Segoe UI,sans-serif;color:#e8e8f0;touch-action:none;user-select:none;-webkit-user-select:none}
-  canvas{display:block;width:100vw;height:100vh}
-  #hud{position:fixed;top:0;left:0;right:0;display:flex;justify-content:space-between;align-items:center;gap:8px;padding:calc(env(safe-area-inset-top) + 10px) 12px 10px;pointer-events:none;font-size:15px}
-  #hud .info{text-align:center;line-height:1.3;text-shadow:0 1px 3px #000}
-  #hud .info b{font-size:16px}
-  #hud .btns{display:flex;gap:6px}
+  *{-webkit-tap-highlight-color:transparent;box-sizing:border-box}
+  html,body{overscroll-behavior:none;margin:0;height:100%;background:#07070d;overflow:hidden;font-family:system-ui,-apple-system,Segoe UI,sans-serif;color:#e8e8f0;touch-action:none;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;-webkit-text-size-adjust:100%}
+  /* fixed + inset instead of 100vh: on phones 100vh includes the hidden URL bar and stretches the canvas */
+  canvas{display:block;position:fixed;inset:0;width:100%;height:100%}
+  #hud{position:fixed;top:0;left:0;right:0;display:flex;justify-content:space-between;align-items:center;gap:8px;
+       padding:calc(env(safe-area-inset-top) + 8px) calc(env(safe-area-inset-right) + 10px) 8px calc(env(safe-area-inset-left) + 10px);pointer-events:none;font-size:14px;z-index:3}
+  #hud .info{flex:1;min-width:0;text-align:center;line-height:1.3;text-shadow:0 1px 3px #000}
+  #hud .info b{display:block;font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  #hud .btns{display:flex;gap:8px;flex:none}
   #hud button{pointer-events:auto}
-  @media (max-width:440px){ #hud{padding-left:8px;padding-right:8px;font-size:12px} #hud .btns{gap:4px} #hud button{padding:6px 8px;font-size:13px} #hud .info b{font-size:13px} }
-  button{background:#1b1b2e;color:#e8e8f0;border:1px solid #3a3a5c;border-radius:10px;padding:8px 12px;font-size:15px;cursor:pointer;font-family:inherit}
+  .icon{width:46px;height:46px;padding:0;border-radius:14px;font-size:21px;line-height:1;background:rgba(27,27,46,.85)}
+  button{background:#1b1b2e;color:#e8e8f0;border:1px solid #3a3a5c;border-radius:12px;padding:10px 14px;font-size:16px;cursor:pointer;font-family:inherit;min-height:44px}
   button:active{transform:scale(.96)}
   button.primary{background:#2d6b4a;border-color:#4fd18b}
   .overlay{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:rgba(5,5,12,.8);z-index:5}
   .overlay.show{display:flex}
-  .panel{background:#11111e;border:1px solid #2c2c48;border-radius:16px;padding:22px;max-width:420px;width:86%;text-align:center}
+  .panel{background:#11111e;border:1px solid #2c2c48;border-radius:18px;padding:20px 18px;max-width:440px;width:min(92vw,440px);text-align:center;
+         max-height:calc(100% - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 24px);overflow-y:auto;-webkit-overflow-scrolling:touch}
+  .big{display:block;width:100%;padding:14px;font-size:19px;font-weight:600;margin-top:10px}
+  .row2{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px}
+  .setrow{display:flex;justify-content:space-between;align-items:center;width:100%;margin-top:10px;padding:14px 16px;font-size:17px;text-align:left}
+  .setrow span{color:#9fe8b8;font-weight:600}
+  .setrow.off span{color:#8a8aa8}
+  .help{font-size:13px;opacity:.7}
   .panel h1{margin:0 0 4px;font-size:26px;letter-spacing:1px}
   .panel h2{margin:0 0 8px;font-size:22px}
   .panel p{opacity:.8;margin:6px 0}
   .pages{display:grid;grid-template-columns:repeat(5,1fr);gap:5px;margin:12px 0 0}
-  .pages button{padding:5px 0;font-size:12px;line-height:1.2}
+  .pages button{padding:6px 0;font-size:13px;line-height:1.2;min-height:40px}
   .pages button small{display:block;font-size:10px;color:#ffd34d;min-height:12px}
   .pages button.sel{border-color:#ffd34d;background:#2a2a40}
   .grid{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin:14px 0}
-  .grid button{padding:9px 0;font-size:17px;line-height:1.2}
-  .panel{max-height:88vh;overflow-y:auto}
+  .grid button{padding:8px 0;font-size:17px;line-height:1.2;min-height:50px}
   .grid small{display:block;font-size:12px;color:#ffd34d;min-height:14px}
   .row{display:flex;gap:10px;justify-content:center;margin-top:14px}
   .stars{font-size:34px;letter-spacing:6px;color:#ffd34d;margin:6px 0}
@@ -46,16 +55,19 @@
   #snapBtns{position:fixed;left:0;right:0;bottom:calc(env(safe-area-inset-bottom) + 64px);display:none;justify-content:space-between;padding:0 18px;pointer-events:none;z-index:2}
   #snapBtns.show{display:flex}
   #snapBtns button{pointer-events:auto;width:76px;height:76px;border-radius:50%;font-size:38px;line-height:1;padding:0;background:rgba(27,27,46,.85)}
-  #hint{position:fixed;bottom:calc(env(safe-area-inset-bottom) + 18px);left:0;right:0;text-align:center;opacity:.8;pointer-events:none;font-size:15px;padding:0 20px;text-shadow:0 1px 3px #000;transition:opacity .6s}
+  #hint{position:fixed;bottom:calc(env(safe-area-inset-bottom) + 14px);left:0;right:0;text-align:center;opacity:.8;pointer-events:none;font-size:14px;padding:0 calc(env(safe-area-inset-right) + 24px) 0 calc(env(safe-area-inset-left) + 24px);text-shadow:0 1px 3px #000;transition:opacity .6s}
+  #snapBtns.show ~ #hint, body.snap #hint{padding:0 110px}
+  /* short landscape phones: tighter panels */
+  @media (max-height:500px){ .panel{padding:14px} .panel h1{font-size:21px} .grid{grid-template-columns:repeat(10,1fr)} .grid button{min-height:44px;font-size:15px} .pages{grid-template-columns:repeat(10,1fr)} #hint{font-size:12px} }
 </style>
 </head>
 <body>
 <canvas id="c"></canvas>
 
 <div id="hud">
-  <div class="btns"><button id="bMenu">☰</button><button id="bRestart">↻</button></div>
-  <div class="info"><b id="lvlName"></b><br><span id="stats"></span></div>
-  <div class="btns"><button id="bMusic">♫</button><button id="bSound">🔊</button><button id="bMode">Smooth</button></div>
+  <div class="btns"><button id="bMenu" class="icon" aria-label="Menu">☰</button><button id="bRestart" class="icon" aria-label="Restart">↻</button></div>
+  <div class="info"><b id="lvlName"></b><span id="stats"></span></div>
+  <div class="btns"><button id="bSettings" class="icon" aria-label="Settings">⚙</button></div>
 </div>
 <div id="hint"></div>
 <div id="snapBtns"><button id="bRotL" aria-label="Turn left">⟲</button><button id="bRotR" aria-label="Turn right">⟳</button></div>
@@ -64,11 +76,12 @@
   <div class="panel">
     <h1>WORLD SHIFTER</h1>
     <p>You don't move the ball. You turn the world.</p>
+    <button id="bContinue" class="primary big">▶ Play</button>
     <p id="totals" style="font-size:13px;margin:8px 0 0"></p>
     <div class="pages" id="pageTabs"></div>
     <div class="grid" id="levelGrid"></div>
-    <p style="font-size:13px">Drag or circle your finger to rotate · ← → / A D<br>Q / E snap 90° · R restart · M toggle mode<br>Tap, click, Space or any turn drops the ball</p>
-    <p style="font-size:11px;opacity:.45" id="ver">prototype v0.12</p>
+    <p class="help" id="helpText"></p>
+    <p style="font-size:11px;opacity:.45" id="ver">prototype v0.13</p>
   </div>
 </div>
 
@@ -83,13 +96,26 @@
   </div>
 </div>
 
+<div class="overlay" id="settings">
+  <div class="panel">
+    <h2>Settings</h2>
+    <button class="setrow" id="bMusic">♫ Music <span></span></button>
+    <button class="setrow" id="bSound">🔊 Sound effects <span></span></button>
+    <button class="setrow" id="bVibe">📳 Vibration <span></span></button>
+    <button class="setrow" id="bMode">🎮 Controls <span></span></button>
+    <p class="help" id="modeHelp"></p>
+    <button class="primary big" id="bCloseSettings">Done</button>
+  </div>
+</div>
+
 <div class="overlay" id="win">
   <div class="panel">
     <h2>Landed!</h2>
     <div class="stars" id="winStars"></div>
     <p id="winInfo"></p>
     <p id="winGem" style="font-size:14px;margin:4px 0"></p>
-    <div class="row"><button id="bRetry">↻ Retry</button><button id="bShare">Share</button><button id="bNext" class="primary">Next ▶</button></div>
+    <button id="bNext" class="primary big">Next ▶</button>
+    <div class="row2"><button id="bRetry">↻ Retry</button><button id="bShare">Share</button></div>
   </div>
 </div>
 
@@ -107,7 +133,6 @@ const START_FREEZE = 0.6; // seconds of "Ready…" before the player may drop th
 const SFX_VOLUME = 0.5;   // master volume 0..1
 const THUD_MIN_SPEED = 120; // impact speed below which wall hits are silent
 const MUSIC_VOLUME = 0.6; // background music level, relative to the master volume
-const MUSIC_BPM = 100;
 const GUIDE_LEVELS = 5;   // dotted "where you'll fall" preview on the first N levels
 const GUIDE_AFTER_DEATHS = 20; // ...and on any level once you've died this many times on it
 const GUIDE_TIME = 1.2;   // seconds of predicted path
@@ -1553,18 +1578,39 @@ const Sfx = (() => {
     if (ac.state === "suspended") ac.resume();
   }
 
-  // ---- background music: a looping 8-bar synth track, scheduled ahead of time ----
+  // ---- background music: 6 synthesized songs, one per page of 50 levels (cycling) ----
+  // Each song has its own key, mode, tempo, chord progressions and instrument choices. Inside a song
+  // the arrangement moves through sections (intro -> groove -> melody -> breakdown -> full), and the
+  // lead melody is improvised fresh each section, so nothing loops exactly.
   let musicBus = null, musicOn = true, nextStep = 0, step = 0;
   try { musicOn = localStorage.getItem("ws_music") !== "0"; } catch (e) {}
-  const STEP = 60 / MUSIC_BPM / 2; // eighth notes
   const midi = n => 440 * Math.pow(2, (n - 69) / 12);
-  // Am  F  C  G  |  Am  F  G  E   (bass root, arpeggio notes)
-  const CHORDS = [
-    [45, [69, 72, 76, 81]], [41, [65, 69, 72, 77]], [48, [67, 72, 76, 79]], [43, [67, 71, 74, 79]],
-    [45, [69, 72, 76, 81]], [41, [65, 69, 72, 77]], [43, [67, 71, 74, 79]], [40, [68, 71, 76, 80]],
+  const MODES = {
+    minor: [0, 2, 3, 5, 7, 8, 10], dorian: [0, 2, 3, 5, 7, 9, 10], major: [0, 2, 4, 5, 7, 9, 11],
+    lydian: [0, 2, 4, 6, 7, 9, 11], mixo: [0, 2, 4, 5, 7, 9, 10],
+  };
+  // prog: chords as scale degrees (0 = home), one per bar. arp: order of chord tones per eighth note.
+  const SONGS = [
+    { name: "Drift", root: 57, mode: "minor", bpm: 100, progs: [[0, 5, 2, 6], [0, 5, 6, 4]], arp: [0, 1, 2, 3, 2, 1, 2, 3], arpWave: "sine", lead: "triangle", bassRhythm: [0, 4], drums: "soft" },
+    { name: "Bloom", root: 53, mode: "lydian", bpm: 90, progs: [[0, 1, 0, 4], [3, 0, 1, 4]], arp: [0, 2, 1, 3, 0, 2, 1, 3], arpWave: "triangle", lead: "sine", bassRhythm: [0, 3, 6], drums: "soft" },
+    { name: "Pulse", root: 50, mode: "dorian", bpm: 112, progs: [[0, 3, 0, 6], [0, 6, 5, 3]], arp: [0, 0, 2, 0, 1, 0, 3, 2], arpWave: "square", lead: "triangle", bassRhythm: [0, 2, 4, 6], drums: "beat" },
+    { name: "Glass", root: 52, mode: "minor", bpm: 84, progs: [[0, 5, 3, 4], [0, 3, 5, 4]], arp: [3, 2, 1, 0, 1, 2, 3, 2], arpWave: "sine", lead: "sine", bassRhythm: [0], drums: "none" },
+    { name: "Comet", root: 48, mode: "major", bpm: 118, progs: [[0, 4, 5, 3], [5, 3, 0, 4]], arp: [0, 1, 2, 1, 3, 1, 2, 1], arpWave: "triangle", lead: "square", bassRhythm: [0, 3, 4, 7], drums: "beat" },
+    { name: "Deep", root: 55, mode: "mixo", bpm: 96, progs: [[0, 6, 3, 0], [0, 6, 5, 4]], arp: [0, 2, 3, 2, 1, 2, 3, 2], arpWave: "triangle", lead: "triangle", bassRhythm: [0, 5], drums: "soft" },
   ];
-  const ARP = [0, 1, 2, 3, 2, 1, 2, 3];
-  const ARP_B = [3, 2, 0, 1, 3, 2, 1, 0];
+  // arrangement: which layers play in each 4-bar section (cycles, so the mix shifts every ~10 s)
+  const SECTIONS = [
+    { pad: 1, bass: 0, arp: 0, lead: 0, hat: 1, kick: 0 },   // intro
+    { pad: 1, bass: 1, arp: 1, lead: 0, hat: 1, kick: 1 },   // groove
+    { pad: 1, bass: 1, arp: 1, lead: 1, hat: 1, kick: 1 },   // melody
+    { pad: 1, bass: 0, arp: 0, lead: 1, hat: 0, kick: 0 },   // breakdown
+    { pad: 1, bass: 1, arp: 1, lead: 1, hat: 1, kick: 1 },   // full
+    { pad: 0, bass: 1, arp: 1, lead: 0, hat: 1, kick: 1 },   // stripped
+  ];
+  let song = 0, wantSong = 0, songStep = 0, leadNote = 0, leadRng = 1;
+  const rand = () => { leadRng = (leadRng * 1664525 + 1013904223) >>> 0; return leadRng / 4294967296; };
+  const scaleNote = (s, deg) => { const m = MODES[s.mode], o = Math.floor(deg / 7); return s.root + 12 * o + m[((deg % 7) + 7) % 7]; };
+  const chordOf = (s, deg) => [0, 2, 4, 6].map(k => scaleNote(s, deg + k)); // 7th chord from the scale
   function note(freq, t, dur, type, vol, attack = 0.01) {
     const o = ac.createOscillator(), g = ac.createGain();
     o.type = type; o.frequency.value = freq;
@@ -1573,26 +1619,50 @@ const Sfx = (() => {
     g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
     o.connect(g); g.connect(musicBus); o.start(t); o.stop(t + dur + 0.05);
   }
+  function hit(t, kind) { // drums
+    if (kind === "kick") {
+      const o = ac.createOscillator(), g = ac.createGain();
+      o.frequency.setValueAtTime(120, t); o.frequency.exponentialRampToValueAtTime(42, t + 0.18);
+      g.gain.setValueAtTime(0.22, t); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.22);
+      o.connect(g); g.connect(musicBus); o.start(t); o.stop(t + 0.25); return;
+    }
+    const src = ac.createBufferSource(), f = ac.createBiquadFilter(), g = ac.createGain();
+    src.buffer = noiseBuf;
+    if (kind === "snare") { f.type = "bandpass"; f.frequency.value = 1800; g.gain.setValueAtTime(0.06, t); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.14); }
+    else { f.type = "highpass"; f.frequency.value = 7000; g.gain.setValueAtTime(0.022, t); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.05); }
+    src.connect(f); f.connect(g); g.connect(musicBus); src.start(t, Math.random() * 0.5); src.stop(t + 0.16);
+  }
   function scheduleMusic() {
     if (!ac || ac.state !== "running") return;
     if (nextStep < ac.currentTime) nextStep = ac.currentTime + 0.05; // resync after a pause
     while (nextStep < ac.currentTime + 0.15) {
-      const bar = Math.floor(step / 8) % CHORDS.length, s = step % 8, loop = Math.floor(step / 64) % 2;
-      const [bass, arp] = CHORDS[bar], t = nextStep;
-      if (s === 0) { // pad: whole chord, slow swell
-        for (const n of arp.slice(0, 3)) note(midi(n - 12), t, STEP * 8, "triangle", 0.03, 0.4);
+      if (wantSong !== song && songStep % 8 === 0) { song = wantSong; songStep = 0; } // switch on a bar line
+      const S = SONGS[song], STEP = 60 / S.bpm / 2, t = nextStep;
+      const bar = Math.floor(songStep / 8), s = songStep % 8, secN = Math.floor(bar / 4);
+      const sec = SECTIONS[secN % SECTIONS.length];
+      const prog = S.progs[secN % S.progs.length], deg = prog[bar % prog.length];
+      const ch = chordOf(S, deg);
+      if (s === 0 && bar % 4 === 0) leadRng = (song + 1) * 7919 + secN * 104729; // fresh melody per section
+      if (sec.pad && s === 0) for (const n of ch.slice(0, 3)) note(midi(n), t, STEP * 8, "triangle", 0.028, 0.45);
+      if (sec.bass && S.bassRhythm.includes(s)) note(midi(ch[0] - 12), t, STEP * (s === 0 ? 3.5 : 1.6), "triangle", 0.15, 0.02);
+      if (sec.arp) {
+        const up = secN % 2 && s >= 4 ? 12 : 0;
+        note(midi(ch[S.arp[s]] + 12 + up), t, STEP * 1.5, S.arpWave, S.arpWave === "square" ? 0.025 : 0.06);
       }
-      if (s === 0 || s === 4) note(midi(bass), t, STEP * 3.5, "triangle", 0.16, 0.02);
-      if (s === 6 && bar % 2 === 1) note(midi(bass + 12), t, STEP * 1.5, "triangle", 0.08);
-      const pat = loop ? ARP_B : ARP;
-      note(midi(arp[pat[s]] + (loop && s >= 4 ? 12 : 0)), t, STEP * 1.6, "sine", 0.07);
-      if (s % 2 === 1) { // soft hi-hat on off-beats
-        const src = ac.createBufferSource(), f = ac.createBiquadFilter(), g = ac.createGain();
-        src.buffer = noiseBuf; f.type = "highpass"; f.frequency.value = 7000;
-        g.gain.setValueAtTime(0.025, t); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.05);
-        src.connect(f); f.connect(g); g.connect(musicBus); src.start(t, Math.random() * 0.5); src.stop(t + 0.06);
+      if (sec.lead && rand() < 0.42) { // improvised melody: a random walk on the scale, pulled toward chord tones
+        if (s === 0 || leadNote === 0) leadNote = 14 + deg + [0, 2, 4][Math.floor(rand() * 3)];
+        else leadNote += [-2, -1, -1, 1, 1, 2][Math.floor(rand() * 6)];
+        leadNote = Math.max(10 + deg, Math.min(21 + deg, leadNote));
+        const len = [1, 2, 2, 3][Math.floor(rand() * 4)];
+        note(midi(scaleNote(S, leadNote)), t, STEP * len * 0.95, S.lead, S.lead === "square" ? 0.022 : 0.05, 0.02);
       }
-      nextStep += STEP; step++;
+      if (sec.hat && s % 2 === 1) hit(t, "hat");
+      if (sec.kick && S.drums !== "none") {
+        if (s === 0 || (S.drums === "beat" && s === 4)) hit(t, "kick");
+        if (S.drums === "beat" && (s === 2 || s === 6)) hit(t, "snare");
+        if (S.drums === "soft" && s === 4 && bar % 2 === 1) hit(t, "kick");
+      }
+      nextStep += STEP; step++; songStep++;
     }
   }
   // pause all audio while the tab / app is in the background
@@ -1624,6 +1694,8 @@ const Sfx = (() => {
     unlock,
     get muted() { return muted; },
     get musicOn() { return musicOn; },
+    setSong(k) { wantSong = ((k % SONGS.length) + SONGS.length) % SONGS.length; }, // takes effect on the next bar
+    get songName() { return SONGS[song].name; },
     toggleMusic() {
       musicOn = !musicOn;
       try { localStorage.setItem("ws_music", musicOn ? "1" : "0"); } catch (e) {}
@@ -1718,7 +1790,13 @@ function resize() {
   cv.width = W * DPR; cv.height = H * DPR;
 }
 window.addEventListener("resize", resize);
+window.addEventListener("orientationchange", () => setTimeout(resize, 200));
+if (window.visualViewport) window.visualViewport.addEventListener("resize", resize);
 resize();
+// no pinch / double-tap zoom on iOS (it ignores user-scalable=no)
+document.addEventListener("gesturestart", e => e.preventDefault());
+document.addEventListener("dblclick", e => e.preventDefault());
+document.addEventListener("contextmenu", e => { if (!e.target.closest("textarea")) e.preventDefault(); });
 
 function loadLevel(i) {
   if (level) leaveRun(i !== levelIdx);
@@ -1734,6 +1812,7 @@ function loadLevel(i) {
   state = "play"; timer = 0; freeze = START_FREEZE; trail = []; particles = []; shake = 0;
   waiting = true; dropped = false;
   Sfx.ready();
+  Sfx.setSong(Math.floor(i / 50)); // a different song for every page of 50 levels
   if (deaths === undefined || deaths.level !== i) deaths = { level: i, n: 0 };
   document.getElementById("lvlName").textContent = `${i + 1}. ${level.name}`;
   const hint = document.getElementById("hint");
@@ -1853,8 +1932,10 @@ function predictPath() {
 
 // ---------- Haptics ----------
 let lastBuzz = 0;
+let vibeOn = true;
+try { vibeOn = localStorage.getItem("ws_vibe") !== "0"; } catch (e) {}
 function buzz(pattern) {
-  if (Sfx.muted || !navigator.vibrate) return; // muting also silences vibration
+  if (!vibeOn || !navigator.vibrate) return;
   const now = performance.now();
   if (now - lastBuzz < 80) return;
   lastBuzz = now;
@@ -2043,13 +2124,16 @@ function render(now) {
   ctx.beginPath(); ctx.moveTo(W / 2 - 9, H - 46); ctx.lineTo(W / 2 + 9, H - 46); ctx.lineTo(W / 2, H - 34); ctx.fill();
 
   if (state === "dead") { ctx.fillStyle = `rgba(255,40,70,${Math.min(0.35, deadT * 0.5)})`; ctx.fillRect(0, 0, W, H); }
-  if (state === "play" && freeze > 0) {
-    ctx.fillStyle = "rgba(255,255,255,0.7)"; ctx.font = "bold 22px system-ui"; ctx.textAlign = "center";
-    ctx.fillText("Ready…", W / 2, H * 0.3);
-  } else if (state === "play" && waiting) {
-    const a = 0.55 + 0.35 * Math.sin(now / 220);
-    ctx.fillStyle = `rgba(255,255,255,${a})`; ctx.font = "bold 24px system-ui"; ctx.textAlign = "center";
-    ctx.fillText(COARSE ? "Tap or turn to drop" : "Click, turn or press Space to drop", W / 2, H * 0.3);
+  if (state === "play" && (freeze > 0 || waiting)) {
+    // in 90° mode the pill sits between the ⟲ ⟳ buttons, so narrow screens get the short text
+    const between = snapMode && H >= 500, txt = freeze > 0 ? "Ready…" : between && W < 480 ? "Tap to drop" : COARSE ? "Tap or turn to drop" : "Click, turn or press Space to drop";
+    const a = freeze > 0 ? 0.75 : 0.6 + 0.3 * Math.sin(now / 220);
+    ctx.font = "bold 20px system-ui"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+    const w = ctx.measureText(txt).width + 36, y = H - (H < 500 ? 70 : between ? 102 : 110);
+    ctx.fillStyle = "rgba(10,10,22,0.6)";
+    ctx.beginPath(); ctx.roundRect ? ctx.roundRect(W / 2 - w / 2, y - 22, w, 44, 22) : ctx.rect(W / 2 - w / 2, y - 22, w, 44); ctx.fill();
+    ctx.fillStyle = `rgba(255,255,255,${a})`; ctx.fillText(txt, W / 2, y);
+    ctx.textBaseline = "alphabetic";
   }
 
   const hudGem = level.objs.find(o => o.t === "gem");
@@ -2229,8 +2313,8 @@ function toggleMode() {
   snapMode = !snapMode;
   targetAngle = Math.round(angle / (Math.PI / 2)) * (Math.PI / 2);
   angVel = 0;
-  document.getElementById("bMode").textContent = snapMode ? "90° Snap" : "Smooth";
   document.getElementById("snapBtns").classList.toggle("show", snapMode);
+  document.body.classList.toggle("snap", snapMode);
   const hint = document.getElementById("hint");
   hint.textContent = snapMode ? "90° mode: tap ⟲ ⟳ (or ← →) to turn a quarter." : "Smooth mode: drag or circle your finger (or hold ← →).";
   hint.style.opacity = 0.85;
@@ -2243,6 +2327,7 @@ function isShown(id) { return document.getElementById(id).classList.contains("sh
 const MENU_PAGE = 50;
 let menuPage = null;
 function buildMenu() {
+  paintContinue();
   const stars = LEVELS.reduce((a, l) => a + (progress[l.name] || 0), 0);
   const gemTotal = LEVELS.filter(l => l.objs.some(o => o.t === "gem")).length;
   const gemsGot = LEVELS.filter(l => gems[l.name]).length;
@@ -2284,19 +2369,61 @@ function quarterTurn(dir) {
 }
 document.getElementById("bRotL").addEventListener("pointerdown", e => { e.preventDefault(); quarterTurn(-1); });
 document.getElementById("bRotR").addEventListener("pointerdown", e => { e.preventDefault(); quarterTurn(1); });
-const bSound = document.getElementById("bSound");
-bSound.textContent = Sfx.muted ? "🔇" : "🔊";
-bSound.onclick = () => { bSound.textContent = Sfx.toggle() ? "🔇" : "🔊"; };
-const bMusic = document.getElementById("bMusic");
-const paintMusic = () => { bMusic.style.opacity = Sfx.musicOn ? 1 : 0.4; bMusic.style.textDecoration = Sfx.musicOn ? "none" : "line-through"; };
-paintMusic();
-bMusic.onclick = () => { Sfx.toggleMusic(); paintMusic(); };
+// ---------- Settings sheet (all toggles live here; the HUD keeps only ☰ ↻ ⚙) ----------
+function setRow(id, on, text) {
+  const b = document.getElementById(id);
+  b.classList.toggle("off", !on); b.querySelector("span").textContent = text;
+}
+function paintSettings() {
+  setRow("bMusic", Sfx.musicOn, Sfx.musicOn ? "On" : "Off");
+  setRow("bSound", !Sfx.muted, Sfx.muted ? "Off" : "On");
+  const canVibe = !!navigator.vibrate;
+  setRow("bVibe", canVibe && vibeOn, !canVibe ? "Not on this phone" : vibeOn ? "On" : "Off");
+  setRow("bMode", true, snapMode ? "90° buttons" : "Drag / circle");
+  document.getElementById("modeHelp").textContent = snapMode
+    ? "Tap ⟲ ⟳ at the bottom to turn the world a quarter at a time."
+    : "Drag or draw circles anywhere to turn the world.";
+}
+function openSettings() {
+  if (state === "play") state = "paused";
+  paintSettings(); show("settings");
+}
+document.getElementById("bSettings").onclick = openSettings;
+document.getElementById("bCloseSettings").onclick = () => { hide("settings"); if (state === "paused" && level && !isShown("menu")) state = "play"; };
+document.getElementById("settings").addEventListener("pointerdown", e => { if (e.target.id === "settings") document.getElementById("bCloseSettings").click(); });
+document.getElementById("bMusic").onclick = () => { Sfx.toggleMusic(); paintSettings(); };
+document.getElementById("bSound").onclick = () => { Sfx.toggle(); paintSettings(); };
+document.getElementById("bVibe").onclick = () => {
+  if (!navigator.vibrate) return;
+  vibeOn = !vibeOn; try { localStorage.setItem("ws_vibe", vibeOn ? "1" : "0"); } catch (e) {}
+  if (vibeOn) navigator.vibrate(30);
+  paintSettings();
+};
+
+// ---------- Menu: Play / Resume, help text for this device ----------
+function nextUnbeaten() { const k = LEVELS.findIndex(l => !progress[l.name]); return k < 0 ? 0 : k; }
+function paintContinue() {
+  const b = document.getElementById("bContinue");
+  const inRun = level && state === "paused" && dropped;
+  b.textContent = inRun ? `▶ Resume · Level ${levelIdx + 1}` : `▶ Play · Level ${nextUnbeaten() + 1}`;
+}
+document.getElementById("bContinue").onclick = () => {
+  if (level && state === "paused" && dropped) { hide("menu"); state = "play"; }
+  else loadLevel(nextUnbeaten());
+};
+document.getElementById("helpText").innerHTML = COARSE
+  ? "Drag or draw circles to turn the world · tap or turn to drop the ball · ⚙ for music, sound and controls"
+  : "Drag or circle with the mouse, or ← → / A D · Q / E snap 90° · R restart · M switch controls<br>Click, turn or Space drops the ball";
 document.getElementById("bMenu").onclick =() => { menuPage = Math.floor(levelIdx / MENU_PAGE); buildMenu(); show("menu"); state = state === "play" ? "paused" : state; };
 document.getElementById("bRestart").onclick = restart;
-document.getElementById("bMode").onclick = toggleMode;
+document.getElementById("bMode").onclick = () => { toggleMode(); paintSettings(); };
 document.getElementById("bRetry").onclick = () => { hide("win"); restart(); };
 document.getElementById("bNext").onclick = next;
 document.getElementById("menu").addEventListener("pointerdown", e => { if (e.target.id === "menu" && level) { hide("menu"); if (state === "paused") state = "play"; } });
+// switching apps mid-run pauses the game and shows the menu (Resume brings you back)
+document.addEventListener("visibilitychange", () => {
+  if (document.hidden && state === "play" && dropped) { state = "paused"; menuPage = Math.floor(levelIdx / MENU_PAGE); buildMenu(); show("menu"); }
+});
 
 // ---------- Share a result ----------
 // text + a link that opens this exact level (?level=N), for WhatsApp / Discord / anywhere
