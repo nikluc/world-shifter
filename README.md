@@ -4,7 +4,7 @@ You don't move the ball — you turn the world. Rotate the level so the falling 
 
 **Play:** https://nikluc.github.io/world-shifter/ (works best on a phone)
 
-- Tap / click / Space to drop the ball
+- Tap, click, Space, or turning the world in any way drops the ball
 - Drag or draw circles to rotate (keyboard: ← → or A D, Q/E snap 90°, R restart); 90° mode has ⟲ ⟳ buttons
 - 60 levels in one run from easiest to hardest, with ★ for speed
 - Along the way: portals (linked pairs, keep your speed), ice (no grip) and glue (holds the ball while you turn)

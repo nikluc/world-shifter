@@ -61,7 +61,7 @@
     <h1>WORLD SHIFTER</h1>
     <p>You don't move the ball. You turn the world.</p>
     <div class="grid" id="levelGrid"></div>
-    <p style="font-size:13px">Drag or circle your finger to rotate · ← → / A D<br>Q / E snap 90° · R restart · M toggle mode<br>Tap / click / Space to drop the ball</p>
+    <p style="font-size:13px">Drag or circle your finger to rotate · ← → / A D<br>Q / E snap 90° · R restart · M toggle mode<br>Tap, click, Space or any turn drops the ball</p>
     <p style="font-size:11px;opacity:.45" id="ver">prototype v0.11 · 60 levels</p>
   </div>
 </div>
@@ -1141,7 +1141,10 @@ function update(dt) {
   }
 
   if (freeze > 0) { freeze -= dt; return; }
-  if (waiting) return; // hold the ball until the player taps / clicks
+  // hold the ball until the player taps / clicks / presses a key, or turns the world any way at all
+  // (drag, keys, 90° buttons): turning the map starts the run too
+  if (waiting && Math.abs(angle) > 0.02) launch();
+  if (waiting) return;
   if (!dropped) { dropped = true; Sfx.drop(); stat().tries++; runOpen = true; }
   timer += dt;
 
@@ -1299,7 +1302,7 @@ function render(now) {
   } else if (state === "play" && waiting) {
     const a = 0.55 + 0.35 * Math.sin(now / 220);
     ctx.fillStyle = `rgba(255,255,255,${a})`; ctx.font = "bold 24px system-ui"; ctx.textAlign = "center";
-    ctx.fillText(COARSE ? "Tap to drop" : "Click or press Space to drop", W / 2, H * 0.3);
+    ctx.fillText(COARSE ? "Tap or turn to drop" : "Click, turn or press Space to drop", W / 2, H * 0.3);
   }
 
   document.getElementById("stats").textContent = `⏱ ${timer.toFixed(1)}s   ☠ ${deaths.n}`;
@@ -1497,7 +1500,7 @@ function next() {
 document.addEventListener("click", e => { if (e.target.closest("button") && !e.target.closest("#snapBtns")) Sfx.click(); });
 function quarterTurn(dir) {
   if (!snapMode || (state !== "play" && state !== "paused")) return;
-  targetAngle += dir * Math.PI / 2; Sfx.snap();
+  targetAngle += dir * Math.PI / 2; Sfx.snap(); launch();
 }
 document.getElementById("bRotL").addEventListener("pointerdown", e => { e.preventDefault(); quarterTurn(-1); });
 document.getElementById("bRotR").addEventListener("pointerdown", e => { e.preventDefault(); quarterTurn(1); });
