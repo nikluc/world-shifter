@@ -62,7 +62,7 @@
     <p>You don't move the ball. You turn the world.</p>
     <div class="grid" id="levelGrid"></div>
     <p style="font-size:13px">Drag or circle your finger to rotate · ← → / A D<br>Q / E snap 90° · R restart · M toggle mode<br>Tap / click / Space to drop the ball</p>
-    <p style="font-size:11px;opacity:.45" id="ver">prototype v0.10 · 60 levels</p>
+    <p style="font-size:11px;opacity:.45" id="ver">prototype v0.11 · 60 levels</p>
   </div>
 </div>
 
@@ -89,7 +89,7 @@
 <script>
 "use strict";
 // ---------- Tuning ----------
-const G = 855;            // gravity, world units / s^2 (v0.10: -10% from 950 for more air control)
+const G = 998;            // gravity, world units / s^2 (v0.11: 950 + 5% for a snappier ball; v0.10 tried 855, too floaty)
 const MAX_SPEED = 1100;
 const BALL_R = 14;
 const ROT_SPEED = 2.6;    // rad/s for keyboard rotation
@@ -126,9 +126,10 @@ const box = (hw, hh, t = "wall") => [
 
 const LEVELS = [
   // One run, easiest first: sorted by the level bot's difficulty score (attempts a
-  // learning bot needs + how precise the timing must be), at G = 855. Each mechanic's
+  // learning bot needs + how precise the timing must be), at G = 998. Each mechanic's
   // intro level (Slider, Bounce Gap, Sticky Start, Black Ice, First Portal) comes before
-  // anything that uses it. Hand-placed: Hop Scotch late (playtest: hardest), World's End last.
+  // anything that uses it. Hand-placed: Hop Scotch late (playtest: hardest), Wall Walker late (harder at G 998), World's End last.
+
 
 
   // ── 1–10 ──────────────────────────────────────────────────
@@ -138,7 +139,7 @@ const LEVELS = [
       { x: 0, y: 200, w: 140, h: 24, t: "spike" },
       { x: 190, y: 200, w: 160, h: 24, t: "goal" },
     ] },
-  { name: "Over the Wall", cam: "fixed", view: 720, start: [-150, 234], par: [8, 16],
+  { name: "Over the Wall", cam: "fixed", view: 720, start: [-150, 234], par: [7, 14],
     hint: "Turn the whole box to roll the ball over the wall.",
     objs: [
       ...box(250, 250),
@@ -159,7 +160,7 @@ const LEVELS = [
       { x: 0, y: 0, w: 180, h: 60, t: "wall" },
       { x: 0, y: 40, w: 120, h: 20, t: "goal" },
     ] },
-  { name: "Zigzag", cam: "fixed", view: 820, start: [-170, -204], par: [13, 26],
+  { name: "Zigzag", cam: "fixed", view: 820, start: [-170, -204], par: [12, 24],
     hint: "Shelf to shelf. Tilt, drop, tilt back.",
     objs: [
       ...box(220, 340),
@@ -178,7 +179,7 @@ const LEVELS = [
       { x: 240, y: 130, w: 20, h: 200, t: "spike" },
       { x: 0, y: 240, w: 100, h: 20, t: "goal" },
     ] },
-  { name: "Pendulum", cam: "fixed", view: 720, start: [0, -222], par: [5, 10],
+  { name: "Pendulum", cam: "fixed", view: 720, start: [0, -222], par: [4, 8],
     hint: "Two blades swinging in opposite directions.",
     objs: [
       ...box(260, 260),
@@ -189,7 +190,7 @@ const LEVELS = [
       { x: 250, y: 180, w: 20, h: 140, t: "spike" },
       { x: 0, y: 250, w: 100, h: 20, t: "goal" },
     ] },
-  { name: "Gears", cam: "fixed", view: 760, start: [0, -252], par: [5, 10],
+  { name: "Gears", cam: "fixed", view: 760, start: [0, -252], par: [4, 8],
     hint: "Two blades turning against each other.",
     objs: [
       ...box(280, 280),
@@ -209,7 +210,7 @@ const LEVELS = [
       { x: 0, y: 295, w: 110, h: 24, t: "spike" },
       { x: 250, y: 290, w: 70, h: 20, t: "goal" },
     ] },
-  { name: "Keyhole", cam: "fixed", view: 720, start: [-180, -222], par: [5, 10],
+  { name: "Keyhole", cam: "fixed", view: 720, start: [-180, -222], par: [6, 12],
     hint: "One tiny gap. Line it up, drop through, then dodge.",
     objs: [
       ...box(240, 240),
@@ -230,7 +231,7 @@ const LEVELS = [
     ] },
 
   // ── 11–20 ──────────────────────────────────────────────────
-  { name: "Shifting Maze", cam: "fixed", view: 820, start: [0, -252], par: [5, 10],
+  { name: "Shifting Maze", cam: "fixed", view: 820, start: [0, -252], par: [4, 8],
     hint: "The walls turn too.",
     objs: [
       ...box(300, 300),
@@ -243,7 +244,7 @@ const LEVELS = [
       { x: 220, y: 290, w: 160, h: 20, t: "spike" },
       { x: 70, y: 290, w: 60, h: 20, t: "goal" },
     ] },
-  { name: "Gauntlet", cam: "fixed", view: 900, start: [-340, -262], par: [13, 26],
+  { name: "Gauntlet", cam: "fixed", view: 900, start: [-340, -262], par: [12, 24],
     hint: "Piston, drop, blade, landing. One run.",
     objs: [
       ...box(400, 300),
@@ -279,7 +280,7 @@ const LEVELS = [
       { x: 180, y: -230, w: 120, h: 20, t: "spike" },
       { x: 0, y: -230, w: 120, h: 20, t: "goal" },
     ] },
-  { name: "First Portal", cam: "fixed", view: 720, start: [-180, -222], par: [10, 20],
+  { name: "First Portal", cam: "fixed", view: 720, start: [-180, -222], par: [5, 10],
     hint: "Portals come in pairs. In one, out the other, same speed. Steer once you're through.",
     objs: [
       ...box(240, 240),
@@ -291,7 +292,7 @@ const LEVELS = [
       { x: 60, y: 230, w: 120, h: 20, t: "spike" },
       { x: 180, y: 230, w: 80, h: 20, t: "goal" },
     ] },
-  { name: "Locked Room", cam: "fixed", view: 720, start: [-150, 78], par: [6, 12],
+  { name: "Locked Room", cam: "fixed", view: 720, start: [-150, 78], par: [5, 10],
     hint: "The pad is sealed in. Park on the glue, aim, release — the portal is the only door.",
     objs: [
       ...box(260, 260),
@@ -326,7 +327,7 @@ const LEVELS = [
       { x: 120, y: 50, w: 160, h: 16, t: "spike", spin: -80 },
       { x: 350, y: 60, w: 20, h: 120, t: "goal" },
     ] },
-  { name: "Sync", cam: "fixed", view: 820, start: [0, -302], par: [5, 10],
+  { name: "Sync", cam: "fixed", view: 820, start: [0, -302], par: [4, 8],
     hint: "Three sliders out of step. Find the line through.",
     objs: [
       ...box(260, 320),
@@ -338,7 +339,7 @@ const LEVELS = [
       { x: 170, y: 310, w: 180, h: 20, t: "spike" },
       { x: 0, y: 310, w: 80, h: 20, t: "goal" },
     ] },
-  { name: "Crossroads", cam: "fixed", view: 720, start: [-110, -26], par: [9, 18],
+  { name: "Crossroads", cam: "fixed", view: 720, start: [-110, -26], par: [7, 14],
     hint: "Two ways round. Each one has a gatekeeper.",
     objs: [
       ...box(260, 260),
@@ -358,7 +359,7 @@ const LEVELS = [
       { x: 0, y: 260, w: 800, h: 24, t: "spike" },
       { x: 290, y: 40, w: 140, h: 20, t: "goal" },
     ] },
-  { name: "Clock Face", cam: "fixed", view: 720, start: [0, -232], par: [6, 12],
+  { name: "Clock Face", cam: "fixed", view: 720, start: [0, -232], par: [7, 14],
     hint: "The hand sweeps the whole room. Ride it or dodge it.",
     objs: [
       ...box(260, 260),
@@ -376,7 +377,7 @@ const LEVELS = [
       { x: 0, y: 220, w: 200, h: 24, t: "spike" },
       { x: -230, y: 200, w: 120, h: 20, t: "goal" },
     ] },
-  { name: "Corkscrew", cam: "fixed", view: 820, start: [-170, -204], par: [16, 32],
+  { name: "Corkscrew", cam: "fixed", view: 820, start: [-170, -204], par: [13, 26],
     hint: "Zigzag again — but the shelves have pop-up spikes. Roll across while they're down.",
     objs: [
       ...box(220, 340),
@@ -388,7 +389,7 @@ const LEVELS = [
       { x: -40, y: 174, w: 40, h: 24, t: "spike", m: [0, 16, 1.8] },
       { x: -170, y: 330, w: 80, h: 20, t: "goal" },
     ] },
-  { name: "Crusher Corridor", cam: "fixed", view: 860, start: [-340, 66], par: [5, 10],
+  { name: "Crusher Corridor", cam: "fixed", view: 860, start: [-340, 66], par: [7, 14],
     hint: "Floor or ceiling? Flip to whichever side is open.",
     objs: [
       ...box(380, 80),
@@ -410,7 +411,7 @@ const LEVELS = [
       { x: -270, y: 0, w: 20, h: 140, t: "spike" },
       { x: 270, y: 0, w: 20, h: 140, t: "spike" },
     ] },
-  { name: "Bounce Gap", cam: "follow", view: 900, bounds: 700, start: [-300, -24], par: [6, 12],
+  { name: "Bounce Gap", cam: "follow", view: 900, bounds: 700, start: [-300, -24], par: [5, 10],
     hint: "Orange pads launch you. Hit it, then steer to the far side.",
     objs: [
       { x: -300, y: 0, w: 140, h: 20, t: "wall" },
@@ -521,7 +522,7 @@ const LEVELS = [
       { x: 0, y: 120, w: 300, h: 20, t: "spike" },
       { x: 300, y: 260, w: 90, h: 20, t: "goal" },
     ] },
-  { name: "Sky Hopper", cam: "fixed", view: 960, bounds: 800, start: [0, -174], par: [7, 14],
+  { name: "Sky Hopper", cam: "fixed", view: 960, bounds: 800, start: [0, -174], par: [5, 10],
     hint: "Pad to pad through open sky.",
     objs: [
       { x: 0, y: -150, w: 80, h: 20, t: "wall" },
@@ -530,21 +531,6 @@ const LEVELS = [
       { x: 0, y: 400, w: 600, h: 24, t: "spike" },
       { x: -300, y: -250, w: 80, h: 20, t: "goal" },
       { x: -150, y: -250, w: 20, h: 300, t: "wall" } // barricade wall: no straight flight to the pad,
-    ] },
-  { name: "Wall Walker", cam: "fixed", view: 820, start: [0, 278], par: [6, 12],
-    hint: "Climb the walls. Glue patches are safe spots to stop and re-aim.",
-    objs: [
-      ...box(200, 320),
-      { x: 0, y: 300, w: 80, h: 16, t: "wall" },
-      { x: 0, y: 310, w: 400, h: 20, t: "spike" },
-      { x: -40, y: 150, w: 220, h: 20, t: "spike" },
-      { x: 40, y: -20, w: 220, h: 20, t: "spike" },
-      { x: 190, y: 230, w: 20, h: 100, t: "glue" },
-      { x: -190, y: 60, w: 20, h: 100, t: "glue" },
-      { x: 190, y: -110, w: 20, h: 100, t: "glue" },
-      { x: -140, y: -310, w: 120, h: 20, t: "spike" },
-      { x: 140, y: -310, w: 120, h: 20, t: "spike" },
-      { x: 0, y: -310, w: 160, h: 20, t: "goal" },
     ] },
   { name: "Hop Scotch", cam: "fixed", view: 860, start: [-330, -62], par: [4, 8],
     hint: "Pillars in the way, spikes below. Hop pad to pad.",
@@ -559,8 +545,6 @@ const LEVELS = [
       { x: 220, y: 128, w: 90, h: 16, t: "bounce" },
       { x: 370, y: 0, w: 20, h: 120, t: "goal" },
     ] },
-
-  // ── 41–50 ──────────────────────────────────────────────────
   { name: "Moving Spring", cam: "fixed", view: 720, start: [-200, -82], par: [7, 14],
     hint: "The floor bites. Catch the moving pad.",
     objs: [
@@ -573,6 +557,8 @@ const LEVELS = [
       { x: 180, y: -100, w: 100, h: 20, t: "goal" },
       { x: 0, y: -60, w: 20, h: 380, t: "wall" } // divider: go low, past the spring,
     ] },
+
+  // ── 41–50 ──────────────────────────────────────────────────
   { name: "Portal Hop", cam: "fixed", view: 900, bounds: 600, start: [-300, -204], par: [5, 10],
     hint: "Portals keep your speed. Use it.",
     objs: [
@@ -594,7 +580,7 @@ const LEVELS = [
       { x: -425, y: 0, w: 270, h: 20, t: "wall" },
       { x: 425, y: 0, w: 270, h: 20, t: "wall" },
     ] },
-  { name: "Bounce Gauntlet", cam: "fixed", view: 1040, bounds: 900, start: [-400, -224], par: [6, 12],
+  { name: "Bounce Gauntlet", cam: "fixed", view: 1040, bounds: 900, start: [-400, -224], par: [4, 8],
     hint: "Three pads, one moving. Spikes overhead.",
     objs: [
       { x: -400, y: -200, w: 90, h: 20, t: "wall" },
@@ -607,7 +593,7 @@ const LEVELS = [
       { x: 130, y: -180, w: 20, h: 140, t: "wall" },
       { x: 420, y: -100, w: 70, h: 20, t: "goal" },
     ] },
-  { name: "Tower", cam: "follow", view: 900, start: [-100, 586], par: [20, 40],
+  { name: "Tower", cam: "follow", view: 900, start: [-100, 586], par: [18, 36],
     hint: "The goal is at the top. Gravity is whatever you say it is.",
     objs: [
       ...box(150, 600),
@@ -622,7 +608,7 @@ const LEVELS = [
       { x: 140, y: -300, w: 20, h: 120, t: "spike" },
       { x: 0, y: -590, w: 100, h: 20, t: "goal" },
     ] },
-  { name: "Piston Hall", cam: "fixed", view: 900, start: [-390, 86], par: [8, 16],
+  { name: "Piston Hall", cam: "fixed", view: 900, start: [-390, 86], par: [7, 14],
     hint: "Five pistons, five rhythms. Floor or ceiling, every time.",
     objs: [
       ...box(420, 100),
@@ -660,7 +646,7 @@ const LEVELS = [
       { x: 350, y: 100, w: 80, h: 20, t: "goal", m: [0, 100, 3.5] },
       { x: 270, y: 150, w: 20, h: 500, t: "wall" } // barricade wall: go over, using the isles,
     ] },
-  { name: "Double Back", cam: "fixed", view: 900, start: [-360, -24], par: [18, 36],
+  { name: "Double Back", cam: "fixed", view: 900, start: [-360, -24], par: [12, 24],
     hint: "Out along the top, back along the bottom — upside down.",
     objs: [
       ...box(400, 200),
@@ -670,9 +656,7 @@ const LEVELS = [
       { x: 50, y: 190, w: 700, h: 20, t: "spike" },
       { x: -390, y: 100, w: 20, h: 120, t: "goal" },
     ] },
-
-  // ── 51–60 ──────────────────────────────────────────────────
-  { name: "Corner Shot", cam: "fixed", view: 720, start: [-200, 226], par: [12, 24],
+  { name: "Corner Shot", cam: "fixed", view: 720, start: [-200, 226], par: [17, 34],
     hint: "Spikes on floor and ceiling. Point gravity straight at the far corner.",
     objs: [
       ...box(240, 240),
@@ -680,6 +664,8 @@ const LEVELS = [
       { x: -60, y: -230, w: 360, h: 20, t: "spike" },
       { x: 180, y: -230, w: 120, h: 20, t: "goal" },
     ] },
+
+  // ── 51–60 ──────────────────────────────────────────────────
   { name: "Ricochet", cam: "fixed", view: 640, start: [0, -184], par: [4, 8],
     hint: "Can't go straight down. Bank it off a pad.",
     objs: [
@@ -690,7 +676,22 @@ const LEVELS = [
       { x: 0, y: 60, w: 80, h: 80, t: "spike" },
       { x: 0, y: 200, w: 80, h: 20, t: "goal" },
     ] },
-  { name: "Switchback", cam: "fixed", view: 820, start: [-100, -224], par: [21, 42],
+  { name: "Wall Walker", cam: "fixed", view: 820, start: [0, 278], par: [17, 34],
+    hint: "Climb the walls. Glue patches are safe spots to stop and re-aim.",
+    objs: [
+      ...box(200, 320),
+      { x: 0, y: 300, w: 80, h: 16, t: "wall" },
+      { x: 0, y: 310, w: 400, h: 20, t: "spike" },
+      { x: -40, y: 150, w: 220, h: 20, t: "spike" },
+      { x: 40, y: -20, w: 220, h: 20, t: "spike" },
+      { x: 190, y: 230, w: 20, h: 100, t: "glue" },
+      { x: -190, y: 60, w: 20, h: 100, t: "glue" },
+      { x: 190, y: -110, w: 20, h: 100, t: "glue" },
+      { x: -140, y: -310, w: 120, h: 20, t: "spike" },
+      { x: 140, y: -310, w: 120, h: 20, t: "spike" },
+      { x: 0, y: -310, w: 160, h: 20, t: "goal" },
+    ] },
+  { name: "Switchback", cam: "fixed", view: 820, start: [-100, -224], par: [11, 22],
     hint: "Back and forth, all the way down. Don't overshoot.",
     objs: [
       ...box(130, 330),
@@ -704,7 +705,7 @@ const LEVELS = [
       { x: 45, y: 320, w: 170, h: 20, t: "spike" },
       { x: -80, y: 320, w: 80, h: 20, t: "goal" },
     ] },
-  { name: "Fall Up", cam: "fixed", view: 800, bounds: 600, start: [0, 306], par: [12, 24],
+  { name: "Fall Up", cam: "fixed", view: 800, bounds: 600, start: [0, 306], par: [11, 22],
     hint: "The goal is above you. Turn the sky into the floor.",
     objs: [
       { x: 0, y: 330, w: 80, h: 20, t: "wall" },
@@ -715,7 +716,7 @@ const LEVELS = [
       { x: -230, y: 0, w: 20, h: 700, t: "wall" },
       { x: 230, y: 0, w: 20, h: 700, t: "wall" },
     ] },
-  { name: "Strange Matter", cam: "fixed", view: 860, start: [-200, -22], par: [18, 36],
+  { name: "Strange Matter", cam: "fixed", view: 860, start: [-200, -22], par: [21, 42],
     hint: "Glue, portal, ice, blade. Everything strange at once.",
     objs: [
       ...box(320, 320),
@@ -729,7 +730,7 @@ const LEVELS = [
       { x: -310, y: 160, w: 20, h: 300, t: "spike" },
       { x: 270, y: 310, w: 80, h: 20, t: "goal" },
     ] },
-  { name: "Final Shift", cam: "fixed", view: 820, start: [-230, 178], par: [21, 42],
+  { name: "Final Shift", cam: "fixed", view: 820, start: [-230, 178], par: [9, 18],
     hint: "Everything you've learned. Good luck.",
     objs: [
       ...box(300, 300),
@@ -753,7 +754,7 @@ const LEVELS = [
       { x: 110, y: 250, w: 20, h: 160, t: "spike" },
       { x: 0, y: 260, w: 100, h: 20, t: "goal" },
     ] },
-  { name: "Pinwheel", cam: "fixed", view: 900, bounds: 700, start: [0, -324], par: [6, 12],
+  { name: "Pinwheel", cam: "fixed", view: 900, bounds: 700, start: [0, -324], par: [7, 14],
     hint: "Ride the wheel, dodge the blades, come at the pad from below.",
     objs: [
       { x: 0, y: -300, w: 80, h: 16, t: "wall" },
@@ -766,7 +767,7 @@ const LEVELS = [
       { x: -505, y: 0, w: 390, h: 20, t: "wall" },
       { x: 505, y: 0, w: 390, h: 20, t: "wall" },
     ] },
-  { name: "Windmill", cam: "fixed", view: 820, bounds: 600, start: [-250, -274], par: [16, 32],
+  { name: "Windmill", cam: "fixed", view: 820, bounds: 600, start: [-250, -274], par: [6, 12],
     hint: "A spinning cross. Slip through the gap at the tips while no arm is passing.",
     objs: [
       { x: -250, y: -250, w: 120, h: 20, t: "wall" },
