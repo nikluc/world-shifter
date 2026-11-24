@@ -13,6 +13,7 @@ its hand-made intro level; nothing uses a mechanic before its intro.
 
     python world-shifter/tools/gen_levels.py search --seeds 1-3000 --workers 10
     python world-shifter/tools/gen_levels.py build --total 500
+    python world-shifter/tools/gen_levels.py addgems gems_gen*.json   (after place_gems.py --gen-only)
 """
 import json, math, pathlib, random, subprocess, sys
 TOOLS = pathlib.Path(__file__).resolve().parent
@@ -132,11 +133,36 @@ def build(total):
         print(f"  {k + 1:>3}. {order[k][1]:<20} d{order[k][0]:.2f}")
 
 
+def addgems(files):
+    """Store gem positions (from place_gems.py --gen-only --out ...) in the generated recipes in RUN."""
+    from playwright.sync_api import sync_playwright
+    placed = {}
+    for f in files:
+        placed.update(json.loads(pathlib.Path(f).read_text()))
+    s = HTML.read_text(encoding="utf-8")
+    start = s.index("const RUN = ["); end = s.index("];\n", start) + 3
+    run = json.loads("[" + s[start + len("const RUN = ["): end - 3].strip().rstrip(",") + "]")
+    with sync_playwright() as p:
+        b = p.chromium.launch(channel="msedge"); pg = b.new_page(); pg.goto(HTML.as_uri())
+        names = pg.evaluate("RUN.map(e => typeof e === 'string' ? e : genLevel(e).name)")
+        b.close()
+    n = 0
+    for k, e in enumerate(run):
+        if isinstance(e, list):
+            e[:] = e[:4] + ([placed[names[k]]] if names[k] in placed else [])
+            n += names[k] in placed
+    body = ",\n  ".join(json.dumps(x, ensure_ascii=False) for x in run)
+    HTML.write_text(s[:start] + f"const RUN = [\n  {body},\n];\n" + s[end:], encoding="utf-8", newline="")
+    print(f"stored gems in {n} generated levels")
+
+
 if __name__ == "__main__":
     cmd = sys.argv[1]
     if cmd == "_worker":
         worker([int(x) for x in sys.argv[2].split(",") if x], sys.argv[3], sys.argv[4] == "hand")
     elif cmd == "search":
         search(sys.argv[sys.argv.index("--seeds") + 1], int(sys.argv[sys.argv.index("--workers") + 1]) if "--workers" in sys.argv else 8)
+    elif cmd == "addgems":
+        addgems(sys.argv[2:])
     elif cmd == "build":
         build(int(sys.argv[sys.argv.index("--total") + 1]) if "--total" in sys.argv else 500)

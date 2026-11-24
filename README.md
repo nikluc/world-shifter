@@ -7,7 +7,7 @@ You don't move the ball — you turn the world. Rotate the level so the falling 
 - Tap, click, Space, or turning the world in any way drops the ball
 - Drag or draw circles to rotate (keyboard: ← → or A D, Q/E snap 90°, R restart); 90° mode has ⟲ ⟳ buttons
 - 500 levels in one run from easiest to hardest, with ★ for speed: 60 hand-made, 440 generated and bot-checked
-- A hidden ◆ gem on many levels, and a Share button that sends your result with a link to that level
+- A hidden ◆ gem on 469 of 500 levels (each proven collectable by the bot), and a Share button that sends your result with a link to that level
 - Along the way: portals (linked pairs, keep your speed), ice (no grip) and glue (holds the ball while you turn)
 - Sound effects and 6 synthesized songs (a new one every 50 levels) whose arrangement and melody keep evolving
 - ⚙ settings: music, sound, vibration, and controls (drag/circle or 90° buttons); the game pauses when you switch apps

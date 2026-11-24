@@ -1,3 +1,4 @@
 last_bot_run.json
 gen_results.jsonl
 gen_part*.jsonl
+gems_gen*.log
