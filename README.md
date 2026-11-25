@@ -23,3 +23,5 @@ This web version has no ads. The same `index.html` also builds for CrazyGames (`
 `tools/gen_levels.py` grows the run (search seeds, keep only levels a human can win that no single tilt solves, then build the ordered run); `tools/place_gems.py` places gems the bot can prove are collectable. `tools/level_bot.py` checks every level is winnable *by a human* (wins must survive sloppy timing), scores difficulty, and with `--paths sheet.png` draws each level's winning route to spot shortcuts (needs Playwright + Edge + Pillow).
 
 This is an early prototype for playtesting — feedback welcome.
+
+Font: Baloo 2 by Ek Type, SIL Open Font License 1.1 (embedded in index.html).
