@@ -17,6 +17,8 @@ You don't move the ball — you turn the world. Rotate the level so the falling 
 
 **Playtesters:** tap the version text in the menu 5 times (or open `?stats`) to see your stats, then press **Copy** (or **Save file**) and send it over. It includes where you died and your best route on each level.
 
+This web version has no ads. The same `index.html` also builds for CrazyGames (`tools/build_crazygames.py`) and Android/iOS through a Platform layer that switches ads, analytics and crash reporting per platform.
+
 `tools/gen_levels.py` grows the run (search seeds, keep only levels a human can win that no single tilt solves, then build the ordered run); `tools/place_gems.py` places gems the bot can prove are collectable. `tools/level_bot.py` checks every level is winnable *by a human* (wins must survive sloppy timing), scores difficulty, and with `--paths sheet.png` draws each level's winning route to spot shortcuts (needs Playwright + Edge + Pillow).
 
 This is an early prototype for playtesting — feedback welcome.

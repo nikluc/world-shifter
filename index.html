@@ -52,6 +52,9 @@
   .tbl th,.tbl td{padding:4px 6px;border-bottom:1px solid #2c2c48;text-align:right;white-space:nowrap}
   .tbl th:nth-child(2),.tbl td:nth-child(2){text-align:left}
   .tbl tr.hot td{color:#ff8da1}
+  #offer{position:fixed;left:0;right:0;top:calc(env(safe-area-inset-top) + 66px);display:none;justify-content:center;pointer-events:none;z-index:3}
+  #offer.show{display:flex}
+  #offer button{pointer-events:auto;background:rgba(45,107,74,.92);border-color:#4fd18b;font-size:15px;border-radius:22px;padding:8px 16px}
   #snapBtns{position:fixed;left:0;right:0;bottom:calc(env(safe-area-inset-bottom) + 64px);display:none;justify-content:space-between;padding:0 18px;pointer-events:none;z-index:2}
   #snapBtns.show{display:flex}
   #snapBtns button{pointer-events:auto;width:76px;height:76px;border-radius:50%;font-size:38px;line-height:1;padding:0;background:rgba(27,27,46,.85)}
@@ -70,6 +73,7 @@
   <div class="btns"><button id="bSettings" class="icon" aria-label="Settings">⚙</button></div>
 </div>
 <div id="hint"></div>
+<div id="offer"><button id="bOffer"></button></div>
 <div id="snapBtns"><button id="bRotL" aria-label="Turn left">⟲</button><button id="bRotR" aria-label="Turn right">⟳</button></div>
 
 <div class="overlay show" id="menu">
@@ -83,7 +87,7 @@
     <div class="pages" id="pageTabs"></div>
     <div class="grid" id="levelGrid"></div>
     <p class="help" id="helpText"></p>
-    <p style="font-size:11px;opacity:.45" id="ver">prototype v0.14</p>
+    <p style="font-size:11px;opacity:.45" id="ver">prototype v0.15</p>
   </div>
 </div>
 
@@ -1749,12 +1753,106 @@ const Sfx = (() => {
     snap() { tone(240, 0.12, { type: "triangle", vol: 0.15, slide: 1.6 }); noise(0.08, { vol: 0.06, freq: 2000, type: "highpass" }); },
     click() { tone(720, 0.05, { type: "triangle", vol: 0.1 }); },
     gem() { [1319, 1568, 2093].forEach((f, i) => tone(f, 0.22, { type: "triangle", vol: 0.13, delay: i * 0.05 })); },
+    pauseAll() { if (ac) ac.suspend(); },                       // while an ad plays
+    resumeAll() { if (ac && !document.hidden) ac.resume(); },
     portal() { tone(300, 0.25, { type: "sine", vol: 0.2, slide: 4 }); tone(900, 0.2, { type: "triangle", vol: 0.08, slide: 0.5, delay: 0.05 }); },
     splat(v) { noise(0.12, { vol: 0.25 * v + 0.05, freq: 380 }); tone(140, 0.12, { vol: 0.15 * v + 0.03, slide: 0.5 }); },
   };
 })();
 window.addEventListener("pointerdown", Sfx.unlock, true);
 window.addEventListener("keydown", Sfx.unlock, true);
+
+// ---------- Platform layer: ads, analytics and crash reports per store ----------
+// Gameplay code only calls Platform.*; each build plugs in underneath:
+//   web        GitHub Pages: no ads ever; events + errors stay on the device (in the stats export)
+//   crazygames CrazyGames SDK v3 (tools/build_crazygames.py sets WS_BUILD and adds the SDK script)
+//   native     Capacitor app (Android / iOS): AdMob ads + UMP consent, Firebase Analytics, Crashlytics
+//   test       ?platform=test: fake 1-second ads, to try the ad flows anywhere
+const ADS = {
+  firstLevel: 12,        // no interstitials before this level: players learn the game ad-free
+  minGapSec: 180,        // at most one interstitial every 3 minutes (CrazyGames' rule; used everywhere)
+  everyNWins: 3,         // ...and only after every 3rd level completed
+  guideOfferDeaths: 5,   // offer "show the landing guide" for a rewarded ad after this many deaths on a level
+  skipOfferDeaths: 10,   // offer "skip this level" for a rewarded ad
+  // Google's public TEST ad unit ids: replace with your AdMob ids before release (studio/PLAN.md, "Your to-do")
+  admob: {
+    android: { interstitial: "ca-app-pub-3940256099942544/1033173712", rewarded: "ca-app-pub-3940256099942544/5224354917" },
+    ios: { interstitial: "ca-app-pub-3940256099942544/4411468910", rewarded: "ca-app-pub-3940256099942544/1712485313" },
+  },
+};
+const Platform = (() => {
+  const qp = new URLSearchParams(location.search).get("platform");
+  const cap = window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform() ? window.Capacitor : null;
+  const env = qp === "test" ? "test" : window.WS_BUILD === "crazygames" && window.CrazyGames ? "crazygames" : cap ? "native" : "web";
+  const P = cap ? cap.Plugins : {};
+  const os = cap ? cap.getPlatform() : "";
+  let cg = null, ready = false, playing = false, lastAd = performance.now() / 1000 - ADS.minGapSec / 2, winsSinceAd = 0, adOpen = false;
+  const log = [];
+  try { log.push(...JSON.parse(localStorage.getItem("ws_errors") || "[]")); } catch (e) {}
+
+  async function init() {
+    try {
+      if (env === "crazygames") { cg = window.CrazyGames.SDK; await cg.init(); }
+      if (env === "native" && P.AdMob) {
+        await P.AdMob.initialize({});
+        const c = await P.AdMob.requestConsentInfo(); // GDPR / US-state consent (UMP), required before ads
+        if (c && c.isConsentFormAvailable && c.status === "REQUIRED") await P.AdMob.showConsentForm();
+      }
+      ready = true;
+    } catch (e) { error(e); }
+  }
+  // the CrazyGames SDK wants to know when real play starts and stops (menus, pauses, level switches)
+  function setPlaying(on) {
+    if (on === playing) return;
+    playing = on;
+    try { if (cg) on ? cg.game.gameplayStart() : cg.game.gameplayStop(); } catch (e) {}
+  }
+  function event(name, params = {}) {
+    try {
+      if (env === "native" && P.FirebaseAnalytics) P.FirebaseAnalytics.logEvent({ name, params });
+      if (env === "test") console.log("[event]", name, params);
+    } catch (e) {}
+  }
+  function error(e) {
+    const msg = String(e && (e.stack || e.message) || e).slice(0, 400);
+    log.push({ t: new Date().toISOString(), msg }); while (log.length > 20) log.shift();
+    try { localStorage.setItem("ws_errors", JSON.stringify(log)); } catch (x) {}
+    try { if (env === "native" && P.FirebaseCrashlytics) P.FirebaseCrashlytics.recordException({ message: msg }); } catch (x) {}
+  }
+  const adsOn = () => ready && env !== "web";
+  // an ad covers the game: pause play and all audio, resume after
+  async function showAd(kind) {
+    if (adOpen) return false;
+    adOpen = true; setPlaying(false); Sfx.pauseAll(); event("ad_show", { kind });
+    let rewarded = false;
+    try {
+      if (env === "test") { await new Promise(r => setTimeout(r, 1000)); rewarded = true; }
+      else if (env === "crazygames") {
+        rewarded = await new Promise(res => cg.ad.requestAd(kind === "rewarded" ? "rewarded" : "midgame",
+          { adFinished: () => res(true), adError: () => res(false) }));
+      } else if (env === "native" && P.AdMob) {
+        const ids = ADS.admob[os === "ios" ? "ios" : "android"];
+        if (kind === "rewarded") { await P.AdMob.prepareRewardVideoAd({ adId: ids.rewarded }); rewarded = !!(await P.AdMob.showRewardVideoAd()); }
+        else { await P.AdMob.prepareInterstitial({ adId: ids.interstitial }); await P.AdMob.showInterstitial(); rewarded = true; }
+      }
+    } catch (e) { rewarded = false; error(e); }
+    adOpen = false; Sfx.resumeAll(); lastAd = performance.now() / 1000;
+    event(rewarded ? "ad_done" : "ad_fail", { kind });
+    return rewarded;
+  }
+  // between levels: maybe an interstitial (never before ADS.firstLevel, capped by time and wins), then go on
+  async function betweenLevels(levelNumber, go) {
+    winsSinceAd++;
+    const due = adsOn() && levelNumber >= ADS.firstLevel && winsSinceAd >= ADS.everyNWins && performance.now() / 1000 - lastAd >= ADS.minGapSec;
+    if (due) { winsSinceAd = 0; await showAd("midgame"); }
+    go();
+  }
+  return { env, init, setPlaying, event, error, betweenLevels, rewarded: () => showAd("rewarded"),
+           get canReward() { return adsOn() && !adOpen; }, get errors() { return log; },
+           get sharing() { return env !== "crazygames"; } }; // portals don't allow links out to other sites
+})();
+window.addEventListener("error", e => Platform.error(e.error || e.message));
+window.addEventListener("unhandledrejection", e => Platform.error(e.reason));
 
 // ---------- State ----------
 const cv = document.getElementById("c");
@@ -1846,6 +1944,7 @@ function loadLevel(i) {
   dailyRun = dailyNext; dailyNext = false;
   if (i % MENU_PAGE === 0 && i > 0 && !window.__botQuiet) banner = { text: `World ${i / MENU_PAGE + 1}`, sub: worldOf(i).name, t: 2.6 };
   if (!window.__botQuiet) maybeCard();
+  paintOffer();
 }
 function restart() { loadLevel(levelIdx); }
 
@@ -1939,8 +2038,9 @@ function onBallEvent(kind, o, imp) {
 const PORTAL_COLORS = { a: "#b36bff", b: "#42c8ff", c: "#ffcc42" };
 
 // ---------- Trajectory preview (early levels, or after many deaths on one level) ----------
+let guideBoost = {}; // levels where the player unlocked the guide with a rewarded ad (this session)
 function guideOn() {
-  return levelIdx < GUIDE_LEVELS || (stats[level.name] && stats[level.name].deaths >= GUIDE_AFTER_DEATHS);
+  return levelIdx < GUIDE_LEVELS || guideBoost[level.name] || (stats[level.name] && stats[level.name].deaths >= GUIDE_AFTER_DEATHS);
 }
 // simulates the ball from now with the world held at its current angle (objects frozen in place)
 function predictPath() {
@@ -2064,7 +2164,8 @@ function update(dt) {
   // (drag, keys, 90° buttons): turning the map starts the run too
   if (waiting && Math.abs(angle) > 0.02) launch();
   if (waiting) return;
-  if (!dropped) { dropped = true; Sfx.drop(); stat().tries++; runOpen = true; }
+  if (!dropped) { dropped = true; Sfx.drop(); stat().tries++; runOpen = true; Platform.event("level_start", { level: levelIdx + 1, name: level.name }); }
+  Platform.setPlaying(true);
   timer += dt;
 
   const gx = Math.sin(angle) * G, gy = Math.cos(angle) * G;
@@ -2093,11 +2194,14 @@ function die(kind) {
   st.deaths++; st[kind === "void" ? "voids" : "spikes"]++; st.time += timer;
   st.spots.push([Math.round(ball.x), Math.round(ball.y)]); if (st.spots.length > 60) st.spots.shift();
   runOpen = false; saveStats();
+  Platform.event("level_fail", { level: levelIdx + 1, cause: kind, deaths: deaths.n });
+  paintOffer();
 }
 function win() {
   state = "won";
   burst(ball.x, ball.y, "#4fd18b", 40);
   Sfx.win();
+  Platform.setPlaying(false);
   buzz([20, 60, 20, 60, 40]);
   const t = timer, st = t <= level.par[0] ? 3 : t <= level.par[1] ? 2 : 1;
   const ls = stat();
@@ -2112,6 +2216,7 @@ function win() {
   if (st > prev) { progress[level.name] = st; try { localStorage.setItem("ws_stars", JSON.stringify(progress)); } catch (e) {} }
   const gem = level.objs.find(o => o.t === "gem"), gotGem = !!(gem && gem.got);
   if (gotGem && !gems[level.name]) { gems[level.name] = true; try { localStorage.setItem("ws_gems", JSON.stringify(gems)); } catch (e) {} }
+  Platform.event("level_complete", { level: levelIdx + 1, time: Math.round(t * 100) / 100, stars: st, deaths: deaths.n, gem: !!gotGem });
   lastWin = { n: levelIdx + 1, name: level.name, st, t, deaths: deaths.n, gem: gem ? gotGem : null, daily: dailyRun ? today() : null };
   if (dailyRun && (!daily[today()] || t < daily[today()])) { daily[today()] = Math.round(t * 100) / 100; try { localStorage.setItem("ws_daily", JSON.stringify(daily)); } catch (e) {} }
   const wonLevel = levelIdx;
@@ -2422,7 +2527,7 @@ function toggleMode() {
 }
 
 // ---------- UI ----------
-function show(id) { document.getElementById(id).classList.add("show"); }
+function show(id) { document.getElementById(id).classList.add("show"); Platform.setPlaying(false); } // every overlay is a break
 function hide(id) { document.getElementById(id).classList.remove("show"); }
 function isShown(id) { return document.getElementById(id).classList.contains("show"); }
 const MENU_PAGE = 50;
@@ -2476,7 +2581,8 @@ function buildMenu() {
 function next() {
   hide("win");
   if (dailyRun) { buildMenu(); show("menu"); return; } // the daily is a one-off: back to the menu
-  if (levelIdx < LEVELS.length - 1) loadLevel(levelIdx + 1); else showEnding();
+  // the only place an interstitial can appear (Platform decides: never on the web, capped elsewhere)
+  Platform.betweenLevels(levelIdx + 1, () => { if (levelIdx < LEVELS.length - 1) loadLevel(levelIdx + 1); else showEnding(); });
 }
 // UI click sound on every button (level grid included)
 document.addEventListener("click", e => { if (e.target.closest("button") && !e.target.closest("#snapBtns")) Sfx.click(); });
@@ -2564,6 +2670,29 @@ document.getElementById("bShare").onclick = async () => {
 
 document.getElementById("bCard").onclick = () => { hide("card"); if (state === "paused") state = "play"; };
 
+// ---------- Rewarded help: a stuck player can watch an ad for the landing guide, or to skip the level ----------
+function offerKind() {
+  if (!level || !Platform.canReward || !deaths || dailyRun) return null;
+  if (deaths.n >= ADS.skipOfferDeaths && levelIdx < LEVELS.length - 1) return "skip";
+  if (deaths.n >= ADS.guideOfferDeaths && !guideOn()) return "guide";
+  return null;
+}
+function paintOffer() {
+  const k = offerKind(), box = document.getElementById("offer");
+  box.classList.toggle("show", !!k);
+  if (k) document.getElementById("bOffer").textContent = k === "skip" ? "⏭ Skip this level · watch an ad" : "💡 Landing guide · watch an ad";
+}
+document.getElementById("bOffer").onclick = async () => {
+  const k = offerKind(); if (!k) return;
+  const was = state; state = "paused";
+  Platform.event("reward_offer_taken", { kind: k, level: levelIdx + 1, deaths: deaths.n });
+  const ok = await Platform.rewarded();
+  state = was === "dead" ? "play" : was;
+  if (!ok) { paintOffer(); return; }
+  if (k === "guide") { guideBoost[level.name] = true; paintOffer(); }
+  else loadLevel(levelIdx + 1); // skipped: no stars, the level stays open to beat later
+};
+
 // ---------- Daily challenge: one level a day, the same for everyone ----------
 const today = () => new Date().toISOString().slice(0, 10);
 function dailyIndex(d = today()) {
@@ -2635,7 +2764,7 @@ function fullExport() {
     for (let k = 0; k < g.p.length / 2; k += step) pts.push(g.p[2 * k], g.p[2 * k + 1]);
     ghostsLite[name] = { t: Math.round(g.t * 100) / 100, hz: GHOST_HZ / step, p: pts };
   }
-  return statsTSV() + "\n---WSDATA---\n" + JSON.stringify({ v: document.getElementById("ver").textContent, order: LEVELS.map(l => l.name), stats, ghosts: ghostsLite, stars: progress, gems });
+  return statsTSV() + "\n---WSDATA---\n" + JSON.stringify({ v: document.getElementById("ver").textContent, order: LEVELS.map(l => l.name), stats, ghosts: ghostsLite, stars: progress, gems, errors: Platform.errors, platform: Platform.env });
 }
 document.getElementById("bSaveStats").onclick = () => {
   const a = document.createElement("a");
@@ -2678,7 +2807,10 @@ function frame(now) {
 }
 buildMenu();
 const linkLevel = parseInt(new URLSearchParams(location.search).get("level"), 10);
+Platform.init();
+if (!Platform.sharing) for (const id of ["bShare", "bEndShare"]) document.getElementById(id).style.display = "none";
 if (linkLevel >= 1 && linkLevel <= LEVELS.length) loadLevel(linkLevel - 1); // shared link: straight in
+else if (Platform.env === "crazygames") loadLevel(nextUnbeaten()); // portals require landing in gameplay
 else { loadLevel(0); show("menu"); state = "paused"; }
 if (/[?&]stats\b/.test(location.search)) openStats();
 requestAnimationFrame(frame);
