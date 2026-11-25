@@ -278,11 +278,44 @@
   #codeIn{width:100%;height:86px;margin-top:8px;font:14px/1.3 monospace;background:#0c0820;color:#f4f1ff;border:2px solid #ffffff22;border-radius:14px;padding:8px;user-select:text;-webkit-user-select:text}
   .setrow.sens{flex-wrap:wrap;cursor:default}
   .setrow.sens input{width:100%;margin:12px 0 4px;accent-color:#ffd34d;height:28px}
-  /* home: title near the top, worlds in the middle, buttons at the bottom */
-  #scrHome .logo{margin-top:clamp(16px,6vh,64px)}
-  #scrHome .carwrap{margin-top:auto}
-  #scrHome #bContinue{margin-top:auto}
-  #scrHome .help{margin-top:14px}
+  /* home scales with the screen: --s is set from the window size (homeScale); portrait = title, worlds in the
+     middle, buttons at the bottom; landscape = worlds on the left, title + buttons on the right */
+  #scrHome{--s:1}
+  #scrHome > *{max-width:calc(440px * var(--s))}
+  #scrHome .mtop .chips span{font-size:calc(16px * var(--s))}
+  #scrHome .mtop .icon{width:calc(46px * var(--s));height:calc(46px * var(--s))}
+  #scrHome .logo{margin-top:calc(clamp(10px,5vh,70px) * var(--s));font-size:min(13vw,calc(52px * var(--s)))}
+  #scrHome .hworld{margin-top:auto;width:100%;max-width:calc(520px * var(--s))}
+  #scrHome .carwrap{max-width:none!important;margin-top:calc(8px * var(--s))}
+  #scrHome .orb{width:min(100%,calc(250px * var(--s)),38vh)}
+  #scrHome .wcar{padding:12px 13%}
+  #scrHome .wslide{flex-basis:74%}
+  #scrHome .orb .num{font-size:calc(13px * var(--s))}
+  #scrHome .wname{font-size:calc(15px * var(--s));margin-top:calc(12px * var(--s))}
+  #scrHome .pbar{max-width:calc(220px * var(--s))!important;height:calc(10px * var(--s));margin:calc(6px * var(--s)) auto 0}
+  #scrHome .psub{font-size:calc(14px * var(--s))}
+  #scrHome .hplay{margin-top:auto;padding-top:calc(14px * var(--s));width:100%}
+  #scrHome #bContinue{width:100%;margin-top:0;height:calc(76px * var(--s));border-radius:calc(24px * var(--s))}
+  #scrHome #bContinue b{font-size:calc(32px * var(--s))}
+  #scrHome #bContinue small{font-size:calc(15px * var(--s))}
+  #scrHome #bContinue svg{width:calc(30px * var(--s));height:calc(30px * var(--s))}
+  #scrHome .row3{margin-top:calc(16px * var(--s));gap:calc(8px * var(--s))}
+  #scrHome .row3 .b3d{height:calc(60px * var(--s));font-size:calc(15px * var(--s));border-radius:calc(20px * var(--s))}
+  #scrHome .row3 svg{width:calc(22px * var(--s));height:calc(22px * var(--s))}
+  #scrHome .help{margin-top:calc(14px * var(--s));font-size:calc(13px * var(--s))}
+  #scrHome .ver{font-size:calc(11px * var(--s))}
+  body.land #scrHome.on{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,1fr);grid-template-rows:auto 1fr auto auto 1fr;
+    grid-template-areas:"top top" "world ." "world logo" "world play" "world .";column-gap:calc(24px * var(--s));align-items:center;justify-items:center}
+  body.land #scrHome > *{max-width:none}
+  body.land #scrHome .mtop{grid-area:top;width:100%}
+  body.land #scrHome .logo{grid-area:logo;margin:0;flex-direction:row;gap:12px;font-size:calc(40px * var(--s))}
+  body.land #scrHome .logo .l2{transform:none}
+  body.land #scrHome .hworld{grid-area:world;margin:0;align-self:center}
+  body.land #scrHome .orb{width:min(100%,58vh)}
+  body.land #scrHome .wcar{padding:8px 20%}
+  body.land #scrHome .wslide{flex-basis:60%}
+  body.land #scrHome .hplay{grid-area:play;margin:0;padding-top:calc(12px * var(--s));max-width:calc(440px * var(--s))}
+  body.land #scrHome .help,body.land #scrHome .ver{display:none}
   #hint{position:fixed;bottom:calc(env(safe-area-inset-bottom) + 14px);left:0;right:0;text-align:center;opacity:.8;pointer-events:none;font-size:14px;padding:0 calc(env(safe-area-inset-right) + 24px) 0 calc(env(safe-area-inset-left) + 24px);text-shadow:0 1px 3px #000;transition:opacity .6s}
   #snapBtns.show ~ #hint, body.snap #hint{padding:0 110px}
   /* short landscape phones: tighter panels */
@@ -305,23 +338,23 @@
   <section class="mscr" id="scrHome">
     <div class="mtop"><div class="chips" id="totals"></div><button class="icon" id="bMenuSettings" aria-label="Settings"><svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="12" cy="12" r="3.2"></circle><path d="M12 2.5v2.5M12 19v2.5M4.6 4.6l1.8 1.8M17.6 17.6l1.8 1.8M2.5 12H5M19 12h2.5M4.6 19.4l1.8-1.8M17.6 6.4l1.8-1.8"></path></svg></button></div>
     <div class="logo"><span>WORLD</span><span class="l2">SHIFTER</span></div>
-    <div class="carwrap">
+    <div class="hworld"><div class="carwrap">
       <button class="carnav prev" id="carPrev" aria-label="Previous world">‹</button>
       <div class="wcar" id="worldCar"></div>
       <button class="carnav next" id="carNext" aria-label="Next world">›</button>
     </div>
     <div class="wname" id="homeWorld"></div>
     <div class="pbar"><i id="homeBar"></i></div>
-    <div class="psub" id="homeSub"></div>
-    <button id="bContinue" class="b3d play"><svg aria-hidden="true" width="30" height="30" viewBox="0 0 24 24"><path d="M7 4.5v15l13-7.5z" fill="currentColor"></path></svg><span><b id="playMain">PLAY</b><small id="playSub"></small></span></button>
+    <div class="psub" id="homeSub"></div></div>
+    <div class="hplay"><button id="bContinue" class="b3d play"><svg aria-hidden="true" width="30" height="30" viewBox="0 0 24 24"><path d="M7 4.5v15l13-7.5z" fill="currentColor"></path></svg><span><b id="playMain">PLAY</b><small id="playSub"></small></span></button>
     <div class="row3 four">
       <button id="bDaily" class="b3d blue"><svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><rect x="3.5" y="5" width="17" height="15" rx="3"></rect><path d="M3.5 10h17M8 3v4M16 3v4"></path></svg><span id="dailyLabel">Daily</span><span class="badge" id="dailyBadge">NEW</span></button>
       <button id="bGift" class="b3d orange"><svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><rect x="3.5" y="9" width="17" height="11" rx="2"></rect><path d="M2.5 9h19v-2.5h-19zM12 6.5V20M12 6.5C10 2.5 6 3.5 7.5 6.5M12 6.5c2-4 6-3 4.5 0"></path></svg><span>Gift</span><span class="dot" id="giftDot"></span></button>
       <button id="bShop" class="b3d pink"><svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="7"></circle><path d="M8.5 9.5a4 4 0 0 1 4-2.5"></path></svg><span>Skins</span></button>
       <button id="bBuild" class="b3d teal"><svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 6.5l3 3M4 20l1-4L16 5a2.1 2.1 0 0 1 3 3L8 19z"></path></svg><span>Build</span></button>
-    </div>
+    </div></div>
     <p class="help" id="helpText"></p>
-    <p class="ver" id="ver">prototype v0.24</p>
+    <p class="ver" id="ver">prototype v0.25</p>
   </section>
   <section class="mscr" id="scrBuild">
     <div class="prow"><button class="icon" id="bBuildBack" aria-label="Back"><svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"></path></svg></button>
@@ -2249,7 +2282,14 @@ if (!progress) { // one-time migration from v0.8 and earlier, which keyed stars 
 
 let lowFx = false; // set by watchFrameRate() on phones that can't keep up
 let lightUi = false; // a light level look (Candy, Paper): dark HUD text
+function homeScale() { // menu size: 1 on a ~400x800 phone, bigger on tablets, smaller on tiny / landscape phones
+  const w = window.innerWidth, h = window.innerHeight, land = w > h * 1.15;
+  const sc = land ? Math.min(w / 820, h / 400) : Math.min(w / 400, h / 820);
+  document.body.classList.toggle("land", land);
+  const el = document.getElementById("scrHome"); if (el) el.style.setProperty("--s", Math.max(0.78, Math.min(1.6, sc)).toFixed(3));
+}
 function resize() {
+  homeScale();
   DPR = Math.min(window.devicePixelRatio || 1, lowFx ? 1.5 : 2);
   W = window.innerWidth; H = window.innerHeight;
   cv.width = W * DPR; cv.height = H * DPR;
