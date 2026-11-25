@@ -201,6 +201,34 @@
   body.light #hud .info b{text-shadow:0 1px 0 #fff8}
   body.light #hud .info span{background:#ffffffaa}
   body.light #hint{color:#2b2622;text-shadow:0 1px 0 #fff8}
+  /* ---- level-complete celebration ---- */
+  .wstars{display:flex;justify-content:center;gap:10px;margin:2px 0 6px;height:64px;align-items:center}
+  .wstars i{font-style:normal;font-size:54px;line-height:1;color:#ffffff22;-webkit-text-stroke:2px #ffffff40;transform:scale(.4);opacity:0;transition:none}
+  .wstars i.show{animation:st-in .35s cubic-bezier(.2,1.8,.4,1) forwards}
+  .wstars i.on{color:#ffd34d;-webkit-text-stroke:0;text-shadow:0 4px 0 #b9741a,0 0 18px #ffd34d99}
+  .wstars i:nth-child(2){font-size:64px}
+  @keyframes st-in{0%{transform:scale(.3) rotate(-40deg);opacity:0}100%{transform:scale(1) rotate(0);opacity:1}}
+  .perfect{display:none;font-size:42px;font-weight:800;color:#ffd34d;letter-spacing:2px;text-shadow:0 4px 0 #c0702a,0 0 24px #ffd34d88;margin:-4px 0 2px}
+  .perfect.show{display:block;animation:pf-in .5s cubic-bezier(.2,1.8,.4,1),pf-glow 1.2s ease-in-out .5s infinite}
+  @keyframes pf-in{0%{transform:scale(2.4);opacity:0}100%{transform:scale(1);opacity:1}}
+  @keyframes pf-glow{50%{transform:scale(1.06);text-shadow:0 4px 0 #c0702a,0 0 40px #ffd34dcc}}
+  #winPanel.gold{border-color:#ffd34d;box-shadow:0 12px 0 #0007,0 0 60px #ffd34d55}
+  .wgem{display:none;flex-direction:column;align-items:center;margin:2px 0}
+  .wgem.show{display:flex}
+  .wgem .g{font-size:46px;line-height:1.1}
+  .wgem.got .g{color:#ff6ad5;text-shadow:0 0 22px #ff6ad5;animation:gm-in .6s cubic-bezier(.2,1.8,.4,1),gm-spin 2.4s ease-in-out .6s infinite}
+  .wgem.got b{color:#ff9ae3;font-size:22px}
+  .wgem.miss .g{color:#ffffff30;-webkit-text-stroke:2px #ffffff55;animation:gm-wob .5s ease-in-out 2}
+  .wgem.miss b,.wgem.old b{font-size:14px;font-weight:600;opacity:.75}
+  .wgem.old .g{color:#ff6ad5aa;font-size:30px}
+  @keyframes gm-in{0%{transform:scale(0) rotate(-180deg)}100%{transform:scale(1) rotate(0)}}
+  @keyframes gm-spin{50%{transform:rotateY(180deg) scale(1.08)}}
+  @keyframes gm-wob{25%{transform:rotate(-12deg)}75%{transform:rotate(12deg)}}
+  .newbest{display:inline-block;margin-left:6px;background:#ff4d6d;color:#fff;border-radius:99px;padding:0 9px;font-size:13px;font-weight:800;animation:pf-glow 1s ease-in-out infinite}
+  #confetti{position:fixed;inset:0;pointer-events:none;z-index:8;overflow:hidden}
+  #confetti i{position:absolute;top:-20px;width:9px;height:14px;border-radius:2px;animation:cf-fall linear forwards}
+  @keyframes cf-fall{to{transform:translate(var(--dx),110vh) rotate(var(--r));opacity:.9}}
+  @media (prefers-reduced-motion:reduce){.wstars i.show,.perfect.show,.wgem .g{animation:none;opacity:1;transform:none}#confetti{display:none}}
   #hint{position:fixed;bottom:calc(env(safe-area-inset-bottom) + 14px);left:0;right:0;text-align:center;opacity:.8;pointer-events:none;font-size:14px;padding:0 calc(env(safe-area-inset-right) + 24px) 0 calc(env(safe-area-inset-left) + 24px);text-shadow:0 1px 3px #000;transition:opacity .6s}
   #snapBtns.show ~ #hint, body.snap #hint{padding:0 110px}
   /* short landscape phones: tighter panels */
@@ -238,7 +266,7 @@
       <button id="bShop" class="b3d pink"><svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="7"></circle><path d="M8.5 9.5a4 4 0 0 1 4-2.5"></path></svg><span>Skins</span></button>
     </div>
     <p class="help" id="helpText"></p>
-    <p class="ver" id="ver">prototype v0.21</p>
+    <p class="ver" id="ver">prototype v0.22</p>
   </section>
   <section class="mscr path" id="scrPath">
     <div id="levelView">
@@ -336,12 +364,15 @@
 </div>
 
 <div id="toast"></div>
+<div id="confetti" aria-hidden="true"></div>
 
 <div class="overlay" id="win">
-  <div class="panel">
-    <h2>Landed!</h2>
-    <div class="stars" id="winStars"></div>
+  <div class="panel" id="winPanel">
+    <div class="perfect" id="winPerfect">PERFECT!</div>
+    <h2 id="winTitle">Landed!</h2>
+    <div class="wstars" id="winStars"></div>
     <p id="winInfo"></p>
+    <div class="wgem" id="winGemBox"></div>
     <p id="winGem" style="font-size:14px;margin:4px 0"></p>
     <button id="bNext" class="primary big">Next ▶</button>
     <div class="row2"><button id="bRetry">↻ Retry</button><button id="bShare">Share</button></div>
@@ -1962,6 +1993,9 @@ const Sfx = (() => {
     spike() { noise(0.35, { vol: 0.4, freq: 2400, q: 2, type: "bandpass", slide: 0.25 }); tone(320, 0.4, { type: "sawtooth", vol: 0.18, slide: 0.3 }); },
     fall() { tone(500, 0.7, { type: "sine", vol: 0.25, slide: 0.12 }); noise(0.7, { vol: 0.1, freq: 1200, slide: 0.2 }); },
     win() { [523, 659, 784, 1047].forEach((f, i) => tone(f, 0.35, { type: "triangle", vol: 0.22, delay: i * 0.08 })); },
+    perfect() { [784, 988, 1175, 1568, 1976].forEach((f, i) => tone(f, 0.3, { type: "triangle", vol: 0.16, delay: 0.05 + i * 0.07 })); noise(0.6, { vol: 0.06, freq: 6000, type: "highpass", delay: 0.1 }); },
+    missStar() { tone(330, 0.12, { type: "sine", vol: 0.06 }); },
+    coin(i) { tone(1568 + i * 40, 0.06, { type: "square", vol: 0.04 }); },
     star(i) { tone(1047 * Math.pow(1.26, i), 0.4, { type: "sine", vol: 0.2, delay: i * 0.15 }); tone(2094 * Math.pow(1.26, i), 0.25, { vol: 0.06, delay: i * 0.15 }); },
     snap() { tone(240, 0.12, { type: "triangle", vol: 0.15, slide: 1.6 }); noise(0.08, { vol: 0.06, freq: 2000, type: "highpass" }); },
     click() { tone(720, 0.05, { type: "triangle", vol: 0.1 }); },
@@ -2156,12 +2190,13 @@ function loadLevel(i, override) {
   const hint = document.getElementById("hint");
   hint.textContent = level.hint; hint.style.opacity = 0.85;
   if (levelIdx >= GUIDE_LEVELS && guideOn()) hint.textContent = "Tough one: the landing guide is back. " + level.hint;
-  hide("menu"); hide("win");
+  hide("menu"); hide("win"); stopCelebration(); floaters = [];
   dailyRun = !!levelOverride;
   if (!levelOverride && i % MENU_PAGE === 0 && i > 0 && !window.__botQuiet) banner = { text: `World ${i / MENU_PAGE + 1}`, sub: worldOf(i).name, t: 2.6 };
   if (!window.__botQuiet) maybeCard();
   paintOffer();
 }
+function stopCelebration() { celebrateTimers.forEach(clearTimeout); celebrateTimers = []; document.getElementById("confetti").innerHTML = ""; }
 function restart() { loadLevel(levelIdx); }
 
 // moving / spinning objects are a pure function of level time
@@ -2242,7 +2277,7 @@ function physStep(b, gx, gy, h, onEvent) {
   return null;
 }
 function onBallEvent(kind, o, imp) {
-  if (kind === "gem") { burst(o.x, o.y, "#ff6ad5", 22); Sfx.gem(); buzz([10, 30, 10]); return; }
+  if (kind === "gem") { burst(o.x, o.y, "#ff6ad5", 22); Sfx.gem(); buzz([10, 30, 10]); if (!gems[level.name]) floatText(o.x, o.y, `+${ECON.gemValue} ◆`, "#ff6ad5"); return; }
   if (kind === "portal") { burst(ball.x, ball.y, PORTAL_COLORS[o.link] || "#b36bff", 14); Sfx.portal(); buzz(10); trail = []; return; }
   if (o.t === "bounce") { burst(ball.x, ball.y, "#ffa640", 10); Sfx.bounce(); buzz(15); }
   else if (o.t === "glue") { if (imp > 80) { Sfx.splat(Math.min(1, imp / 700)); buzz(10); } }
@@ -2617,6 +2652,7 @@ function win() {
   buzz([20, 60, 20, 60, 40]);
   const t = timer, st = t <= level.par[0] ? 3 : t <= level.par[1] ? 2 : 1;
   const ls = stat();
+  const prevBest = ls.best, prevStars = progress[level.name] || 0;
   ls.wins++; ls.time += t; if (!ls.firstWin) ls.firstWin = ls.tries;
   if (ls.best === null || t < ls.best) ls.best = Math.round(t * 100) / 100;
   runOpen = false; saveStats();
@@ -2638,20 +2674,65 @@ function win() {
   const wonLevel = levelIdx;
   setTimeout(() => {
     if (state !== "won" || levelIdx !== wonLevel) return; // player restarted / left meanwhile
-    document.getElementById("winStars").textContent = "★".repeat(st) + "☆".repeat(3 - st);
-    document.getElementById("winInfo").textContent = `Time ${t.toFixed(2)}s · Deaths ${deaths.n} · 3★ under ${level.par[0]}s`;
-    document.getElementById("winGem").innerHTML = !gem ? "" : gotGem ? '<span style="color:#ff6ad5">◆ Gem collected</span>'
-      : gems[level.name] ? '<span style="opacity:.6">◆ Gem already found earlier</span>' : '<span style="opacity:.6">◇ A gem is hidden somewhere here…</span>';
+    const newBest = prevBest !== null && t < prevBest - 0.005;
+    document.getElementById("winInfo").innerHTML = `Time ${t.toFixed(2)}s${newBest ? '<span class="newbest">NEW BEST!</span>' : ""} · Deaths ${deaths.n}` + (st < 3 ? ` · 3★ under ${level.par[0]}s` : "");
+    // gem: big spinning gem when you got it now; a wobbling outline when you missed it
+    const gb = document.getElementById("winGemBox");
+    gb.className = "wgem" + (!gem ? "" : gotGem && gemGain ? " show got" : gems[level.name] ? " show old" : " show miss");
+    gb.innerHTML = !gem ? "" : gotGem && gemGain ? `<span class="g">◆</span><b id="gemCount">+0 ◆</b>`
+      : gems[level.name] ? `<span class="g">◆</span><b>Gem found earlier</b>` : `<span class="g">◆</span><b>A gem was hidden here… try another route</b>`;
+    document.getElementById("winGem").innerHTML = "";
     document.getElementById("bShare").textContent = "Share";
     const extra = [];
-    if (gemGain) extra.push(`<span style="color:#ff6ad5">+${gemGain} ◆</span>`);
     if (streak) extra.push(`🔥 ${streak.n}-day streak` + (streak.bonus ? ` · <span style="color:#ff6ad5">+${streak.bonus} ◆</span>` : "") + (streak.used ? " · ❄ freeze used" : ""));
     if (extra.length) document.getElementById("winGem").innerHTML += "<br>" + extra.join(" · ");
     document.getElementById("bNext").textContent = dailyRun ? "Back to the menu" : levelIdx < LEVELS.length - 1 ? "Next ▶" : "Finish ▶";
     show("win");
-    for (let i = 0; i < st; i++) Sfx.star(i);
+    celebrate(st, gemGain, st > prevStars && prevStars > 0);
   }, 650);
 }
+
+// ---------- Level-complete celebration: stars pop in one by one; 3★ = PERFECT + confetti ----------
+let celebrateTimers = [];
+function celebrate(st, gemGain, improved) {
+  celebrateTimers.forEach(clearTimeout); celebrateTimers = [];
+  const later = (ms, fn) => celebrateTimers.push(setTimeout(fn, ms));
+  const box = document.getElementById("winStars"), panel = document.getElementById("winPanel"), pf = document.getElementById("winPerfect");
+  box.innerHTML = "<i>★</i><i>★</i><i>★</i>";
+  pf.classList.remove("show"); panel.classList.remove("gold"); document.getElementById("winTitle").style.display = "";
+  document.getElementById("winTitle").textContent = st === 3 ? "Flawless landing!" : improved ? "New record!" : "Landed!";
+  [...box.children].forEach((el, i) => later(180 + i * 260, () => {
+    el.classList.add("show");
+    if (i < st) { el.classList.add("on"); Sfx.star(i); buzz(18); }
+    else Sfx.missStar();
+  }));
+  const end = 180 + 3 * 260;
+  if (st === 3) later(end, () => {
+    document.getElementById("winTitle").style.display = "none"; // PERFECT! takes the title's place
+    pf.classList.add("show"); panel.classList.add("gold"); Sfx.perfect(); buzz([30, 40, 30, 40, 60]); confetti(70);
+  });
+  if (gemGain) later(end + (st === 3 ? 350 : 100), () => { // count the gems up
+    const el = document.getElementById("gemCount"); if (!el) return;
+    for (let k = 1; k <= gemGain; k++) later(k * 45, () => { el.textContent = `+${k} ◆`; Sfx.coin(k); });
+    Sfx.gem();
+  });
+}
+function confetti(n) {
+  const c = document.getElementById("confetti"), cols = ["#ffd34d", "#ff6ad5", "#4fe39a", "#5b6cff", "#ffb02e", "#ffffff"];
+  c.innerHTML = "";
+  for (let k = 0; k < n; k++) {
+    const i = document.createElement("i");
+    i.style.left = Math.random() * 100 + "vw"; i.style.background = cols[k % cols.length];
+    i.style.setProperty("--dx", (Math.random() * 160 - 80) + "px"); i.style.setProperty("--r", (Math.random() * 1080 - 540) + "deg");
+    i.style.animationDuration = (1.6 + Math.random() * 1.6) + "s"; i.style.animationDelay = Math.random() * 0.4 + "s";
+    c.appendChild(i);
+  }
+  celebrateTimers.push(setTimeout(() => { c.innerHTML = ""; }, 3800));
+}
+
+// floating "+10 ◆" text in the level (drawn upright on top of the world)
+let floaters = [];
+function floatText(x, y, text, color) { floaters.push({ x, y, text, color, life: 1.2 }); }
 
 function burst(x, y, color, n) {
   for (let i = 0; i < n; i++) {
@@ -2660,6 +2741,8 @@ function burst(x, y, color, n) {
   }
 }
 function updateParticles(dt) {
+  for (const f of floaters) { f.y -= 60 * dt; f.life -= dt; }
+  floaters = floaters.filter(f => f.life > 0);
   for (const p of particles) { p.x += p.vx * dt; p.y += p.vy * dt; p.vx *= 0.96; p.vy *= 0.96; p.life -= dt; }
   particles = particles.filter(p => p.life > 0);
 }
@@ -2750,6 +2833,11 @@ function render(now) {
   for (const p of particles) {
     ctx.globalAlpha = Math.max(0, p.life); ctx.fillStyle = p.color;
     ctx.beginPath(); ctx.arc(p.x, p.y, 4, 0, Math.PI * 2); ctx.fill();
+  }
+  for (const f of floaters) {
+    ctx.save(); ctx.translate(f.x, f.y); ctx.rotate(-angle); ctx.globalAlpha = Math.min(1, f.life * 1.5);
+    ctx.font = "800 26px 'Baloo 2', system-ui"; ctx.textAlign = "center"; ctx.lineWidth = 5; ctx.strokeStyle = "#1a1035";
+    ctx.strokeText(f.text, 0, 0); ctx.fillStyle = f.color; ctx.fillText(f.text, 0, 0); ctx.restore();
   }
   ctx.globalAlpha = 1;
   ctx.restore();
