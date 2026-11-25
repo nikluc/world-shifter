@@ -124,7 +124,7 @@
       <div class="grid" id="levelGrid"></div>
     </div>
     <p class="help" id="helpText"></p>
-    <p style="font-size:11px;opacity:.45" id="ver">prototype v0.16</p>
+    <p style="font-size:11px;opacity:.45" id="ver">prototype v0.17</p>
   </div>
 </div>
 
@@ -189,6 +189,16 @@
     <div class="skins" id="skinGrid"></div>
     <p class="help">Earn ◆ from hidden gems, daily gifts and streaks.</p>
     <button class="primary big" id="bShopClose">Done</button>
+  </div>
+</div>
+
+<div class="overlay" id="confirm">
+  <div class="panel">
+    <div id="confirmArt"></div>
+    <h2 id="confirmTitle"></h2>
+    <p id="confirmText"></p>
+    <button class="primary big" id="bConfirmYes">Buy</button>
+    <button class="big" id="bConfirmNo">Cancel</button>
   </div>
 </div>
 
@@ -1639,6 +1649,16 @@ function buildLevels() {
   return RUN.map(e => typeof e === "string" ? byName[e] : genLevel(e));
 }
 const LEVELS = buildLevels();
+// Daily challenge: its own level each day, the same for everyone, never one of the 500 (so it can't
+// spoil or unlock levels ahead). 605 generator levels that passed every bot check but weren't picked
+// for the run, medium difficulty (bot score 1.5-3.8). [type, seed, difficulty, 3★ seconds]
+const DAILY_POOL = [["room", 3, 0.54, 9],["room", 4, 0.1, 4],["room", 8, 0.96, 7],["room", 14, 0.7, 4],["tower", 19, 0.78, 22],["room", 25, 0.93, 11],["room", 32, 0.21, 4],["void", 33, 0.63, 5],["tower", 37, 0.09, 16],["room", 41, 0.23, 4],["room", 45, 0.49, 6],["void", 58, 0.21, 4],["room", 59, 0.93, 14],["room", 60, 0.58, 6],["room", 67, 0.77, 4],["void", 75, 0.44, 4],["room", 100, 0.45, 6],["void", 101, 0.19, 4],["room", 117, 0.16, 7],["tower", 118, 0.18, 13],["void", 122, 0.6, 4],["tower", 140, 0.1, 49],["room", 149, 0.25, 4],["tower", 150, 0.9, 31],["room", 165, 0.96, 7],["room", 166, 0.6, 9],["room", 176, 0.77, 6],["room", 183, 0.75, 4],["room", 192, 0.3, 10],["void", 195, 0.04, 4],["room", 203, 0.84, 6],["room", 223, 0.44, 9],["tower", 225, 0.24, 21],["void", 226, 0.86, 6],["room", 239, 0.83, 17],["room", 254, 0.25, 4],["room", 267, 0.44, 4],["tower", 270, 0.36, 16],["room", 273, 0.63, 4],["tower", 275, 0.83, 31],["room", 276, 0.2, 6],["room", 280, 0.66, 6],["room", 281, 0.25, 6],["tower", 289, 0.27, 9],["room", 299, 0.72, 11],["tower", 318, 0.05, 38],["tower", 329, 0.31, 20],["room", 332, 0.53, 6],["void", 333, 0.35, 4],["room", 339, 0.98, 9],["room", 343, 0.76, 11],["room", 347, 0.47, 4],["room", 357, 0.94, 6],["tower", 358, 0.24, 14],["room", 359, 0.5, 4],["room", 375, 0.25, 4],["room", 377, 0.09, 6],["room", 378, 0.71, 16],["void", 392, 0.45, 4],["room", 396, 0.66, 9],["room", 403, 0.34, 9],["tower", 409, 0.55, 17],["room", 416, 0.01, 12],["room", 428, 0.05, 4],["room", 433, 0.5, 8],["void", 437, 0.1, 4],["room", 451, 0.13, 21],["room", 453, 0.53, 4],["void", 462, 0.07, 4],["room", 470, 0.35, 4],["room", 488, 0.73, 5],["room", 505, 0.84, 6],["room", 514, 0.63, 8],["room", 521, 0.86, 7],["room", 522, 0.39, 8],["tower", 525, 0.97, 15],["room", 533, 0.69, 9],["room", 538, 0.05, 11],["room", 539, 0.75, 8],["void", 554, 0.17, 4],["room", 555, 0.16, 4],["tower", 560, 0.04, 16],["room", 571, 0.87, 6],["tower", 581, 0.18, 18],["void", 583, 0.11, 4],["room", 585, 0.72, 5],["tower", 586, 0.12, 23],["room", 590, 0.05, 8],["tower", 606, 0.06, 18],["room", 623, 0.17, 9],["tower", 631, 0.34, 18],["room", 632, 0.95, 9],["room", 635, 0.78, 6],["room", 645, 0.15, 5],["room", 649, 0.23, 5],["tower", 654, 0.38, 22],["void", 657, 0.79, 4],["room", 658, 0.06, 4],["tower", 664, 0.91, 16],["room", 667, 0.43, 7],["room", 672, 0.21, 6],["void", 674, 0.08, 5],["room", 675, 0.35, 6],["void", 681, 0.32, 4],["room", 683, 0.88, 12],["room", 684, 0.6, 13],["void", 689, 0.86, 4],["room", 690, 0.46, 4],["room", 700, 0.19, 4],["room", 716, 0.74, 4],["room", 718, 0.63, 4],["tower", 734, 0.79, 19],["room", 750, 0.14, 4],["void", 752, 0.72, 4],["room", 760, 0.86, 5],["room", 765, 0.24, 8],["tower", 767, 0.72, 19],["room", 770, 0.91, 9],["room", 773, 0.67, 4],["room", 780, 0.81, 9],["tower", 791, 0.59, 16],["void", 792, 0.52, 4],["room", 801, 0.36, 4],["tower", 810, 0.57, 26],["room", 823, 0.87, 4],["room", 825, 0.98, 4],["room", 829, 0.47, 6],["void", 833, 0.29, 5],["void", 839, 0.11, 5],["room", 846, 0.49, 4],["tower", 876, 0.73, 17],["room", 877, 0.85, 6],["room", 888, 0.58, 8],["room", 890, 0.31, 7],["void", 895, 0.03, 4],["tower", 905, 0.35, 21],["room", 914, 0.8, 6],["tower", 923, 0.16, 13],["room", 940, 0.27, 7],["room", 944, 0.92, 4],["room", 947, 0.28, 4],["room", 949, 0.37, 9],["room", 986, 0.88, 5],["void", 987, 0.53, 5],["room", 993, 0.08, 4],["tower", 999, 0.08, 12],["room", 1015, 0.3, 8],["room", 1018, 0.77, 4],["room", 1022, 0.93, 9],["tower", 1035, 0.89, 15],["room", 1038, 0.25, 7],["tower", 1039, 0.19, 15],["room", 1051, 0.12, 7],["room", 1054, 0.84, 6],["room", 1059, 0.6, 7],["room", 1060, 0.02, 4],["void", 1061, 0.33, 4],["tower", 1074, 0.38, 11],["room", 1087, 0.86, 4],["room", 1093, 0.6, 4],["void", 1103, 0.47, 4],["tower", 1105, 0.09, 29],["tower", 1107, 0.78, 15],["room", 1112, 0.25, 5],["room", 1115, 0.03, 6],["void", 1117, 0.06, 4],["room", 1142, 0.21, 9],["room", 1145, 0.3, 4],["room", 1150, 0.53, 4],["room", 1151, 0.71, 4],["room", 1153, 0.69, 4],["tower", 1158, 0.07, 38],["room", 1159, 0.65, 8],["tower", 1165, 0.14, 16],["tower", 1169, 0.51, 22],["void", 1172, 0.62, 4],["room", 1174, 0.31, 4],["room", 1180, 0.41, 9],["room", 1204, 0.39, 8],["room", 1206, 0.49, 4],["room", 1210, 0.48, 4],["void", 1218, 0.11, 4],["void", 1222, 0.41, 5],["room", 1231, 0.26, 4],["room", 1233, 0.51, 15],["room", 1237, 0.4, 4],["room", 1238, 0.21, 7],["room", 1239, 0.46, 6],["void", 1240, 0.36, 4],["room", 1255, 0.13, 4],["room", 1260, 0.33, 4],["room", 1268, 0.07, 6],["tower", 1279, 0.62, 24],["room", 1281, 0.96, 9],["room", 1282, 0.2, 4],["room", 1295, 0.79, 4],["room", 1299, 0.71, 4],["room", 1300, 0.39, 5],["room", 1311, 0.32, 5],["room", 1315, 0.38, 8],["room", 1316, 0.25, 5],["room", 1328, 0.52, 7],["tower", 1360, 0.82, 15],["tower", 1364, 0.16, 9],["void", 1367, 0.1, 4],["room", 1368, 0.59, 6],["tower", 1372, 0.1, 11],["room", 1378, 0.16, 4],["room", 1393, 0.35, 5],["room", 1397, 0.2, 5],["room", 1400, 0.55, 4],["void", 1405, 0.24, 4],["room", 1407, 0.47, 4],["room", 1417, 0.71, 10],["room", 1421, 0.18, 9],["room", 1422, 0.44, 4],["room", 1429, 0.97, 5],["void", 1431, 0.33, 4],["room", 1443, 0.71, 8],["room", 1446, 0.55, 5],["room", 1447, 0.43, 11],["room", 1451, 0.25, 7],["room", 1452, 0.95, 4],["room", 1457, 0.5, 11],["tower", 1460, 0.87, 16],["tower", 1468, 0.89, 26],["room", 1474, 0.75, 6],["room", 1482, 0.38, 4],["room", 1484, 0.37, 4],["room", 1488, 0.14, 6],["room", 1494, 0.3, 8],["room", 1506, 0.58, 6],["room", 1514, 0.54, 4],["room", 1524, 0.21, 4],["room", 1529, 0.55, 4],["room", 1530, 0.27, 12],["tower", 1531, 0.21, 33],["tower", 1533, 0.61, 28],["room", 1537, 0.47, 9],["room", 1540, 0.5, 6],["room", 1546, 0.37, 10],["room", 1548, 0.61, 12],["room", 1552, 0.0, 4],["room", 1556, 0.56, 4],["room", 1557, 0.36, 4],["void", 1567, 0.17, 4],["tower", 1573, 0.85, 17],["tower", 1580, 0.0, 19],["room", 1582, 0.24, 4],["tower", 1584, 0.33, 13],["void", 1588, 0.06, 4],["room", 1589, 0.95, 4],["room", 1592, 0.2, 6],["tower", 1597, 0.5, 29],["room", 1601, 0.77, 5],["tower", 1602, 0.31, 24],["room", 1604, 0.78, 16],["room", 1612, 0.81, 5],["room", 1613, 0.06, 6],["room", 1615, 0.74, 6],["tower", 1618, 0.08, 15],["room", 1619, 0.3, 4],["room", 1624, 0.01, 5],["room", 1626, 0.13, 10],["room", 1630, 0.26, 4],["room", 1632, 0.62, 5],["tower", 1634, 0.42, 15],["room", 1639, 0.8, 5],["tower", 1640, 0.33, 10],["room", 1648, 0.47, 4],["tower", 1660, 0.24, 14],["void", 1665, 0.06, 4],["tower", 1670, 0.41, 38],["room", 1671, 0.26, 6],["void", 1672, 0.21, 4],["room", 1673, 0.36, 8],["tower", 1674, 0.35, 17],["room", 1676, 0.06, 5],["room", 1680, 0.31, 4],["room", 1681, 0.84, 7],["tower", 1688, 0.14, 20],["room", 1691, 0.53, 4],["room", 1696, 0.19, 5],["room", 1707, 0.12, 4],["void", 1718, 0.54, 4],["room", 1720, 0.59, 6],["room", 1730, 0.31, 10],["room", 1732, 0.53, 5],["room", 1736, 0.94, 5],["room", 1737, 0.68, 7],["room", 1739, 0.46, 8],["tower", 1741, 0.19, 13],["room", 1744, 0.61, 6],["room", 1746, 0.38, 4],["tower", 1749, 0.24, 31],["room", 1751, 0.35, 6],["room", 1752, 0.97, 12],["room", 1754, 0.15, 5],["tower", 1755, 0.94, 22],["tower", 1759, 0.18, 16],["void", 1760, 0.53, 4],["room", 1765, 0.24, 5],["room", 1766, 0.5, 4],["room", 1774, 0.64, 5],["room", 1775, 0.1, 4],["void", 1776, 0.11, 5],["tower", 1778, 0.13, 14],["void", 1782, 0.11, 4],["room", 1784, 0.88, 5],["tower", 1788, 0.24, 43],["tower", 1791, 0.36, 20],["tower", 1792, 0.39, 14],["room", 1793, 0.17, 5],["room", 1794, 0.22, 14],["tower", 1802, 0.65, 17],["void", 1803, 0.3, 4],["tower", 1805, 0.57, 17],["room", 1810, 0.65, 5],["void", 1812, 0.35, 5],["room", 1816, 0.84, 10],["room", 1818, 0.96, 19],["room", 1820, 0.71, 5],["room", 1821, 0.53, 4],["tower", 1826, 0.7, 18],["room", 1834, 0.31, 9],["room", 1839, 0.77, 8],["room", 1845, 0.57, 10],["room", 1849, 0.43, 6],["room", 1853, 0.41, 6],["room", 1854, 0.19, 4],["tower", 1859, 0.79, 17],["tower", 1861, 0.49, 20],["room", 1863, 0.89, 7],["room", 1864, 0.3, 5],["room", 1872, 0.29, 11],["room", 1877, 0.77, 4],["tower", 1885, 0.11, 24],["room", 1886, 0.52, 9],["tower", 1896, 0.19, 18],["room", 1900, 0.13, 6],["room", 1907, 0.57, 5],["room", 1908, 0.65, 4],["room", 1909, 0.66, 4],["room", 1911, 0.5, 10],["void", 1913, 0.16, 4],["room", 1916, 0.92, 5],["room", 1917, 0.87, 8],["room", 1922, 0.04, 4],["tower", 1927, 0.82, 13],["room", 1934, 0.76, 12],["room", 1935, 0.51, 6],["void", 1948, 0.35, 5],["room", 1951, 0.7, 11],["tower", 1959, 0.58, 15],["room", 1960, 0.38, 5],["tower", 1962, 0.1, 28],["void", 1967, 0.01, 4],["void", 1969, 0.16, 4],["room", 1970, 0.21, 7],["void", 1975, 0.03, 4],["room", 1978, 0.31, 7],["room", 1981, 0.55, 4],["room", 1984, 0.49, 4],["room", 1990, 0.08, 4],["void", 1998, 0.13, 4],["room", 1999, 0.14, 7],["void", 2005, 0.08, 4],["room", 2007, 0.66, 8],["room", 2012, 0.36, 4],["room", 2017, 0.34, 4],["room", 2023, 0.97, 18],["room", 2028, 0.18, 4],["room", 2030, 0.37, 5],["tower", 2035, 0.79, 10],["room", 2041, 0.89, 4],["tower", 2042, 0.6, 23],["room", 2051, 0.54, 11],["room", 2053, 0.81, 8],["room", 2061, 0.29, 4],["void", 2065, 0.25, 4],["room", 2067, 0.2, 4],["tower", 2068, 0.72, 32],["tower", 2074, 0.24, 19],["room", 2076, 0.09, 7],["tower", 2082, 0.08, 20],["room", 2085, 0.74, 6],["room", 2091, 0.09, 7],["tower", 2092, 0.72, 21],["room", 2098, 0.74, 7],["room", 2122, 0.45, 7],["room", 2126, 0.97, 7],["room", 2128, 0.39, 9],["room", 2129, 0.29, 4],["void", 2132, 0.15, 5],["tower", 2139, 0.65, 31],["void", 2143, 0.0, 4],["room", 2150, 0.56, 7],["void", 2151, 0.85, 5],["room", 2155, 0.74, 6],["tower", 2157, 0.93, 18],["room", 2159, 0.63, 11],["room", 2171, 0.75, 15],["room", 2176, 0.78, 10],["tower", 2177, 0.68, 9],["room", 2181, 0.48, 6],["room", 2184, 0.19, 4],["room", 2189, 0.72, 4],["tower", 2195, 0.11, 15],["tower", 2198, 0.06, 17],["tower", 2201, 0.42, 23],["room", 2202, 0.98, 5],["room", 2213, 0.53, 11],["room", 2217, 0.12, 4],["room", 2218, 0.7, 4],["tower", 2221, 0.5, 21],["tower", 2223, 0.27, 21],["tower", 2224, 0.7, 12],["room", 2225, 0.04, 4],["tower", 2227, 0.27, 12],["void", 2229, 0.7, 4],["room", 2230, 0.36, 5],["tower", 2231, 0.23, 9],["void", 2233, 0.08, 5],["room", 2235, 0.72, 4],["room", 2237, 0.33, 5],["tower", 2238, 0.19, 27],["room", 2245, 0.42, 4],["void", 2247, 0.01, 4],["room", 2249, 0.7, 9],["void", 2253, 0.98, 4],["room", 2257, 0.53, 8],["room", 2258, 0.66, 7],["room", 2261, 0.55, 4],["room", 2263, 0.46, 9],["room", 2265, 0.29, 4],["room", 2268, 0.27, 5],["room", 2276, 0.15, 4],["void", 2279, 0.96, 4],["room", 2286, 0.14, 4],["void", 2288, 0.36, 4],["void", 2306, 0.1, 4],["room", 2311, 0.96, 4],["room", 2317, 0.15, 7],["room", 2319, 0.1, 4],["room", 2333, 0.25, 4],["void", 2335, 0.01, 4],["room", 2344, 0.3, 4],["tower", 2345, 0.95, 18],["tower", 2357, 0.63, 19],["room", 2364, 0.27, 6],["room", 2367, 0.63, 8],["room", 2368, 0.3, 4],["room", 2369, 0.84, 10],["room", 2374, 0.2, 4],["room", 2375, 0.15, 4],["room", 2379, 0.17, 9],["void", 2383, 0.16, 4],["room", 2391, 0.29, 4],["tower", 2395, 0.66, 31],["tower", 2399, 0.34, 27],["room", 2400, 0.5, 8],["tower", 2402, 0.07, 20],["room", 2405, 0.97, 8],["tower", 2416, 0.32, 28],["tower", 2418, 0.61, 13],["room", 2420, 0.54, 4],["room", 2421, 0.1, 7],["void", 2422, 0.02, 4],["room", 2424, 0.0, 4],["room", 2429, 0.07, 6],["room", 2434, 0.89, 6],["void", 2437, 0.78, 4],["room", 2439, 0.67, 10],["void", 2445, 0.64, 4],["void", 2450, 0.67, 4],["room", 2451, 0.78, 4],["void", 2455, 0.62, 4],["void", 2456, 0.35, 5],["room", 2459, 0.65, 12],["room", 2462, 0.3, 6],["void", 2464, 0.5, 4],["room", 2470, 0.81, 15],["room", 2472, 0.7, 5],["room", 2473, 0.29, 4],["void", 2479, 0.82, 4],["void", 2480, 0.06, 7],["room", 2485, 0.77, 5],["room", 2489, 0.64, 5],["room", 2495, 0.95, 6],["void", 2497, 0.35, 4],["room", 2501, 0.12, 6],["room", 2502, 0.62, 6],["room", 2513, 0.83, 4],["void", 2538, 0.29, 4],["void", 2549, 0.17, 4],["room", 2554, 0.64, 10],["room", 2562, 0.44, 6],["room", 2565, 0.32, 6],["room", 2566, 0.22, 7],["tower", 2567, 0.31, 19],["void", 2570, 0.02, 4],["room", 2574, 0.2, 7],["room", 2575, 0.17, 4],["tower", 2579, 0.67, 13],["room", 2581, 0.24, 6],["room", 2586, 0.17, 5],["room", 2591, 0.3, 4],["tower", 2598, 0.66, 21],["tower", 2601, 0.0, 52],["room", 2607, 0.62, 6],["room", 2609, 0.54, 4],["tower", 2618, 0.64, 21],["tower", 2620, 0.49, 21],["room", 2622, 0.11, 8],["tower", 2624, 0.08, 37],["room", 2625, 0.24, 4],["void", 2627, 0.23, 4],["tower", 2630, 0.92, 16],["tower", 2635, 0.42, 13],["room", 2652, 0.46, 7],["room", 2656, 0.34, 7],["room", 2657, 0.32, 4],["room", 2658, 0.51, 7],["room", 2660, 0.46, 6],["tower", 2662, 0.1, 16],["room", 2676, 0.47, 8],["room", 2684, 0.62, 6],["room", 2690, 0.07, 11],["room", 2694, 0.26, 4],["tower", 2697, 0.33, 20],["void", 2699, 0.24, 4],["room", 2705, 0.92, 4],["void", 2706, 0.23, 4],["room", 2707, 0.83, 7],["room", 2718, 0.31, 4],["room", 2722, 0.67, 4],["room", 2727, 0.45, 4],["room", 2728, 0.31, 8],["room", 2729, 0.02, 6],["room", 2730, 0.41, 5],["tower", 2732, 0.34, 12],["room", 2734, 0.45, 8],["room", 2735, 0.13, 4],["room", 2738, 0.38, 7],["room", 2742, 0.86, 6],["room", 2747, 0.29, 8],["tower", 2748, 0.3, 37],["room", 2749, 0.8, 7],["void", 2766, 0.43, 4],["room", 2771, 0.58, 4],["tower", 2775, 0.63, 12],["room", 2776, 0.69, 11],["tower", 2779, 0.21, 19],["room", 2781, 0.29, 4],["tower", 2786, 0.44, 16],["room", 2788, 1.0, 10],["room", 2790, 0.79, 6],["room", 2792, 0.28, 5],["room", 2794, 0.13, 5],["tower", 2798, 0.2, 26],["room", 2802, 0.63, 11],["tower", 2803, 0.08, 15],["room", 2810, 0.88, 6],["void", 2812, 0.7, 4],["room", 2819, 0.31, 6],["room", 2822, 0.51, 4],["room", 2826, 0.49, 4],["room", 2827, 0.81, 7],["tower", 2833, 0.09, 24],["void", 2836, 0.95, 4],["room", 2842, 0.32, 4],["room", 2846, 0.8, 6],["tower", 2847, 0.0, 21],["void", 2848, 0.14, 4],["room", 2850, 0.92, 7],["room", 2852, 0.79, 6],["void", 2858, 0.87, 4],["tower", 2860, 0.0, 48],["room", 2861, 0.13, 4],["void", 2864, 0.72, 4],["room", 2874, 0.27, 5],["room", 2884, 0.86, 7],["room", 2888, 0.59, 11],["room", 2897, 0.17, 4],["room", 2898, 0.26, 5],["tower", 2903, 0.51, 14],["tower", 2904, 0.37, 25],["tower", 2905, 0.83, 25],["room", 2913, 0.2, 4],["tower", 2915, 0.4, 39],["void", 2916, 0.1, 4],["room", 2921, 0.57, 8],["room", 2929, 0.85, 5],["room", 2931, 0.41, 9],["tower", 2937, 0.53, 21],["room", 2938, 0.26, 4],["room", 2947, 0.45, 5],["tower", 2949, 0.36, 11],["room", 2957, 0.18, 4],["tower", 2963, 0.81, 23],["void", 2971, 0.85, 4],["room", 2974, 0.77, 6],["room", 2976, 0.46, 6],["void", 2977, 0.53, 4],["room", 2995, 0.13, 4]];
+function dailyLevel(d) {
+  let h = 2166136261; for (const ch of d) h = Math.imul(h ^ ch.charCodeAt(0), 16777619) >>> 0;
+  const L = genLevel(DAILY_POOL[h % DAILY_POOL.length]);
+  L.name = `Daily ${d}`; L.hint = "Today's daily challenge: the same level for everyone. Beat your friends' time.";
+  return L;
+}
 document.getElementById("ver").textContent += ` · ${LEVELS.length} levels`;
 
 // ---------- Sound (synthesized with Web Audio — no files) ----------
@@ -1980,9 +2000,11 @@ document.addEventListener("gesturestart", e => e.preventDefault());
 document.addEventListener("dblclick", e => e.preventDefault());
 document.addEventListener("contextmenu", e => { if (!e.target.closest("textarea")) e.preventDefault(); });
 
-function loadLevel(i) {
+let levelOverride = null; // the daily challenge level while it is being played
+function loadLevel(i, override) {
   if (level) leaveRun(i !== levelIdx);
-  levelIdx = i; level = LEVELS[i];
+  if (override !== undefined) levelOverride = override; else if (i < LEVELS.length) levelOverride = null;
+  levelIdx = i; level = levelOverride || LEVELS[i];
   rec = []; ghost = ghosts[level.name] || null;
   for (const o of level.objs) if (o.bx === undefined) { o.bx = o.x; o.by = o.y; o.ba = o.a || 0; }
   for (const o of level.objs) if (o.t === "portal") o.pair = level.objs.find(q => q !== o && q.t === "portal" && q.link === o.link);
@@ -1996,13 +2018,13 @@ function loadLevel(i) {
   Sfx.ready();
   Sfx.setSong(Math.floor(i / 50)); // a different song for every page of 50 levels
   if (deaths === undefined || deaths.level !== i) deaths = { level: i, n: 0 };
-  document.getElementById("lvlName").textContent = `${i + 1}. ${level.name}`;
+  document.getElementById("lvlName").textContent = levelOverride ? `📅 Daily challenge` : `${i + 1}. ${level.name}`;
   const hint = document.getElementById("hint");
   hint.textContent = level.hint; hint.style.opacity = 0.85;
   if (levelIdx >= GUIDE_LEVELS && guideOn()) hint.textContent = "Tough one: the landing guide is back. " + level.hint;
   hide("menu"); hide("win");
-  dailyRun = dailyNext; dailyNext = false;
-  if (i % MENU_PAGE === 0 && i > 0 && !window.__botQuiet) banner = { text: `World ${i / MENU_PAGE + 1}`, sub: worldOf(i).name, t: 2.6 };
+  dailyRun = !!levelOverride;
+  if (!levelOverride && i % MENU_PAGE === 0 && i > 0 && !window.__botQuiet) banner = { text: `World ${i / MENU_PAGE + 1}`, sub: worldOf(i).name, t: 2.6 };
   if (!window.__botQuiet) maybeCard();
   paintOffer();
 }
@@ -2246,7 +2268,14 @@ function openShop() {
       ${k.name}<small>${on ? "Equipped" : owned ? "Tap to use" : k.price < 0 ? "Daily gift reward" : k.price + " ◆"}</small>`;
     b.onclick = () => {
       if (owned) { econ.skin = k.id; }
-      else if (k.price > 0 && econ.wallet >= k.price) { econ.wallet -= k.price; econ.skins.push(k.id); econ.skin = k.id; Sfx.gem(); Platform.event("shop_buy", { skin: k.id, price: k.price }); }
+      else if (k.price > 0 && econ.wallet >= k.price) {
+        const art = `<div class="ball" style="width:64px;height:64px;margin:0 auto;border-radius:50%;background:radial-gradient(circle at 35% 35%,#fff8,${k.fill} 45%,${k.stripe});box-shadow:0 0 18px ${k.glow}"></div>`;
+        confirmSpend(`Buy the ${k.name} skin?`, k.price, art, () => {
+          econ.wallet -= k.price; econ.skins.push(k.id); econ.skin = k.id; saveEcon(); Sfx.gem();
+          Platform.event("shop_buy", { skin: k.id, price: k.price }); openShop();
+        });
+        return;
+      }
       else { toast(k.price < 0 ? "Collect all 7 daily gifts to get Sunrise" : `You need ${k.price - econ.wallet} more ◆`); return; }
       saveEcon(); openShop();
     };
@@ -2254,6 +2283,16 @@ function openShop() {
   }
   show("shop");
 }
+// every ◆ spend that isn't labelled on the button itself asks first
+function confirmSpend(title, cost, art, onYes) {
+  document.getElementById("confirmTitle").textContent = title;
+  document.getElementById("confirmText").textContent = `This costs ${cost} ◆. You have ${econ.wallet} ◆.`;
+  document.getElementById("confirmArt").innerHTML = art || "";
+  document.getElementById("bConfirmYes").textContent = `Buy · ${cost} ◆`;
+  document.getElementById("bConfirmYes").onclick = () => { hide("confirm"); onYes(); };
+  show("confirm");
+}
+document.getElementById("bConfirmNo").onclick = () => hide("confirm");
 let toastTimer = null;
 function toast(msg) {
   const t = document.getElementById("toast"); t.textContent = msg; t.style.display = "block";
@@ -2261,7 +2300,7 @@ function toast(msg) {
 }
 
 // ---------- First-time help: tutorial finger, piece cards, world banner ----------
-let banner = null, dailyRun = false, dailyNext = false;
+let banner = null, dailyRun = false;
 let seen = {};
 try { seen = JSON.parse(localStorage.getItem("ws_seen") || "{}"); } catch (e) { seen = {}; }
 const CARDS = {
@@ -2792,7 +2831,11 @@ function buildMenu() {
         const acts = lock.querySelector(".acts");
         if (Platform.canReward) { const b = document.createElement("button"); b.textContent = "▶ Watch an ad"; b.onclick = async e => { e.stopPropagation(); if (await Platform.rewarded()) { unlockWorld(k, "ad"); buildMenu(); } }; acts.appendChild(b); }
         const g = document.createElement("button"); g.textContent = `Open for ${ECON.earlyWorldCost} ◆`;
-        g.onclick = e => { e.stopPropagation(); if (econ.wallet < ECON.earlyWorldCost) { toast(`You need ${ECON.earlyWorldCost - econ.wallet} more ◆`); return; } econ.wallet -= ECON.earlyWorldCost; unlockWorld(k, "gems"); buildMenu(); };
+        g.onclick = e => {
+          e.stopPropagation();
+          if (econ.wallet < ECON.earlyWorldCost) { toast(`You need ${ECON.earlyWorldCost - econ.wallet} more ◆`); return; }
+          confirmSpend(`Open World ${k + 1} now?`, ECON.earlyWorldCost, "", () => { econ.wallet -= ECON.earlyWorldCost; unlockWorld(k, "gems"); buildMenu(); });
+        };
         acts.appendChild(g);
         c.appendChild(lock);
       }
@@ -2900,7 +2943,7 @@ document.addEventListener("visibilitychange", () => {
 // text + a link that opens this exact level (?level=N), for WhatsApp / Discord / anywhere
 function shareText(w) {
   const link = location.origin + location.pathname + "?level=" + w.n;
-  if (w.daily) return `World Shifter Daily ${w.daily} · Level ${w.n} “${w.name}” · ${w.t.toFixed(2)}s · ☠ ${w.deaths}\nBeat my time: ${link}`;
+  if (w.daily) return `World Shifter Daily ${w.daily} · ${w.t.toFixed(2)}s · ☠ ${w.deaths}\nBeat my time: ${location.origin + location.pathname}?daily`;
   return `World Shifter · Level ${w.n} “${w.name}” · ${"★".repeat(w.st)}${"☆".repeat(3 - w.st)} in ${w.t.toFixed(2)}s · ☠ ${w.deaths}` +
     (w.gem === true ? " · ◆ gem" : "") + `\nCan you beat it? ${link}`;
 }
@@ -2957,18 +3000,14 @@ document.getElementById("bOffer").onclick = async () => {
 
 // ---------- Daily challenge: one level a day, the same for everyone ----------
 const today = () => new Date().toISOString().slice(0, 10);
-function dailyIndex(d = today()) {
-  let h = 2166136261; for (const ch of d) h = Math.imul(h ^ ch.charCodeAt(0), 16777619) >>> 0;
-  const lo = Math.min(80, LEVELS.length - 1), hi = Math.max(lo + 1, Math.min(LEVELS.length - 60, 420)); // mid-game difficulty
-  return lo + h % (hi - lo);
-}
 let daily = {};
 try { daily = JSON.parse(localStorage.getItem("ws_daily") || "{}"); } catch (e) { daily = {}; }
 function paintDaily() {
   const b = document.getElementById("bDaily"), best = daily[today()];
-  b.textContent = best ? `📅 Daily challenge · done ✓ ${best.toFixed(2)}s` : `📅 Daily challenge · level ${dailyIndex() + 1}`;
+  b.textContent = best ? `📅 Daily challenge · done ✓ ${best.toFixed(2)}s` : `📅 Daily challenge · new level today`;
 }
-document.getElementById("bDaily").onclick = () => { dailyNext = true; loadLevel(dailyIndex()); };
+function playDaily() { loadLevel(LEVELS.length, dailyLevel(today())); }
+document.getElementById("bDaily").onclick = playDaily;
 
 // ---------- Ending: after level 500 ----------
 function showEnding() {
@@ -3069,9 +3108,11 @@ function frame(now) {
 }
 buildMenu();
 const linkLevel = parseInt(new URLSearchParams(location.search).get("level"), 10);
+const linkDaily = new URLSearchParams(location.search).has("daily");
 Platform.init();
 if (!Platform.sharing) for (const id of ["bShare", "bEndShare"]) document.getElementById(id).style.display = "none";
-if (linkLevel >= 1 && linkLevel <= LEVELS.length) loadLevel(linkLevel - 1); // shared link: straight in
+if (linkDaily) playDaily(); // a friend's daily link: straight into today's daily
+else if (linkLevel >= 1 && linkLevel <= LEVELS.length) loadLevel(linkLevel - 1); // shared link: straight in
 else if (Platform.env === "crazygames") loadLevel(nextUnbeaten()); // portals require landing in gameplay
 else { loadLevel(Math.max(0, nextPlayable())); show("menu"); state = "paused"; menuPage = null; buildMenu(); if (giftReady()) openGift(); }
 if (/[?&]stats\b/.test(location.search)) openStats();
