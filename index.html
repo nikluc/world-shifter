@@ -229,6 +229,53 @@
   #confetti i{position:absolute;top:-20px;width:9px;height:14px;border-radius:2px;animation:cf-fall linear forwards}
   @keyframes cf-fall{to{transform:translate(var(--dx),110vh) rotate(var(--r));opacity:.9}}
   @media (prefers-reduced-motion:reduce){.wstars i.show,.perfect.show,.wgem .g{animation:none;opacity:1;transform:none}#confetti{display:none}}
+  /* ---- level builder ---- */
+  .row3.four{grid-template-columns:repeat(4,1fr);gap:8px}
+  .row3.four .b3d{flex-direction:column;gap:0;font-size:15px;line-height:1.05;padding:4px 2px}
+  .b3d.teal{background:#22b8a8;color:#062a26;box-shadow:0 6px 0 #127a6f}
+  .b3d.teal:active,.b3d.pink:active{box-shadow:0 2px 0 #0006}
+  .b3d.wide{height:54px;margin-top:12px;font-size:18px;width:100%}
+  .mylist{display:flex;flex-direction:column;gap:10px;margin-top:16px;padding-bottom:20px}
+  .lvcard{display:flex;gap:12px;align-items:center;background:#00000038;border:2px solid #ffffff1c;border-radius:20px;padding:10px}
+  .lvcard canvas{position:static;width:84px;height:84px;flex:none;border-radius:14px;background:#0c0820;touch-action:auto}
+  .lvinfo{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
+  .lvinfo b{font-size:18px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .lvinfo small{font-size:13px;color:#c9b8ff}
+  .lvinfo small.ok{color:#4fe39a}
+  .lvbtns{display:flex;gap:6px;margin-top:4px}
+  .lvbtns button{min-height:38px;padding:0 12px;border-radius:12px;border:0;font-weight:800;font-size:15px;background:#4a3388;color:#fff;box-shadow:0 4px 0 #0008}
+  .lvbtns button.go{background:#46d38a;color:#0b2a1a}
+  .lvbtns button.off{opacity:.45}
+  .lvbtns button.del{background:#5a2440;margin-left:auto}
+  .empty{text-align:center;color:#c9b8ff;font-size:15px;margin-top:22px;line-height:1.4}
+  #editor{position:fixed;inset:0;display:none;pointer-events:none;z-index:4;color:#f4f1ff}
+  body.editing #editor{display:block}
+  body.editing #hud,body.editing #hint,body.editing #offer,body.editing #snapBtns{display:none!important}
+  .etop{position:absolute;top:0;left:0;right:0;display:flex;gap:8px;align-items:center;pointer-events:auto;
+        padding:calc(env(safe-area-inset-top) + 10px) calc(env(safe-area-inset-right) + 10px) 6px calc(env(safe-area-inset-left) + 10px);background:linear-gradient(#0c0820dd,#0c082000)}
+  .etop button{border:0;font-weight:800;box-shadow:0 5px 0 #0008}
+  .etop .ename{flex:1;min-width:0;height:46px;border-radius:16px;background:#00000055;border:2px solid #ffffff22;box-shadow:none;color:#fff;font-size:16px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding:0 10px}
+  .etop .earena{width:auto;padding:0 10px;font-size:16px}
+  .etop .etest{height:46px;padding:0 14px;border-radius:16px;background:#46d38a;color:#0b2a1a;box-shadow:0 5px 0 #23955a;font-size:18px}
+  .estatus{position:absolute;left:0;right:0;top:calc(env(safe-area-inset-top) + 62px);text-align:center;font-size:13px;font-weight:700;text-shadow:0 1px 3px #000;pointer-events:none;padding:0 12px}
+  .estatus.ok{color:#4fe39a}
+  .ebot{position:absolute;left:0;right:0;bottom:0;pointer-events:auto;padding:6px calc(env(safe-area-inset-right) + 8px) calc(env(safe-area-inset-bottom) + 8px) calc(env(safe-area-inset-left) + 8px);background:linear-gradient(#0c082000,#0c0820e6 35%)}
+  .esel{display:flex;gap:6px;justify-content:center;margin-bottom:8px;min-height:44px}
+  .esel .eopts{display:flex;gap:6px;visibility:hidden}
+  .esel.on .eopts{visibility:visible}
+  #edUndo{background:#2c1a52}
+  .esel button{min-height:44px;height:44px;min-width:46px;padding:0 10px;border-radius:14px;background:#3a2470;color:#fff;border:2px solid #ffffff22;font-weight:800;font-size:16px;box-shadow:0 4px 0 #0008}
+  .esel button.del{background:#8a1d3a}
+  .esel button[hidden]{display:none}
+  .epal{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;touch-action:pan-x;justify-content:safe center}
+  .epal::-webkit-scrollbar{display:none}
+  .epal button{flex:0 0 auto;width:62px;height:60px;min-height:0;border-radius:16px;background:#2c1a52;border:2px solid #ffffff1f;color:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;font-size:12px;font-weight:800;box-shadow:0 4px 0 #0008;padding:0}
+  .epal i{display:block;width:34px;height:10px;border-radius:3px}
+  .epal i.rnd{width:20px;height:20px;border-radius:50%}
+  .epal i.gm{width:16px;height:16px;border-radius:2px;transform:rotate(45deg)}
+  #bEditBack{display:none}
+  body.testing #bEditBack{display:inline-block}
+  #codeIn{width:100%;height:86px;margin-top:8px;font:14px/1.3 monospace;background:#0c0820;color:#f4f1ff;border:2px solid #ffffff22;border-radius:14px;padding:8px;user-select:text;-webkit-user-select:text}
   #hint{position:fixed;bottom:calc(env(safe-area-inset-bottom) + 14px);left:0;right:0;text-align:center;opacity:.8;pointer-events:none;font-size:14px;padding:0 calc(env(safe-area-inset-right) + 24px) 0 calc(env(safe-area-inset-left) + 24px);text-shadow:0 1px 3px #000;transition:opacity .6s}
   #snapBtns.show ~ #hint, body.snap #hint{padding:0 110px}
   /* short landscape phones: tighter panels */
@@ -239,7 +286,7 @@
 <canvas id="c"></canvas>
 
 <div id="hud">
-  <div class="btns"><button id="bMenu" class="icon" aria-label="Menu">☰</button><button id="bRestart" class="icon" aria-label="Restart">↻</button></div>
+  <div class="btns"><button id="bMenu" class="icon" aria-label="Menu">☰</button><button id="bRestart" class="icon" aria-label="Restart">↻</button><button id="bEditBack" class="icon" aria-label="Back to the editor">✎</button></div>
   <div class="info"><b id="lvlName"></b><span id="stats"></span></div>
   <div class="btns"><button id="bSettings" class="icon" aria-label="Settings">⚙</button></div>
 </div>
@@ -260,13 +307,21 @@
     <div class="pbar"><i id="homeBar"></i></div>
     <div class="psub" id="homeSub"></div>
     <button id="bContinue" class="b3d play"><svg aria-hidden="true" width="30" height="30" viewBox="0 0 24 24"><path d="M7 4.5v15l13-7.5z" fill="currentColor"></path></svg><span><b id="playMain">PLAY</b><small id="playSub"></small></span></button>
-    <div class="row3">
+    <div class="row3 four">
       <button id="bDaily" class="b3d blue"><svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><rect x="3.5" y="5" width="17" height="15" rx="3"></rect><path d="M3.5 10h17M8 3v4M16 3v4"></path></svg><span id="dailyLabel">Daily</span><span class="badge" id="dailyBadge">NEW</span></button>
       <button id="bGift" class="b3d orange"><svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><rect x="3.5" y="9" width="17" height="11" rx="2"></rect><path d="M2.5 9h19v-2.5h-19zM12 6.5V20M12 6.5C10 2.5 6 3.5 7.5 6.5M12 6.5c2-4 6-3 4.5 0"></path></svg><span>Gift</span><span class="dot" id="giftDot"></span></button>
       <button id="bShop" class="b3d pink"><svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="7"></circle><path d="M8.5 9.5a4 4 0 0 1 4-2.5"></path></svg><span>Skins</span></button>
+      <button id="bBuild" class="b3d teal"><svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 6.5l3 3M4 20l1-4L16 5a2.1 2.1 0 0 1 3 3L8 19z"></path></svg><span>Build</span></button>
     </div>
     <p class="help" id="helpText"></p>
-    <p class="ver" id="ver">prototype v0.22</p>
+    <p class="ver" id="ver">prototype v0.23</p>
+  </section>
+  <section class="mscr" id="scrBuild">
+    <div class="prow"><button class="icon" id="bBuildBack" aria-label="Back"><svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"></path></svg></button>
+      <div class="ptitle"><small>Level builder</small><b>My levels</b></div></div>
+    <button class="b3d play" id="bNewLevel"><svg aria-hidden="true" width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round"><path d="M12 5v14M5 12h14"></path></svg><span><b>NEW LEVEL</b><small>Build it · beat it · share it</small></span></button>
+    <button class="b3d blue wide" id="bPlayCode">▶ Play a friend's level</button>
+    <div class="mylist" id="myList"></div>
   </section>
   <section class="mscr path" id="scrPath">
     <div id="levelView">
@@ -360,6 +415,34 @@
     <button class="primary big" id="bConfirmYes">Buy</button>
     <button class="big" id="bConfirmAd" style="display:none">▶ Watch an ad</button>
     <button class="big" id="bConfirmNo">Cancel</button>
+  </div>
+</div>
+
+<div id="editor">
+  <div class="etop">
+    <button class="icon" id="edBack" aria-label="Save and leave"><svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"></path></svg></button>
+    <button class="ename" id="edName" aria-label="New random name"></button>
+    <button class="icon earena" id="edArena" aria-label="Arena size"></button>
+    <button class="etest" id="edTest">▶ Test</button>
+  </div>
+  <div class="estatus" id="edStatus"></div>
+  <div class="ebot">
+    <div class="esel" id="edSel">
+      <button id="edUndo" aria-label="Undo">↶</button><span class="eopts">
+      <button id="edRotL" aria-label="Turn left 15°">⟲</button><button id="edRotR" aria-label="Turn right 15°">⟳</button>
+      <button id="edMotion"></button><button id="edDup" aria-label="Copy">⧉</button><button class="del" id="edDel" aria-label="Delete">🗑</button></span>
+    </div>
+    <div class="epal" id="edPal"></div>
+  </div>
+</div>
+
+<div class="overlay" id="codePanel">
+  <div class="panel">
+    <h2>Play a friend's level</h2>
+    <p>Paste the level link or code they sent you.</p>
+    <textarea id="codeIn" spellcheck="false" autocomplete="off" placeholder="…?lvl=1_M…"></textarea>
+    <button class="primary big" id="bCodePlay">▶ Play</button>
+    <button class="big" id="bCodeCancel">Cancel</button>
   </div>
 </div>
 
@@ -2115,7 +2198,9 @@ const stars = Array.from({ length: 160 }, () => ({ x: Math.random() * 2 - 1, y: 
 // ---------- Playtest stats (kept on this device; hidden screen: tap the version 5x, or add ?stats) ----------
 let stats = {}, runOpen = false;
 try { stats = JSON.parse(localStorage.getItem("ws_stats") || "{}"); } catch (e) { stats = {}; }
+let customStat = null; // counters for a player-made level: thrown away, never in the playtest export
 function stat() { // keyed by level name so reordering levels keeps the data
+  if (level.custom) return customStat;
   return stats[level.name] || (stats[level.name] = { tries: 0, deaths: 0, spikes: 0, voids: 0, wins: 0, firstWin: 0, best: null, time: 0, resets: 0, gaveUp: 0, spots: [] });
 }
 function saveStats() { try { localStorage.setItem("ws_stats", JSON.stringify(stats)); } catch (e) {} }
@@ -2185,13 +2270,15 @@ function loadLevel(i, override) {
   waiting = true; dropped = false;
   Sfx.ready();
   if (i !== musicFor) { musicFor = i; Sfx.setSong(pickSong()); } // a new random song per level, not per retry
-  if (deaths === undefined || deaths.level !== i) deaths = { level: i, n: 0 };
-  document.getElementById("lvlName").textContent = levelOverride ? `📅 Daily challenge` : `${i + 1}. ${level.name}`;
+  if (deaths === undefined || deaths.level !== i || override !== undefined) deaths = { level: i, n: 0 }; // a new daily / player-made level starts at 0
+  document.getElementById("lvlName").textContent = level.custom ? `🛠 ${level.title}` : levelOverride ? `📅 Daily challenge` : `${i + 1}. ${level.name}`;
   const hint = document.getElementById("hint");
   hint.textContent = level.hint; hint.style.opacity = 0.85;
   if (levelIdx >= GUIDE_LEVELS && guideOn()) hint.textContent = "Tough one: the landing guide is back. " + level.hint;
   hide("menu"); hide("win"); stopCelebration(); floaters = [];
-  dailyRun = !!levelOverride;
+  dailyRun = !!levelOverride && !levelOverride.custom;
+  if (level.custom) customStat = { tries: 0, deaths: 0, spikes: 0, voids: 0, wins: 0, firstWin: 0, best: null, time: 0, resets: 0, gaveUp: 0, spots: [] };
+  document.body.classList.toggle("testing", level.custom === "test");
   if (!levelOverride && i % MENU_PAGE === 0 && i > 0 && !window.__botQuiet) banner = { text: `World ${i / MENU_PAGE + 1}`, sub: worldOf(i).name, t: 2.6 };
   if (!window.__botQuiet) maybeCard();
   paintOffer();
@@ -2651,6 +2738,7 @@ function win() {
   Platform.setPlaying(false);
   buzz([20, 60, 20, 60, 40]);
   const t = timer, st = t <= level.par[0] ? 3 : t <= level.par[1] ? 2 : 1;
+  if (level.custom) return customWin(t, st); // player-made: no stars, gems, streak or ghost saved
   const ls = stat();
   const prevBest = ls.best, prevStars = progress[level.name] || 0;
   ls.wins++; ls.time += t; if (!ls.firstWin) ls.firstWin = ls.tries;
@@ -3006,6 +3094,8 @@ function launch() {
 
 const KEYMAP = { ArrowLeft: "left", KeyA: "left", ArrowRight: "right", KeyD: "right" };
 window.addEventListener("keydown", e => {
+  if (editing) { edKey(e); return; }
+  if (isShown("codePanel")) return;
   if (["Space", "Enter", "KeyQ", "KeyE"].includes(e.code) || KEYMAP[e.code]) {
     if (launch() && (e.code === "Space" || e.code === "Enter")) { e.preventDefault(); return; }
   }
@@ -3043,12 +3133,13 @@ function animateSnap() {
 
 let drag = null;
 cv.addEventListener("pointerdown", e => {
+  if (editing) return;
   launch();
   drag = { x: e.clientX, y: e.clientY };
   cv.setPointerCapture(e.pointerId);
 });
 cv.addEventListener("pointermove", e => {
-  if (!drag) return;
+  if (!drag || editing) return;
   const px = drag.x, py = drag.y, nx = e.clientX, ny = e.clientY;
   drag.x = nx; drag.y = ny;
   if (snapMode || state !== "play") return;
@@ -3119,7 +3210,7 @@ const WORLD_THEME = ["neon", "candy", "blueprint", "paper", "arcade", "neon", "v
 const worldThemeId = k => WORLD_THEME[k % WORLD_THEME.length];
 function themeNow() {
   const pick = typeof econ !== "undefined" && econ.theme && econ.theme !== "auto" ? econ.theme : null;
-  const id = pick || (levelOverride ? "neon" : worldThemeId(Math.floor((levelIdx || 0) / MENU_PAGE)));
+  const id = pick || (levelOverride || editing ? "neon" : worldThemeId(Math.floor((levelIdx || 0) / MENU_PAGE)));
   return THEMES[id] || THEMES.neon;
 }
 let menuPage = null;   // world shown on the path screen
@@ -3199,7 +3290,8 @@ function openMenu(view, world) {
 }
 function buildMenu() {
   paintContinue(); paintDaily();
-  for (const [id, v] of [["scrHome", "home"], ["scrPath", "path"]]) document.getElementById(id).classList.toggle("on", menuView === v);
+  for (const [id, v] of [["scrHome", "home"], ["scrPath", "path"], ["scrBuild", "build"]]) document.getElementById(id).classList.toggle("on", menuView === v);
+  if (menuView === "build") paintMine();
   const st = econ.streak, gemTotal = LEVELS.filter(l => l.objs.some(o => o.t === "gem")).length;
   const alive = st.last && dayGap(st.last, localDay()) <= 1 + st.freeze ? st.n : 0;
   const chips = `<span title="Day streak">🔥 ${alive}${st.freeze ? ` <small>❄${st.freeze}</small>` : ""}</span>` +
@@ -3236,7 +3328,7 @@ function buildMenu() {
     }
     if (carFocus === null || carFocus >= worldCount()) carFocus = here;
     requestAnimationFrame(() => focusWorld(carFocus, false));
-  } else {
+  } else if (menuView === "path") {
     const k = menuPage === null ? here : menuPage, w = WORLDS[k % WORLDS.length], a = k * WORLD_SIZE, z = Math.min(LEVELS.length, a + WORLD_SIZE);
     menuPage = k;
     document.getElementById("scrPath").style.background = `linear-gradient(180deg, ${w.c0} 0%, #1a1035 60%, #0c0820 100%)`;
@@ -3282,6 +3374,7 @@ function buildMenu() {
 function next() {
   hide("win");
   if (dailyRun) { openMenu("home"); return; } // the daily is a one-off: back to the menu
+  if (level.custom) { leaveCustom(); return; }
   // the only place an interstitial can appear (Platform decides: never on the web, capped elsewhere)
   Platform.betweenLevels(levelIdx + 1, goNext);
 }
@@ -3340,7 +3433,7 @@ function paintContinue() {
   const inRun = level && state === "paused" && dropped;
   const nx = nextPlayable();
   document.getElementById("playMain").textContent = inRun ? "RESUME" : "PLAY";
-  document.getElementById("playSub").textContent = inRun ? (dailyRun ? "Daily challenge" : `Level ${levelIdx + 1}`) : nx < 0 ? "Get more ★ to open the next world" : `Level ${nx + 1}`;
+  document.getElementById("playSub").textContent = inRun ? (dailyRun ? "Daily challenge" : level.custom ? level.title : `Level ${levelIdx + 1}`) : nx < 0 ? "Get more ★ to open the next world" : `Level ${nx + 1}`;
 }
 document.getElementById("bContinue").onclick = () => {
   if (level && state === "paused" && dropped) { hide("menu"); state = "play"; }
@@ -3350,7 +3443,7 @@ document.getElementById("bContinue").onclick = () => {
 document.getElementById("helpText").innerHTML = COARSE
   ? "Drag or draw circles to turn the world · tap or turn to drop the ball · ⚙ for music, sound and controls"
   : "Drag or circle with the mouse, or ← → / A D · Q / E snap 90° · R restart · M switch controls<br>Click, turn or Space drops the ball";
-document.getElementById("bMenu").onclick =() => { if (dailyRun) openMenu("home"); else openMenu("path", Math.floor(levelIdx / MENU_PAGE)); state = state === "play" ? "paused" : state; };
+document.getElementById("bMenu").onclick =() => { if (level.custom) { if (state === "play") state = "paused"; leaveCustom(); return; } if (dailyRun) openMenu("home"); else openMenu("path", Math.floor(levelIdx / MENU_PAGE)); state = state === "play" ? "paused" : state; };
 document.getElementById("bRestart").onclick = restart;
 document.getElementById("bMode").onclick = () => { toggleMode(); paintSettings(); };
 document.getElementById("bRetry").onclick = () => { hide("win"); restart(); };
@@ -3364,6 +3457,7 @@ document.addEventListener("visibilitychange", () => {
 // ---------- Share a result ----------
 // text + a link that opens this exact level (?level=N), for WhatsApp / Discord / anywhere
 function shareText(w) {
+  if (w.custom) return customShareText(w);
   const link = location.origin + location.pathname + "?level=" + w.n;
   if (w.daily) return `World Shifter Daily ${w.daily} · ${w.t.toFixed(2)}s · ☠ ${w.deaths}\nBeat my time: ${location.origin + location.pathname}?daily`;
   return `World Shifter · Level ${w.n} “${w.name}” · ${"★".repeat(w.st)}${"☆".repeat(3 - w.st)} in ${w.t.toFixed(2)}s · ☠ ${w.deaths}` +
@@ -3407,7 +3501,7 @@ document.getElementById("bShopClose").onclick = () => { hide("shop"); if (isShow
 // ---------- Rewarded help: a stuck player can watch an ad for the landing guide, or to skip the level ----------
 // paid with a rewarded ad where ads exist, otherwise with ◆ (the ad-free web version)
 function offerKind() {
-  if (!level || !deaths || dailyRun) return null;
+  if (!level || !deaths || dailyRun || level.custom) return null;
   let k = null;
   if (deaths.n >= ADS.skipOfferDeaths && levelIdx < LEVELS.length - 1 && !beaten(levelIdx)) k = "skip";
   else if (deaths.n >= ADS.guideOfferDeaths && !guideOn()) k = "guide";
@@ -3445,6 +3539,515 @@ function paintDaily() {
 }
 function playDaily() { loadLevel(LEVELS.length, dailyLevel(today())); }
 document.getElementById("bDaily").onclick = playDaily;
+
+// ---------- Level builder: make a level, beat it yourself, share it as a link or code ----------
+// No server: a level travels as a short code (?lvl=CODE). The maker must clear their own level
+// before it can be shared (any edit after that needs a new clear). Pieces use the same objects,
+// physics and looks as the 500 levels. Names are generated (no free text: nothing to moderate).
+const BUILD = {
+  maxPieces: 60,
+  arenas: ["S", "M", "L", "O"],                 // box sizes, O = open void (camera follows, leave the circle and you fall)
+  arenaHalf: { S: 220, M: 300, L: 400, O: 0 },  // box half-size in world units
+  arenaName: { S: "Small box", M: "Box", L: "Big box", O: "Open void" },
+  openBounds: 620,
+  size: { wall: [160, 20], spike: [120, 20], bounce: [120, 20], ice: [160, 20], glue: [120, 20], goal: [120, 20], portal: [60, 60], gem: [26, 26] },
+  minSize: 20, maxSize: 900,
+  slide: 80, slidePeriod: 2.6, spin: 60,       // motion: slide ±80 every 2.6 s, or spin 60°/s
+  grid: 10, rotStep: 15,
+  parSlack: 1.25,                                // 3★ for players = within 25% (min +1 s) of the maker's clear time
+};
+const PIECES = [
+  ["wall", "Wall", "#6b6bff"], ["spike", "Spikes", "#ff4d6d"], ["goal", "Goal", "#4fd18b"], ["bounce", "Bounce", "#ffa640"],
+  ["ice", "Ice", "#8fe3ff"], ["glue", "Glue", "#b6e34f"], ["portal", "Portals", "#b36bff"], ["gem", "Gem", "#ff6ad5"],
+];
+const PIECE_CODE = { wall: "w", spike: "s", bounce: "b", ice: "i", glue: "g", goal: "o", gem: "e", portal: "p" };
+const CODE_PIECE = Object.fromEntries(Object.entries(PIECE_CODE).map(([k, v]) => [v, k]));
+const MOTIONS = ["Still", "↔ Slide", "↕ Slide", "⟳ Spin"];
+const customName = n => `${GEN_A[n % GEN_A.length]} ${GEN_B[Math.floor(n / GEN_A.length) % GEN_B.length]}`;
+const randomNameSeed = () => Math.floor(Math.random() * GEN_A.length * GEN_B.length);
+
+// ---- code: "1_M123_0.-20_42_w0.25.16.2.3_…_ck" (version, arena+name, start/10, clear time/10, pieces, checksum) ----
+// a piece: type letter (portals add their pair letter), then x/10, y/10, w/10, h/10, angle/15, motion; trailing zeros dropped
+const cksum = str => { let h = 2166136261; for (const ch of str) h = Math.imul(h ^ ch.charCodeAt(0), 16777619) >>> 0; return (h % 1296).toString(36).padStart(2, "0"); };
+function piecesCode(m) {
+  return m.objs.map(o => {
+    const f = [o.x / 10, o.y / 10, o.w / 10, o.h / 10, Math.round((o.a || 0) / BUILD.rotStep), o.mo || 0].map(v => Math.round(v));
+    while (f.length > 4 && f[f.length - 1] === 0) f.pop();
+    return PIECE_CODE[o.t] + (o.t === "portal" ? o.link : "") + f.join(".");
+  });
+}
+const contentHash = m => cksum([m.arena, m.start.map(v => Math.round(v / 10)).join("."), ...piecesCode(m)].join("_"));
+function encodeLevel(m) {
+  const body = ["1", m.arena + (m.nameSeed || 0).toString(36), m.start.map(v => Math.round(v / 10)).join("."), Math.round((m.clearT || 0) * 10), ...piecesCode(m)].join("_");
+  return body + "_" + cksum(body);
+}
+function decodeLevel(raw) {
+  try {
+    let code = String(raw).trim();
+    const q = code.match(/[?&]lvl=([^&#\s]+)/); if (q) code = decodeURIComponent(q[1]);
+    code = code.replace(/\s+/g, "");
+    const parts = code.split("_");
+    if (parts.length < 5 || parts[0] !== "1") return null;
+    const ck = parts.pop();
+    if (cksum(parts.join("_")) !== ck) return null;
+    const arena = parts[1][0];
+    if (!BUILD.arenas.includes(arena)) return null;
+    const nameSeed = parseInt(parts[1].slice(1) || "0", 36) || 0;
+    const st = parts[2].split(".").map(Number);
+    const clearT = (+parts[3] || 0) / 10;
+    const objs = [];
+    for (const pc of parts.slice(4)) {
+      const mm = pc.match(/^([a-z])([abc]?)(-?\d+(?:\.-?\d+)*)$/);
+      if (!mm || !CODE_PIECE[mm[1]]) return null;
+      const t = CODE_PIECE[mm[1]], f = mm[3].split(".").map(Number);
+      if (f.length < 4 || f.some(v => !isFinite(v))) return null;
+      const o = { t, x: f[0] * 10, y: f[1] * 10, w: f[2] * 10, h: f[3] * 10, a: ((f[4] || 0) * BUILD.rotStep) % 360, mo: Math.min(3, Math.max(0, f[5] || 0)) };
+      if (t === "portal") { if (!mm[2]) return null; o.link = mm[2]; }
+      objs.push(o);
+    }
+    if (objs.length > BUILD.maxPieces || st.length !== 2 || st.some(v => !isFinite(v))) return null;
+    const m = { arena, nameSeed, start: [st[0] * 10, st[1] * 10], objs, clearT };
+    m.objs.forEach(clampPiece.bind(null, m)); clampStart(m);
+    if (clearT) m.clearHash = contentHash(m); // a shared code always carries the maker's clear
+    return m;
+  } catch (e) { return null; }
+}
+
+// ---- model <-> playable level ----
+const arenaReach = m => BUILD.arenaHalf[m.arena] || BUILD.openBounds - 40;
+function clampPiece(m, o) {
+  const big = BUILD.size[o.t][0] === BUILD.size[o.t][1]; // portals / gems stay square
+  o.w = Math.max(BUILD.minSize, Math.min(BUILD.maxSize, o.w)); o.h = big ? o.w : Math.max(BUILD.minSize, Math.min(BUILD.maxSize, o.h));
+  if (o.t === "gem") { o.w = o.h = 26; }
+  const r = arenaReach(m);
+  o.x = Math.max(-r, Math.min(r, o.x)); o.y = Math.max(-r, Math.min(r, o.y));
+}
+function clampStart(m) { const r = arenaReach(m) - 20; m.start = m.start.map(v => Math.max(-r, Math.min(r, v))); }
+const isCleared = m => !!(m.clearT && m.clearHash === contentHash(m));
+function customLevel(m, mode) {
+  const hw = BUILD.arenaHalf[m.arena], objs = hw ? box(hw, hw) : [];
+  for (const o of m.objs) {
+    const q = { t: o.t, x: o.x, y: o.y, w: o.w, h: o.h, a: o.a || 0 };
+    if (o.t === "portal") q.link = o.link;
+    if (o.mo === 1) q.m = [BUILD.slide, 0, BUILD.slidePeriod];
+    else if (o.mo === 2) q.m = [0, BUILD.slide, BUILD.slidePeriod];
+    else if (o.mo === 3) q.spin = BUILD.spin;
+    objs.push(q);
+  }
+  const t = m.clearT || 0, p3 = t ? Math.ceil(Math.max(t * BUILD.parSlack, t + 1)) : 999;
+  const title = customName(m.nameSeed || 0);
+  return {
+    name: "✎ " + title, title, custom: mode, model: m, code: encodeLevel(m),
+    cam: hw ? "fixed" : "follow", view: hw ? Math.round(hw * 2.88) : 900, bounds: hw ? undefined : BUILD.openBounds,
+    start: [m.start[0], m.start[1]], par: [p3, 2 * p3], objs,
+    hint: mode === "test" ? "Test run: land on a goal to clear your level, then you can share it. ✎ goes back to editing."
+      : `A player-made level.${t ? ` The maker cleared it in ${t.toFixed(1)}s.` : ""}`,
+  };
+}
+
+// ---- my levels (saved on this device) ----
+let mine = [];
+try { mine = JSON.parse(localStorage.getItem("ws_mine") || "[]"); if (!Array.isArray(mine)) mine = []; } catch (e) { mine = []; }
+function saveMine() { try { localStorage.setItem("ws_mine", JSON.stringify(mine)); } catch (e) {} }
+let customFrom = "build"; // where "back" goes after playing a player-made level: build | link
+function playCustom(m, from) { customFrom = from; loadLevel(LEVELS.length, customLevel(m, "play")); }
+function leaveCustom() {
+  hide("win"); stopCelebration();
+  if (level.custom === "test") return openEditor(edSlot);
+  openMenu(customFrom === "link" ? "home" : "build");
+}
+function customWin(t, st) {
+  const test = level.custom === "test", m = level.model;
+  const gem = level.objs.find(o => o.t === "gem"), gotGem = !!(gem && gem.got);
+  const t1 = Math.round(t * 10) / 10 || 0.1;
+  let firstClear = false;
+  if (test && edSlot >= 0 && mine[edSlot]) {
+    const mm = mine[edSlot].m;
+    firstClear = !isCleared(mm);
+    if (firstClear || t1 < mm.clearT) { mm.clearT = t1; mm.clearHash = contentHash(mm); }
+    saveMine(); level.code = encodeLevel(mm);
+  }
+  Platform.event(test ? "builder_clear" : "custom_level_complete", { time: Math.round(t * 100) / 100, deaths: deaths.n, pieces: m.objs.length });
+  lastWin = { custom: test ? "made" : "played", name: level.title, t, st, deaths: deaths.n, code: level.code, makerT: m.clearT };
+  const wonLevel = level;
+  setTimeout(() => {
+    if (state !== "won" || level !== wonLevel) return;
+    const box = document.getElementById("winStars");
+    document.getElementById("winInfo").innerHTML = test
+      ? `Cleared in ${t.toFixed(2)}s · Deaths ${deaths.n}<br>${firstClear ? "Your level is ready to share!" : "Still cleared: share it any time."}`
+      : `Time ${t.toFixed(2)}s · Deaths ${deaths.n}` + (m.clearT ? ` · Maker ${m.clearT.toFixed(1)}s` : "");
+    const gb = document.getElementById("winGemBox");
+    gb.className = "wgem" + (gem ? (gotGem ? " show old" : " show miss") : "");
+    gb.innerHTML = gem ? `<span class="g">◆</span><b>${gotGem ? "Gem grabbed!" : "There's a gem in here too…"}</b>` : "";
+    document.getElementById("winGem").innerHTML = "";
+    document.getElementById("bShare").textContent = test ? "Share level" : "Share";
+    document.getElementById("bNext").textContent = test ? "✎ Back to editing" : "Done";
+    show("win");
+    if (test) {
+      celebrate(3, 0, false); celebrateTimers.forEach(clearTimeout); celebrateTimers = [];
+      box.innerHTML = ""; document.getElementById("winPerfect").classList.remove("show");
+      document.getElementById("winTitle").style.display = ""; document.getElementById("winTitle").textContent = firstClear ? "Level cleared!" : "Cleared again!";
+      if (firstClear) { confetti(lowFx ? 30 : 70); Sfx.star(2); buzz([20, 40, 20]); }
+    } else celebrate(st, 0, false);
+  }, 650);
+}
+const levelLink = code => location.origin + location.pathname + "?lvl=" + code;
+function customShareText(w) {
+  if (w.custom === "made") return `I built a World Shifter level: “${w.name}”. I beat it in ${w.t.toFixed(1)}s, can you?\n${levelLink(w.code)}`;
+  return `I beat “${w.name}” on World Shifter in ${w.t.toFixed(2)}s` + (w.makerT ? ` (maker: ${w.makerT.toFixed(1)}s)` : "") + `. Try it:\n${levelLink(w.code)}`;
+}
+async function shareLevel(m) {
+  const code = encodeLevel(m);
+  Platform.event("builder_share", { pieces: m.objs.length });
+  // portals (CrazyGames) don't allow links out: there you copy the bare code instead
+  const text = Platform.sharing ? customShareText({ custom: "made", name: customName(m.nameSeed || 0), t: m.clearT, code }) : code;
+  try {
+    if (Platform.sharing && navigator.share) { await navigator.share({ text }); return; }
+    await navigator.clipboard.writeText(text); toast(Platform.sharing ? "Link copied: send it to a friend" : "Level code copied");
+  } catch (e) {
+    if (e && e.name === "AbortError") return;
+    window.prompt("Copy and send:", text);
+  }
+}
+
+// small picture of a level for the list
+const PIECE_COLOR = Object.fromEntries(PIECES.map(([t, , c]) => [t, c]));
+function drawThumb(c, m) {
+  const g = c.getContext("2d"), S = c.width, half = (BUILD.arenaHalf[m.arena] || BUILD.openBounds) + 30, k = S / (2 * half);
+  g.fillStyle = "#0c0820"; g.fillRect(0, 0, S, S);
+  g.save(); g.translate(S / 2, S / 2); g.scale(k, k);
+  const hw = BUILD.arenaHalf[m.arena];
+  if (hw) { g.strokeStyle = "#6b6bff"; g.lineWidth = 24; g.strokeRect(-hw - 12, -hw - 12, 2 * hw + 24, 2 * hw + 24); }
+  else { g.strokeStyle = "#ff4d6d66"; g.lineWidth = 10; g.setLineDash([30, 30]); g.beginPath(); g.arc(0, 0, BUILD.openBounds, 0, Math.PI * 2); g.stroke(); g.setLineDash([]); }
+  for (const o of m.objs) {
+    g.save(); g.translate(o.x, o.y); g.rotate((o.a || 0) * Math.PI / 180);
+    g.fillStyle = o.t === "portal" ? PORTAL_COLORS[o.link] : PIECE_COLOR[o.t];
+    if (o.t === "portal" || o.t === "gem") { g.beginPath(); g.arc(0, 0, o.w / 2 + 6, 0, Math.PI * 2); g.fill(); }
+    else g.fillRect(-o.w / 2, -o.h / 2, o.w, Math.max(o.h, 14));
+    g.restore();
+  }
+  g.fillStyle = "#fff"; g.beginPath(); g.arc(m.start[0], m.start[1], 26, 0, Math.PI * 2); g.fill();
+  g.restore();
+}
+function paintMine() {
+  const list = document.getElementById("myList");
+  list.innerHTML = "";
+  if (!mine.length) { list.innerHTML = `<p class="empty">Nothing here yet.<br>Make a level, beat it once, then send the link to a friend.</p>`; return; }
+  mine.forEach((row, i) => {
+    const m = row.m, ok = isCleared(m), card = document.createElement("div");
+    card.className = "lvcard";
+    const c = document.createElement("canvas"); c.width = c.height = 168; drawThumb(c, m);
+    const info = document.createElement("div"); info.className = "lvinfo";
+    info.innerHTML = `<b>${customName(m.nameSeed || 0)}</b><small class="${ok ? "ok" : ""}">${ok ? `✓ Cleared in ${m.clearT.toFixed(1)}s` : "Not cleared yet"} · ${m.objs.length} pieces</small>`;
+    const btns = document.createElement("div"); btns.className = "lvbtns";
+    const mk = (label, cls, fn, aria) => { const b = document.createElement("button"); b.textContent = label; if (cls) b.className = cls; if (aria) b.setAttribute("aria-label", aria); b.onclick = fn; btns.appendChild(b); };
+    mk("✎ Edit", "go", () => openEditor(i));
+    mk(Platform.sharing ? "Share" : "Copy code", ok ? "" : "off", () => ok ? shareLevel(m) : toast("Beat your level once (▶ Test) to share it"));
+    mk("🗑", "del", () => askYes("Delete this level?", `“${customName(m.nameSeed || 0)}” will be gone for good.`, "Delete", () => { mine.splice(i, 1); saveMine(); paintMine(); }), "Delete level");
+    info.appendChild(btns); card.append(c, info); list.appendChild(card);
+  });
+}
+function askYes(title, text, yes, onYes) {
+  document.getElementById("confirmTitle").textContent = title;
+  document.getElementById("confirmText").textContent = text;
+  document.getElementById("confirmArt").innerHTML = "";
+  document.getElementById("bConfirmYes").textContent = yes;
+  document.getElementById("bConfirmYes").onclick = () => { hide("confirm"); onYes(); };
+  document.getElementById("bConfirmAd").style.display = "none";
+  show("confirm");
+}
+function newLevel() {
+  mine.unshift({ m: { arena: "M", nameSeed: randomNameSeed(), start: [-180, -200], clearT: 0, objs: [
+    { t: "wall", x: -100, y: -100, w: 220, h: 20, a: 15, mo: 0 },
+    { t: "goal", x: 180, y: 270, w: 120, h: 20, a: 0, mo: 0 },
+  ] }, at: Date.now() });
+  saveMine(); Platform.event("builder_new", {});
+  openEditor(0);
+}
+document.getElementById("bBuild").onclick = () => openMenu("build");
+document.getElementById("bBuildBack").onclick = () => { carFocus = null; openMenu("home"); };
+document.getElementById("bNewLevel").onclick = () => {
+  if (mine.length >= 50) { toast("50 levels is the limit: delete one first"); return; }
+  newLevel();
+};
+document.getElementById("bPlayCode").onclick = () => { document.getElementById("codeIn").value = ""; show("codePanel"); setTimeout(() => document.getElementById("codeIn").focus(), 50); };
+document.getElementById("bCodeCancel").onclick = () => hide("codePanel");
+document.getElementById("bCodePlay").onclick = () => {
+  const m = decodeLevel(document.getElementById("codeIn").value);
+  if (!m) { toast("That code doesn't work. Copy the whole link?"); return; }
+  hide("codePanel"); playCustom(m, "build");
+};
+document.getElementById("bEditBack").onclick = () => { if (level && level.custom === "test") { if (state === "play") state = "paused"; openEditor(edSlot); } };
+
+// ---- the editor: pieces on a grid, drag to move, handles to size and turn, pinch / wheel to zoom ----
+let editing = false, ed = null, edSlot = -1, edSel = null, edUndo = [], edGest = null;
+let edCam = { x: 0, y: 0, zoom: 1 };
+const edPtrs = new Map();
+const ED_TOP = 86, ED_BOT = 138; // px of screen the editor bars cover
+const snapG = v => Math.round(v / BUILD.grid) * BUILD.grid;
+function edView() { const hw = BUILD.arenaHalf[ed.arena]; return hw ? 2 * hw + 80 : 2 * BUILD.openBounds + 60; }
+function edScale() { return Math.min(W - 16, H - ED_TOP - ED_BOT) / edView() * edCam.zoom; }
+const edMidY = () => ED_TOP + (H - ED_TOP - ED_BOT) / 2;
+function toWorld(sx, sy) { const k = edScale(); return [(sx - W / 2) / k + edCam.x, (sy - edMidY()) / k + edCam.y]; }
+function openEditor(i) {
+  if (!mine[i]) { openMenu("build"); return; }
+  if (level && state === "play") state = "paused";
+  if (level) leaveRun(false);
+  edSlot = i; ed = mine[i].m; edSel = null; edUndo = []; edGest = null; edPtrs.clear();
+  edCam = { x: 0, y: 0, zoom: 1 };
+  editing = true; angle = 0; state = "edit";
+  hide("menu"); hide("win"); hide("card"); stopCelebration();
+  document.body.classList.add("editing"); document.body.classList.remove("testing");
+  Platform.setPlaying(false);
+  paintEditor();
+}
+function closeEditor(then) {
+  saveMine(); editing = false; document.body.classList.remove("editing");
+  edPtrs.clear(); edGest = null;
+  then();
+}
+function edSnapshot() { return JSON.stringify({ arena: ed.arena, start: ed.start, objs: ed.objs }); }
+function edPush() { edUndo.push(edSnapshot()); if (edUndo.length > 60) edUndo.shift(); }
+function edChanged() { mine[edSlot].at = Date.now(); saveMine(); paintEditor(); }
+function paintEditor() {
+  document.getElementById("edName").textContent = "🎲 " + customName(ed.nameSeed || 0);
+  document.getElementById("edArena").textContent = { S: "▫ S", M: "□ M", L: "⬜ L", O: "◌ Open" }[ed.arena];
+  document.getElementById("edUndo").style.opacity = edUndo.length ? 1 : 0.4;
+  const st = document.getElementById("edStatus"), ok = isCleared(ed);
+  st.className = "estatus" + (ok ? " ok" : "");
+  st.textContent = ok ? `✓ Cleared in ${ed.clearT.toFixed(1)}s · ready to share` : ed.objs.some(o => o.t === "goal")
+    ? `${ed.objs.length}/${BUILD.maxPieces} pieces · ▶ Test and beat it to share` : "Add a green goal pad so the level can be won";
+  const sel = document.getElementById("edSel"), o = edSel && edSel !== "start" ? edSel : null;
+  sel.classList.toggle("on", !!o);
+  if (o) {
+    const turns = o.t !== "portal" && o.t !== "gem";
+    document.getElementById("edRotL").hidden = !turns; document.getElementById("edRotR").hidden = !turns;
+    document.getElementById("edMotion").textContent = MOTIONS[o.mo || 0];
+    document.getElementById("edDup").hidden = o.t === "portal" || o.t === "gem";
+  }
+}
+// palette
+{
+  const pal = document.getElementById("edPal");
+  for (const [t, label, col] of PIECES) {
+    const b = document.createElement("button");
+    b.innerHTML = `<i class="${t === "portal" ? "rnd" : t === "gem" ? "gm" : ""}" style="background:${col}"></i>${label}`;
+    b.onclick = () => addPiece(t);
+    pal.appendChild(b);
+  }
+}
+function addPiece(t) {
+  if (ed.objs.length + (t === "portal" ? 2 : 1) > BUILD.maxPieces) { toast(`${BUILD.maxPieces} pieces is the limit`); return; }
+  if (t === "gem" && ed.objs.some(o => o.t === "gem")) { edSel = ed.objs.find(o => o.t === "gem"); toast("One gem per level"); paintEditor(); return; }
+  edPush();
+  const [w, h] = BUILD.size[t], cx = snapG(edCam.x), cy = snapG(edCam.y);
+  if (t === "portal") {
+    const link = ["a", "b", "c"].find(l => !ed.objs.some(o => o.t === "portal" && o.link === l));
+    if (!link) { edUndo.pop(); toast("3 portal pairs is the limit"); return; }
+    const a = { t, x: cx - 90, y: cy, w, h, a: 0, mo: 0, link }, b = { t, x: cx + 90, y: cy, w, h, a: 0, mo: 0, link };
+    clampPiece(ed, a); clampPiece(ed, b); ed.objs.push(a, b); edSel = a;
+  } else {
+    const o = { t, x: cx, y: cy, w, h, a: 0, mo: 0 };
+    clampPiece(ed, o); ed.objs.push(o); edSel = o;
+  }
+  Sfx.snap(); edChanged();
+}
+function delPiece(o) {
+  edPush();
+  ed.objs = ed.objs.filter(q => q !== o && !(o.t === "portal" && q.t === "portal" && q.link === o.link));
+  edSel = null; Sfx.click(); edChanged();
+}
+document.getElementById("edDel").onclick = () => { if (edSel && edSel !== "start") delPiece(edSel); };
+document.getElementById("edDup").onclick = () => {
+  const o = edSel; if (!o || o === "start" || o.t === "portal" || o.t === "gem") return;
+  if (ed.objs.length >= BUILD.maxPieces) { toast(`${BUILD.maxPieces} pieces is the limit`); return; }
+  edPush(); const q = { ...o, x: o.x + 40, y: o.y + 40 }; clampPiece(ed, q); ed.objs.push(q); edSel = q; edChanged();
+};
+const edTurn = d => { const o = edSel; if (!o || o === "start") return; edPush(); o.a = ((o.a || 0) + d * BUILD.rotStep + 360) % 360; Sfx.snap(); edChanged(); };
+document.getElementById("edRotL").onclick = () => edTurn(-1);
+document.getElementById("edRotR").onclick = () => edTurn(1);
+document.getElementById("edMotion").onclick = () => { const o = edSel; if (!o || o === "start") return; edPush(); o.mo = ((o.mo || 0) + 1) % MOTIONS.length; edChanged(); };
+function edUndoStep() {
+  if (!edUndo.length) return;
+  const s0 = JSON.parse(edUndo.pop());
+  ed.arena = s0.arena; ed.start = s0.start; ed.objs = s0.objs; edSel = null; edChanged();
+}
+document.getElementById("edUndo").onclick = edUndoStep;
+document.getElementById("edArena").onclick = () => {
+  edPush();
+  ed.arena = BUILD.arenas[(BUILD.arenas.indexOf(ed.arena) + 1) % BUILD.arenas.length];
+  ed.objs.forEach(o => clampPiece(ed, o)); clampStart(ed);
+  edCam = { x: 0, y: 0, zoom: 1 }; toast(BUILD.arenaName[ed.arena]); edChanged();
+};
+document.getElementById("edName").onclick = () => { ed.nameSeed = randomNameSeed(); Sfx.snap(); edChanged(); };
+document.getElementById("edBack").onclick = () => closeEditor(() => openMenu("build"));
+document.getElementById("edTest").onclick = () => {
+  if (!ed.objs.some(o => o.t === "goal")) { toast("Add a goal pad first"); return; }
+  const m = ed;
+  closeEditor(() => { customFrom = "build"; loadLevel(LEVELS.length, customLevel(m, "test")); });
+};
+function edKey(e) {
+  if (e.code === "KeyZ" && (e.ctrlKey || e.metaKey)) { edUndoStep(); e.preventDefault(); }
+  else if ((e.code === "Delete" || e.code === "Backspace") && edSel && edSel !== "start") { delPiece(edSel); e.preventDefault(); }
+  else if (e.code === "KeyQ") edTurn(-1);
+  else if (e.code === "KeyE") edTurn(1);
+  else if (e.code === "Escape") { edSel = null; paintEditor(); }
+}
+
+// hit tests in world units; pad is a finger's slack, so thin pieces are still easy to grab
+function edLocal(o, x, y) { const a = (o.a || 0) * Math.PI / 180, c = Math.cos(a), s2 = Math.sin(a), dx = x - o.x, dy = y - o.y; return [dx * c + dy * s2, -dx * s2 + dy * c]; }
+function edHandles(o) { // resize corner + turn knob, in world units
+  const k = edScale(), a = (o.a || 0) * Math.PI / 180, c = Math.cos(a), s2 = Math.sin(a), at = (lx, ly) => [o.x + lx * c - ly * s2, o.y + lx * s2 + ly * c];
+  const hs = { size: at(o.w / 2 + 6 / k, o.h / 2 + 6 / k) };
+  if (o.t !== "portal" && o.t !== "gem") hs.turn = at(0, -o.h / 2 - 34 / k);
+  if (o.t === "gem") delete hs.size;
+  return hs;
+}
+function edPick(x, y) {
+  const k = edScale(), pad = 14 / k;
+  if (edSel && edSel !== "start") {
+    const hs = edHandles(edSel);
+    for (const key of ["size", "turn"]) if (hs[key] && Math.hypot(hs[key][0] - x, hs[key][1] - y) < 22 / k) return { kind: key, o: edSel };
+  }
+  if (Math.hypot(ed.start[0] - x, ed.start[1] - y) < BALL_R + pad) return { kind: "move", o: "start" };
+  for (let i = ed.objs.length - 1; i >= 0; i--) {
+    const o = ed.objs[i], [lx, ly] = edLocal(o, x, y);
+    if (Math.abs(lx) <= o.w / 2 + pad && Math.abs(ly) <= o.h / 2 + pad) return { kind: "move", o };
+  }
+  return null;
+}
+cv.addEventListener("pointerdown", e => {
+  if (!editing) return;
+  cv.setPointerCapture(e.pointerId);
+  edPtrs.set(e.pointerId, { x: e.clientX, y: e.clientY });
+  if (edPtrs.size === 2) { // pinch: zoom + pan, ends any drag in progress
+    if (edGest && edGest.before && edGest.before !== edSnapshot()) { edUndo.push(edGest.before); edChanged(); }
+    const [a, b] = [...edPtrs.values()];
+    edGest = { kind: "pinch", d0: Math.hypot(a.x - b.x, a.y - b.y) || 1, z0: edCam.zoom, w0: toWorld((a.x + b.x) / 2, (a.y + b.y) / 2) };
+    return;
+  }
+  if (edPtrs.size > 2) return;
+  const [x, y] = toWorld(e.clientX, e.clientY), hit = edPick(x, y);
+  if (!hit) { edGest = { kind: "pan", sx: e.clientX, sy: e.clientY, cx: edCam.x, cy: edCam.y, moved: false }; return; }
+  const o = hit.o, ox = o === "start" ? ed.start[0] : o.x, oy = o === "start" ? ed.start[1] : o.y;
+  edGest = { kind: hit.kind, o, dx: x - ox, dy: y - oy, before: edSnapshot(), sx: e.clientX, sy: e.clientY, moved: false };
+  if (edSel !== o) { edSel = o; paintEditor(); }
+});
+cv.addEventListener("pointermove", e => {
+  if (!editing || !edPtrs.has(e.pointerId)) return;
+  edPtrs.set(e.pointerId, { x: e.clientX, y: e.clientY });
+  const g = edGest; if (!g) return;
+  if (g.kind === "pinch") {
+    if (edPtrs.size < 2) return;
+    const [a, b] = [...edPtrs.values()], d = Math.hypot(a.x - b.x, a.y - b.y);
+    edCam.zoom = Math.max(0.5, Math.min(3, g.z0 * d / g.d0));
+    const k = edScale(), mx = (a.x + b.x) / 2, my = (a.y + b.y) / 2;
+    edCam.x = g.w0[0] - (mx - W / 2) / k; edCam.y = g.w0[1] - (my - edMidY()) / k;
+    return;
+  }
+  if (!g.moved && Math.hypot(e.clientX - g.sx, e.clientY - g.sy) < 4) return;
+  g.moved = true;
+  const k = edScale();
+  if (g.kind === "pan") { edCam.x = g.cx - (e.clientX - g.sx) / k; edCam.y = g.cy - (e.clientY - g.sy) / k; return; }
+  const [x, y] = toWorld(e.clientX, e.clientY), o = g.o;
+  if (g.kind === "move") {
+    if (o === "start") { ed.start = [snapG(x - g.dx), snapG(y - g.dy)]; clampStart(ed); }
+    else { o.x = snapG(x - g.dx); o.y = snapG(y - g.dy); clampPiece(ed, o); }
+  } else if (g.kind === "size") {
+    const [lx, ly] = edLocal(o, x, y);
+    o.w = snapG(Math.abs(lx) * 2); o.h = snapG(Math.abs(ly) * 2);
+    if (o.t === "portal") o.w = o.h = Math.max(o.w, o.h);
+    clampPiece(ed, o);
+  } else if (g.kind === "turn") {
+    const deg = Math.atan2(y - o.y, x - o.x) * 180 / Math.PI + 90;
+    o.a = ((Math.round(deg / BUILD.rotStep) * BUILD.rotStep) % 360 + 360) % 360;
+  }
+});
+function edPointerEnd(e) {
+  if (!editing || !edPtrs.has(e.pointerId)) return;
+  edPtrs.delete(e.pointerId);
+  const g = edGest;
+  if (g && g.kind === "pinch") { if (edPtrs.size < 2) edGest = null; return; }
+  if (!g) return;
+  edGest = null;
+  if (g.kind === "pan") { if (!g.moved && edSel) { edSel = null; paintEditor(); } return; }
+  if (g.before && g.before !== edSnapshot()) { edUndo.push(g.before); if (edUndo.length > 60) edUndo.shift(); Sfx.snap(); edChanged(); }
+}
+cv.addEventListener("pointerup", edPointerEnd);
+cv.addEventListener("pointercancel", edPointerEnd);
+cv.addEventListener("wheel", e => {
+  if (!editing) return;
+  e.preventDefault();
+  const before = toWorld(e.clientX, e.clientY);
+  edCam.zoom = Math.max(0.5, Math.min(3, edCam.zoom * Math.exp(-e.deltaY * 0.0015)));
+  const k = edScale(); edCam.x = before[0] - (e.clientX - W / 2) / k; edCam.y = before[1] - (e.clientY - edMidY()) / k;
+}, { passive: false });
+
+function renderEditor(now) {
+  ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+  const TH = themeNow();
+  const bg = ctx.createRadialGradient(W / 2, H / 2, 0, W / 2, H / 2, Math.max(W, H) * 0.7);
+  bg.addColorStop(0, TH.bg ? TH.bg[0] : "#1d1640"); bg.addColorStop(1, TH.bg ? TH.bg[1] : "#07070d");
+  ctx.fillStyle = bg; ctx.fillRect(0, 0, W, H);
+  const k = edScale(), hw = BUILD.arenaHalf[ed.arena], reach = hw || BUILD.openBounds;
+  ctx.save(); ctx.translate(W / 2, edMidY()); ctx.scale(k, k); ctx.translate(-edCam.x, -edCam.y);
+  // grid: 50-unit squares
+  ctx.strokeStyle = TH.light ? "rgba(0,0,0,0.08)" : "rgba(255,255,255,0.06)"; ctx.lineWidth = 1 / k; ctx.beginPath();
+  for (let v = -reach; v <= reach; v += 50) { ctx.moveTo(v, -reach); ctx.lineTo(v, reach); ctx.moveTo(-reach, v); ctx.lineTo(reach, v); }
+  ctx.stroke();
+  angle = 0;
+  const prep = o => { o.bx = o.x; o.by = o.y; o._ang = (o.a || 0) * Math.PI / 180; o._c = Math.cos(o._ang); o._s = Math.sin(o._ang); return o; };
+  if (hw) for (const o of box(hw, hw)) drawObj(prep(o), now);
+  else { ctx.strokeStyle = "rgba(255,77,109,0.35)"; ctx.lineWidth = 3; ctx.setLineDash([14, 14]); ctx.beginPath(); ctx.arc(0, 0, BUILD.openBounds, 0, Math.PI * 2); ctx.stroke(); ctx.setLineDash([]); }
+  for (const o of ed.objs) {
+    const q = prep({ t: o.t, x: o.x, y: o.y, w: o.w, h: o.h, a: o.a, link: o.link });
+    if (o.mo === 1 || o.mo === 2) { // slide range: faint copies at both ends
+      const dx = o.mo === 1 ? BUILD.slide : 0, dy = o.mo === 2 ? BUILD.slide : 0;
+      ctx.globalAlpha = 0.22; for (const sg of [-1, 1]) drawObj(prep({ ...q, x: o.x + sg * dx, y: o.y + sg * dy }), now); ctx.globalAlpha = 1;
+      ctx.strokeStyle = "rgba(255,255,255,0.5)"; ctx.lineWidth = 2 / k; ctx.setLineDash([6 / k, 6 / k]);
+      ctx.beginPath(); ctx.moveTo(o.x - dx, o.y - dy); ctx.lineTo(o.x + dx, o.y + dy); ctx.stroke(); ctx.setLineDash([]);
+    }
+    drawObj(q, now);
+    if (o.mo === 3) { // spin: a curved arrow around it
+      const r = Math.hypot(o.w, o.h) / 2 + 8;
+      ctx.strokeStyle = "rgba(255,255,255,0.5)"; ctx.lineWidth = 2 / k; ctx.setLineDash([6 / k, 6 / k]);
+      ctx.beginPath(); ctx.arc(o.x, o.y, r, 0, Math.PI * 1.6); ctx.stroke(); ctx.setLineDash([]);
+      const ex = o.x + r * Math.cos(Math.PI * 1.6), ey = o.y + r * Math.sin(Math.PI * 1.6);
+      ctx.fillStyle = "rgba(255,255,255,0.7)"; ctx.beginPath(); ctx.arc(ex, ey, 5 / k, 0, Math.PI * 2); ctx.fill();
+    }
+    if (o.t === "portal") { // pair letter so you can tell which two belong together
+      ctx.fillStyle = "#fff"; ctx.font = `800 ${Math.round(16 / Math.max(0.6, k))}px 'Baloo 2', system-ui`; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+      ctx.fillText(o.link.toUpperCase(), o.x, o.y + 1); ctx.textBaseline = "alphabetic";
+    }
+  }
+  // start: the ball
+  const sk = skinNow();
+  ctx.fillStyle = sk.fill; ctx.shadowColor = sk.glow; ctx.shadowBlur = 16;
+  ctx.beginPath(); ctx.arc(ed.start[0], ed.start[1], BALL_R, 0, Math.PI * 2); ctx.fill(); ctx.shadowBlur = 0;
+  const p = (now / 900) % 1;
+  ctx.strokeStyle = `rgba(255,255,255,${0.6 * (1 - p)})`; ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.arc(ed.start[0], ed.start[1], BALL_R + 4 + p * 22, 0, Math.PI * 2); ctx.stroke();
+  // selection
+  if (edSel) {
+    ctx.strokeStyle = "#ffd34d"; ctx.lineWidth = 2.5 / k; ctx.setLineDash([8 / k, 6 / k]);
+    if (edSel === "start") { ctx.beginPath(); ctx.arc(ed.start[0], ed.start[1], BALL_R + 8, 0, Math.PI * 2); ctx.stroke(); ctx.setLineDash([]); }
+    else {
+      const o = edSel, pad = 6 / k;
+      ctx.save(); ctx.translate(o.x, o.y); ctx.rotate((o.a || 0) * Math.PI / 180);
+      ctx.strokeRect(-o.w / 2 - pad, -o.h / 2 - pad, o.w + 2 * pad, o.h + 2 * pad); ctx.setLineDash([]);
+      if (o.t !== "portal" && o.t !== "gem") { ctx.beginPath(); ctx.moveTo(0, -o.h / 2 - pad); ctx.lineTo(0, -o.h / 2 - 34 / k); ctx.stroke(); }
+      ctx.restore();
+      const hs = edHandles(o);
+      ctx.fillStyle = "#ffd34d"; ctx.strokeStyle = "#3a2100"; ctx.lineWidth = 2 / k;
+      if (hs.size) { ctx.beginPath(); ctx.rect(hs.size[0] - 10 / k, hs.size[1] - 10 / k, 20 / k, 20 / k); ctx.fill(); ctx.stroke(); }
+      if (hs.turn) {
+        ctx.beginPath(); ctx.arc(hs.turn[0], hs.turn[1], 12 / k, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+        ctx.beginPath(); ctx.arc(hs.turn[0], hs.turn[1], 6 / k, -2.4, 1.4); ctx.stroke();
+      }
+    }
+  }
+  ctx.restore();
+}
 
 // ---------- Ending: after level 500 ----------
 function showEnding() {
@@ -3532,13 +4135,14 @@ document.getElementById("ver").addEventListener("click", () => {
   verTaps = verTaps.filter(t => now - t < 2000); verTaps.push(now);
   if (verTaps.length >= 5) { verTaps = []; openStats(); }
 });
-window.addEventListener("pagehide", () => { if (level) leaveRun(false); });
+window.addEventListener("pagehide", () => { if (level) leaveRun(false); if (editing) saveMine(); });
 
 // ---------- Loop ----------
 let last = performance.now();
 function frame(now) {
   watchFrameRate(now - last);
   const dt = Math.min(1 / 30, (now - last) / 1000); last = now;
+  if (editing) { renderEditor(now); requestAnimationFrame(frame); return; }
   if (level) update(dt);
   render(now);
   requestAnimationFrame(frame);
@@ -3548,11 +4152,15 @@ const linkLevel = parseInt(new URLSearchParams(location.search).get("level"), 10
 const linkDaily = new URLSearchParams(location.search).has("daily");
 Platform.init();
 if (!Platform.sharing) for (const id of ["bShare", "bEndShare"]) document.getElementById(id).style.display = "none";
-if (linkDaily) playDaily(); // a friend's daily link: straight into today's daily
+const linkCode = new URLSearchParams(location.search).get("lvl");
+const linkModel = linkCode ? decodeLevel(linkCode) : null;
+if (linkModel) playCustom(linkModel, "link"); // a friend's own level
+else if (linkDaily) playDaily(); // a friend's daily link: straight into today's daily
 else if (linkLevel >= 1 && linkLevel <= LEVELS.length) loadLevel(linkLevel - 1); // shared link: straight in
 else if (Platform.env === "crazygames") loadLevel(nextUnbeaten()); // portals require landing in gameplay
 else { loadLevel(Math.max(0, nextPlayable())); state = "paused"; openMenu("home"); if (giftReady()) openGift(); }
 if (/[?&]stats\b/.test(location.search)) openStats();
+if (linkCode && !linkModel) toast("That level link is broken. Ask for the code again?");
 requestAnimationFrame(frame);
 </script>
 </body>
