@@ -276,6 +276,13 @@
   #bEditBack{display:none}
   body.testing #bEditBack{display:inline-block}
   #codeIn{width:100%;height:86px;margin-top:8px;font:14px/1.3 monospace;background:#0c0820;color:#f4f1ff;border:2px solid #ffffff22;border-radius:14px;padding:8px;user-select:text;-webkit-user-select:text}
+  .setrow.sens{flex-wrap:wrap;cursor:default}
+  .setrow.sens input{width:100%;margin:12px 0 4px;accent-color:#ffd34d;height:28px}
+  /* home: title near the top, worlds in the middle, buttons at the bottom */
+  #scrHome .logo{margin-top:clamp(16px,6vh,64px)}
+  #scrHome .carwrap{margin-top:auto}
+  #scrHome #bContinue{margin-top:auto}
+  #scrHome .help{margin-top:14px}
   #hint{position:fixed;bottom:calc(env(safe-area-inset-bottom) + 14px);left:0;right:0;text-align:center;opacity:.8;pointer-events:none;font-size:14px;padding:0 calc(env(safe-area-inset-right) + 24px) 0 calc(env(safe-area-inset-left) + 24px);text-shadow:0 1px 3px #000;transition:opacity .6s}
   #snapBtns.show ~ #hint, body.snap #hint{padding:0 110px}
   /* short landscape phones: tighter panels */
@@ -314,7 +321,7 @@
       <button id="bBuild" class="b3d teal"><svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 6.5l3 3M4 20l1-4L16 5a2.1 2.1 0 0 1 3 3L8 19z"></path></svg><span>Build</span></button>
     </div>
     <p class="help" id="helpText"></p>
-    <p class="ver" id="ver">prototype v0.23</p>
+    <p class="ver" id="ver">prototype v0.24</p>
   </section>
   <section class="mscr" id="scrBuild">
     <div class="prow"><button class="icon" id="bBuildBack" aria-label="Back"><svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"></path></svg></button>
@@ -358,6 +365,8 @@
     <button class="setrow" id="bSound">🔊 Sound effects <span></span></button>
     <button class="setrow" id="bVibe">📳 Vibration <span></span></button>
     <button class="setrow" id="bMode">🎮 Controls <span></span></button>
+    <div class="setrow sens" id="sensRow"><label for="sens">🌀 Turn speed</label><span id="sensVal"></span>
+      <input type="range" id="sens" min="0.5" max="2.5" step="0.1" aria-label="Drag turn speed"></div>
     <p class="help" id="modeHelp"></p>
     <button class="primary big" id="bCloseSettings">Done</button>
   </div>
@@ -481,6 +490,7 @@ const GUIDE_AFTER_DEATHS = 20; // ...and on any level once you've died this many
 const GUIDE_TIME = 1.2;   // seconds of predicted path
 const GHOST_HZ = 30;      // best-run ghost samples per second
 const GLUE_RELEASE = 0.5; // glue lets go once gravity pulls away from it at >= this fraction of G (~60° turn)
+const DRAG_SENS_DEFAULT = 1.0; // drag turn speed multiplier; players change it in Settings (0.5–2.5)
 const HIT_FEEDBACK_SPEED = 350; // wall hits harder than this shake the screen + vibrate
 
 // ---------- Levels ----------
@@ -2663,6 +2673,8 @@ function pickSong() {
 
 // ---------- Haptics ----------
 let lastBuzz = 0;
+let dragSens = DRAG_SENS_DEFAULT;
+try { const v = parseFloat(localStorage.getItem("ws_sens")); if (v >= 0.5 && v <= 2.5) dragSens = v; } catch (e) {}
 let vibeOn = true;
 try { vibeOn = localStorage.getItem("ws_vibe") !== "0"; } catch (e) {}
 function buzz(pattern) {
@@ -3149,7 +3161,7 @@ cv.addEventListener("pointermove", e => {
   // always follows the finger (v0.9 blended in a left/right drag here, which fought circles in the top half).
   const rx = px - W / 2, ry = py - H / 2;
   const r2 = Math.max(rx * rx + ry * ry, DIAL_MIN_R * DIAL_MIN_R);
-  angle += (rx * (ny - py) - ry * (nx - px)) / r2;
+  angle += dragSens * (rx * (ny - py) - ry * (nx - px)) / r2;
 });
 cv.addEventListener("pointerup", () => { drag = null; });
 cv.addEventListener("pointercancel", () => drag = null);
@@ -3406,6 +3418,9 @@ function paintSettings() {
   const canVibe = !!navigator.vibrate;
   setRow("bVibe", canVibe && vibeOn, !canVibe ? "Not on this phone" : vibeOn ? "On" : "Off");
   setRow("bMode", true, snapMode ? "90° buttons" : "Drag / circle");
+  document.getElementById("sensRow").style.display = snapMode ? "none" : "";
+  document.getElementById("sens").value = dragSens;
+  document.getElementById("sensVal").textContent = dragSens.toFixed(1) + "×";
   document.getElementById("modeHelp").textContent = snapMode
     ? "Tap ⟲ ⟳ at the bottom to turn the world a quarter at a time."
     : "Drag or draw circles anywhere to turn the world.";
@@ -3418,6 +3433,11 @@ document.getElementById("bSettings").onclick = openSettings;
 document.getElementById("bCloseSettings").onclick = () => { hide("settings"); if (state === "paused" && level && !isShown("menu")) state = "play"; };
 document.getElementById("settings").addEventListener("pointerdown", e => { if (e.target.id === "settings") document.getElementById("bCloseSettings").click(); });
 document.getElementById("bMusic").onclick = () => { Sfx.toggleMusic(); paintSettings(); };
+document.getElementById("sens").addEventListener("input", e => {
+  dragSens = Math.round(parseFloat(e.target.value) * 10) / 10;
+  try { localStorage.setItem("ws_sens", String(dragSens)); } catch (er) {}
+  document.getElementById("sensVal").textContent = dragSens.toFixed(1) + "×";
+});
 document.getElementById("bSound").onclick = () => { Sfx.toggle(); paintSettings(); };
 document.getElementById("bVibe").onclick = () => {
   if (!navigator.vibrate) return;
