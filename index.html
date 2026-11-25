@@ -278,18 +278,21 @@
   #codeIn{width:100%;height:86px;margin-top:8px;font:14px/1.3 monospace;background:#0c0820;color:#f4f1ff;border:2px solid #ffffff22;border-radius:14px;padding:8px;user-select:text;-webkit-user-select:text}
   .setrow.sens{flex-wrap:wrap;cursor:default}
   .setrow.sens input{width:100%;margin:12px 0 4px;accent-color:#ffd34d;height:28px}
-  /* home scales with the screen: --s is set from the window size (homeScale); portrait = title, worlds in the
-     middle, buttons at the bottom; landscape = worlds on the left, title + buttons on the right */
+  /* home is one vertical column on every screen, scaled to the window height (--s, set by homeScale):
+     title at the top, worlds in the middle, buttons at the bottom */
   #scrHome{--s:1}
   #scrHome > *{max-width:calc(440px * var(--s))}
   #scrHome .mtop .chips span{font-size:calc(16px * var(--s))}
   #scrHome .mtop .icon{width:calc(46px * var(--s));height:calc(46px * var(--s))}
   #scrHome .logo{margin-top:calc(clamp(10px,5vh,70px) * var(--s));font-size:min(13vw,calc(52px * var(--s)))}
+  #scrHome .logo,#scrHome .logo .l2{flex-direction:column}
+  @media (max-height:520px){ #scrHome .orb{width:min(100%,29vh)} #scrHome .logo{margin-top:0} #scrHome .wcar{padding-top:6px;padding-bottom:6px} }
+  #scrHome .logo .l2{transform:rotate(-5deg)} /* the tilted SHIFTER stays on every screen */
   #scrHome .hworld{margin-top:auto;width:100%;max-width:calc(520px * var(--s))}
   #scrHome .carwrap{max-width:none!important;margin-top:calc(8px * var(--s))}
   #scrHome .orb{width:min(100%,calc(250px * var(--s)),38vh)}
-  #scrHome .wcar{padding:12px 13%}
-  #scrHome .wslide{flex-basis:74%}
+  #scrHome .wcar{padding:12px 20%} /* slide = 60% of the strip, 20% each side: every world (first and last too) can sit dead centre */
+  #scrHome .wslide{flex-basis:100%}
   #scrHome .orb .num{font-size:calc(13px * var(--s))}
   #scrHome .wname{font-size:calc(15px * var(--s));margin-top:calc(12px * var(--s))}
   #scrHome .pbar{max-width:calc(220px * var(--s))!important;height:calc(10px * var(--s));margin:calc(6px * var(--s)) auto 0}
@@ -304,18 +307,6 @@
   #scrHome .row3 svg{width:calc(22px * var(--s));height:calc(22px * var(--s))}
   #scrHome .help{margin-top:calc(14px * var(--s));font-size:calc(13px * var(--s))}
   #scrHome .ver{font-size:calc(11px * var(--s))}
-  body.land #scrHome.on{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,1fr);grid-template-rows:auto 1fr auto auto 1fr;
-    grid-template-areas:"top top" "world ." "world logo" "world play" "world .";column-gap:calc(24px * var(--s));align-items:center;justify-items:center}
-  body.land #scrHome > *{max-width:none}
-  body.land #scrHome .mtop{grid-area:top;width:100%}
-  body.land #scrHome .logo{grid-area:logo;margin:0;flex-direction:row;gap:12px;font-size:calc(40px * var(--s))}
-  body.land #scrHome .logo .l2{transform:none}
-  body.land #scrHome .hworld{grid-area:world;margin:0;align-self:center}
-  body.land #scrHome .orb{width:min(100%,58vh)}
-  body.land #scrHome .wcar{padding:8px 20%}
-  body.land #scrHome .wslide{flex-basis:60%}
-  body.land #scrHome .hplay{grid-area:play;margin:0;padding-top:calc(12px * var(--s));max-width:calc(440px * var(--s))}
-  body.land #scrHome .help,body.land #scrHome .ver{display:none}
   #hint{position:fixed;bottom:calc(env(safe-area-inset-bottom) + 14px);left:0;right:0;text-align:center;opacity:.8;pointer-events:none;font-size:14px;padding:0 calc(env(safe-area-inset-right) + 24px) 0 calc(env(safe-area-inset-left) + 24px);text-shadow:0 1px 3px #000;transition:opacity .6s}
   #snapBtns.show ~ #hint, body.snap #hint{padding:0 110px}
   /* short landscape phones: tighter panels */
@@ -354,7 +345,7 @@
       <button id="bBuild" class="b3d teal"><svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 6.5l3 3M4 20l1-4L16 5a2.1 2.1 0 0 1 3 3L8 19z"></path></svg><span>Build</span></button>
     </div></div>
     <p class="help" id="helpText"></p>
-    <p class="ver" id="ver">prototype v0.25</p>
+    <p class="ver" id="ver">prototype v0.26</p>
   </section>
   <section class="mscr" id="scrBuild">
     <div class="prow"><button class="icon" id="bBuildBack" aria-label="Back"><svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"></path></svg></button>
@@ -1984,7 +1975,7 @@ const Sfx = (() => {
   const midi = n => 440 * Math.pow(2, (n - 69) / 12);
   const MODES = {
     minor: [0, 2, 3, 5, 7, 8, 10], dorian: [0, 2, 3, 5, 7, 9, 10], major: [0, 2, 4, 5, 7, 9, 11],
-    lydian: [0, 2, 4, 6, 7, 9, 11], mixo: [0, 2, 4, 5, 7, 9, 10],
+    lydian: [0, 2, 4, 6, 7, 9, 11], mixo: [0, 2, 4, 5, 7, 9, 10], phrygian: [0, 1, 3, 5, 7, 8, 10],
   };
   // prog: chords as scale degrees (0 = home), one per bar. arp: order of chord tones per eighth note.
   const SONGS = [
@@ -1994,6 +1985,14 @@ const Sfx = (() => {
     { name: "Glass", root: 52, mode: "minor", bpm: 84, progs: [[0, 5, 3, 4], [0, 3, 5, 4]], arp: [3, 2, 1, 0, 1, 2, 3, 2], arpWave: "sine", lead: "sine", bassRhythm: [0], drums: "none" },
     { name: "Comet", root: 48, mode: "major", bpm: 118, progs: [[0, 4, 5, 3], [5, 3, 0, 4]], arp: [0, 1, 2, 1, 3, 1, 2, 1], arpWave: "triangle", lead: "square", bassRhythm: [0, 3, 4, 7], drums: "beat" },
     { name: "Deep", root: 55, mode: "mixo", bpm: 96, progs: [[0, 6, 3, 0], [0, 6, 5, 4]], arp: [0, 2, 3, 2, 1, 2, 3, 2], arpWave: "triangle", lead: "triangle", bassRhythm: [0, 5], drums: "soft" },
+    // v0.26: seven more, each with its own groove (drums: half | four | shuffle, swing = late off-beats)
+    { name: "Tide", root: 45, mode: "dorian", bpm: 104, progs: [[0, 3, 4, 3], [0, 6, 3, 4]], arp: [0, 2, 1, 2, 3, 2, 1, 2], arpWave: "sine", lead: "triangle", bassRhythm: [0, 3, 5], drums: "half", swing: 0.14 },
+    { name: "Neon Rain", root: 49, mode: "minor", bpm: 124, progs: [[0, 5, 3, 6], [0, 3, 6, 5]], arp: [0, 1, 2, 3, 0, 1, 2, 3], arpWave: "square", lead: "triangle", bassRhythm: [0, 1, 4, 5], drums: "four" },
+    { name: "Lantern", root: 54, mode: "major", bpm: 78, progs: [[0, 3, 0, 4], [5, 3, 1, 4]], arp: [0, 2, 1, 2, 0, 2, 1, 3], arpWave: "sine", lead: "sine", bassRhythm: [0], drums: "none" },
+    { name: "Orbit", root: 51, mode: "lydian", bpm: 108, progs: [[0, 1, 4, 0], [3, 1, 0, 4]], arp: [0, 3, 1, 3, 2, 3, 1, 3], arpWave: "triangle", lead: "square", bassRhythm: [0, 3, 6], drums: "shuffle", swing: 0.22 },
+    { name: "Ember", root: 47, mode: "phrygian", bpm: 96, progs: [[0, 1, 0, 6], [0, 5, 1, 0]], arp: [0, 0, 1, 0, 2, 0, 1, 3], arpWave: "triangle", lead: "triangle", bassRhythm: [0, 2, 3, 6], drums: "beat" },
+    { name: "Skyline", root: 52, mode: "mixo", bpm: 128, progs: [[0, 6, 3, 4], [0, 4, 6, 3]], arp: [0, 2, 3, 2, 0, 2, 3, 1], arpWave: "square", lead: "triangle", bassRhythm: [0, 2, 4, 6], drums: "four" },
+    { name: "Moss", root: 50, mode: "dorian", bpm: 88, progs: [[0, 4, 3, 0], [5, 4, 3, 1]], arp: [2, 1, 0, 1, 3, 1, 0, 1], arpWave: "sine", lead: "triangle", bassRhythm: [0, 5], drums: "half", swing: 0.1 },
   ];
   // arrangement: which layers play in each 4-bar section (cycles, so the mix shifts every ~10 s)
   const SECTIONS = [
@@ -2034,8 +2033,9 @@ const Sfx = (() => {
     if (nextStep < ac.currentTime) nextStep = ac.currentTime + 0.05; // resync after a pause
     while (nextStep < ac.currentTime + 0.15) {
       if (wantSong !== song && songStep % 8 === 0) { song = wantSong; songStep = 0; } // switch on a bar line
-      const S = SONGS[song], STEP = 60 / S.bpm / 2, t = nextStep;
+      const S = SONGS[song], STEP = 60 / S.bpm / 2;
       const bar = Math.floor(songStep / 8), s = songStep % 8, secN = Math.floor(bar / 4);
+      const t = nextStep + (s % 2 ? (S.swing || 0) * STEP : 0); // swing: off-beat eighths land a little late
       const sec = SECTIONS[secN % SECTIONS.length];
       const prog = S.progs[secN % S.progs.length], deg = prog[bar % prog.length];
       const ch = chordOf(S, deg);
@@ -2058,6 +2058,11 @@ const Sfx = (() => {
         if (s === 0 || (S.drums === "beat" && s === 4)) hit(t, "kick");
         if (S.drums === "beat" && (s === 2 || s === 6)) hit(t, "snare");
         if (S.drums === "soft" && s === 4 && bar % 2 === 1) hit(t, "kick");
+        if (S.drums === "four" && s % 2 === 0) { hit(t, "kick"); if (s === 2 || s === 6) hit(t, "snare"); }
+        if (S.drums === "half" && (s === 0 || (s === 5 && bar % 2))) hit(t, "kick");
+        if (S.drums === "half" && s === 4) hit(t, "snare");
+        if (S.drums === "shuffle" && (s === 0 || s === 3)) hit(t, "kick");
+        if (S.drums === "shuffle" && (s === 2 || s === 6)) hit(t, "snare");
       }
       nextStep += STEP; step++; songStep++;
     }
@@ -2282,11 +2287,9 @@ if (!progress) { // one-time migration from v0.8 and earlier, which keyed stars 
 
 let lowFx = false; // set by watchFrameRate() on phones that can't keep up
 let lightUi = false; // a light level look (Candy, Paper): dark HUD text
-function homeScale() { // menu size: 1 on a ~400x800 phone, bigger on tablets, smaller on tiny / landscape phones
-  const w = window.innerWidth, h = window.innerHeight, land = w > h * 1.15;
-  const sc = land ? Math.min(w / 820, h / 400) : Math.min(w / 400, h / 820);
-  document.body.classList.toggle("land", land);
-  const el = document.getElementById("scrHome"); if (el) el.style.setProperty("--s", Math.max(0.78, Math.min(1.6, sc)).toFixed(3));
+function homeScale() { // menu size follows the screen height (1 on a ~400x820 phone); narrow screens cap it by width
+  const w = window.innerWidth, h = window.innerHeight, sc = Math.min(h / 870, w / 380);
+  const el = document.getElementById("scrHome"); if (el) el.style.setProperty("--s", Math.max(0.5, Math.min(1.6, sc)).toFixed(3));
 }
 function resize() {
   homeScale();
@@ -2702,14 +2705,22 @@ function watchFrameRate(rawMs) {
   }
 }
 
-// ---------- Music choice: three songs, picked at random for each new level ----------
-const MUSIC_PICKS = [0, 2, 4]; // Drift (calm), Pulse (groove), Comet (bright)
-let musicFor = -2, lastSong = -1;
+// ---------- Music choice: a shuffled playlist, a new song for each new level ----------
+// every song plays once before any repeats (shuffle bag), never the same song twice in a row,
+// and a long stay on one level moves on to the next song after MUSIC_SWITCH_SEC
+const MUSIC_PICKS = [0, 2, 4, 6, 7, 8, 9, 10, 11, 12]; // Drift, Pulse, Comet + the 7 from v0.26
+const MUSIC_SWITCH_SEC = 120;
+let musicFor = -2, lastSong = -1, songBag = [], songSince = 0;
 function pickSong() {
-  const opts = MUSIC_PICKS.filter(k => k !== lastSong);
-  lastSong = opts[Math.floor(Math.random() * opts.length)];
+  if (!songBag.length) {
+    songBag = MUSIC_PICKS.slice();
+    for (let i = songBag.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [songBag[i], songBag[j]] = [songBag[j], songBag[i]]; }
+    if (songBag[songBag.length - 1] === lastSong) songBag.unshift(songBag.pop()); // no repeat across reshuffles
+  }
+  lastSong = songBag.pop(); songSince = performance.now();
   return lastSong;
 }
+setInterval(() => { if (lastSong >= 0 && performance.now() - songSince > MUSIC_SWITCH_SEC * 1000 && !document.hidden) Sfx.setSong(pickSong()); }, 5000);
 
 // ---------- Haptics ----------
 let lastBuzz = 0;
@@ -4221,6 +4232,19 @@ else if (Platform.env === "crazygames") loadLevel(nextUnbeaten()); // portals re
 else { loadLevel(Math.max(0, nextPlayable())); state = "paused"; openMenu("home"); if (giftReady()) openGift(); }
 if (/[?&]stats\b/.test(location.search)) openStats();
 if (linkCode && !linkModel) toast("That level link is broken. Ask for the code again?");
+// ---------- Auto-update (website only): GitHub Pages caches the page for ~10 min, so a phone can open an
+// old copy. Ask the server for the newest page; if it is a newer version, reload once on a fresh URL. ----------
+(function checkForUpdate() {
+  if (Platform.env !== "web" || !/^https?:$/.test(location.protocol) || !window.fetch) return;
+  const here = (document.getElementById("ver").textContent.match(/v(\d+)\.(\d+)/) || []).slice(1).map(Number);
+  fetch(location.pathname + "?check=" + Date.now(), { cache: "no-store" }).then(r => r.ok ? r.text() : "").then(txt => {
+    const m = txt.match(/id="ver">prototype v(\d+)\.(\d+)/); if (!m || here.length < 2) return;
+    const newer = +m[1] > here[0] || (+m[1] === here[0] && +m[2] > here[1]);
+    const u = new URL(location.href), tag = m[1] + "." + m[2];
+    if (!newer || u.searchParams.get("v") === tag) return; // already tried this version: don't loop
+    u.searchParams.set("v", tag); location.replace(u.toString());
+  }).catch(() => {});
+})();
 requestAnimationFrame(frame);
 </script>
 </body>
