@@ -36,6 +36,40 @@
   .panel h1{margin:0 0 4px;font-size:26px;letter-spacing:1px}
   .panel h2{margin:0 0 8px;font-size:22px}
   .panel p{opacity:.8;margin:6px 0}
+  .bar{display:flex;justify-content:center;flex-wrap:wrap;gap:6px 12px;font-size:15px;margin:14px 0 4px}
+  .bar span{white-space:nowrap}
+  .bar2{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:8px 0}
+  .bar2 button.ready{border-color:#ffd34d;background:#3a3010;animation:glow 1.4s ease-in-out infinite}
+  @keyframes glow{50%{box-shadow:0 0 14px #ffd34d88}}
+  .wcard{display:block;width:100%;text-align:left;margin-top:10px;padding:12px 14px;border-radius:14px;border:1px solid #3a3a5c;
+         background:linear-gradient(120deg,var(--c0),var(--c1));cursor:pointer}
+  .wcard .t{display:flex;justify-content:space-between;align-items:baseline;font-size:17px;font-weight:600}
+  .wcard .t small{font-weight:400;font-size:13px;opacity:.8}
+  .wcard .pb{height:6px;border-radius:3px;background:#ffffff22;margin:8px 0 6px;overflow:hidden}
+  .wcard .pb i{display:block;height:100%;background:#4fd18b}
+  .wcard .s{font-size:13px;opacity:.85}
+  .wcard.locked{opacity:.92}
+  .wcard .lock{margin-top:8px;font-size:14px}
+  .wcard .lock .acts{display:flex;gap:8px;margin-top:8px}
+  .wcard .lock button{flex:1;min-height:40px;padding:6px 10px;font-size:14px}
+  .wcard.here{border-color:#ffd34d}
+  #levelView{display:none}
+  .lvhead{display:flex;align-items:center;gap:10px;margin-top:12px}
+  .lvhead b{flex:1;text-align:left}
+  .lvhead button{min-height:40px;padding:6px 12px;font-size:14px}
+  .grid button.lock{opacity:.35}
+  .grid button.next{border-color:#ffd34d;box-shadow:0 0 10px #ffd34d55}
+  .steps{display:flex;justify-content:center;gap:6px;margin:8px 0}
+  .steps i{width:30px;height:30px;border-radius:8px;border:1px solid #3a3a5c;font-style:normal;font-size:12px;line-height:30px}
+  .steps i.done{background:#2d6b4a;border-color:#4fd18b}
+  .steps i.now{border-color:#ffd34d;color:#ffd34d}
+  .skins{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin:12px 0}
+  .skins button{display:flex;flex-direction:column;align-items:center;gap:6px;padding:12px 6px}
+  .skins button.on{border-color:#4fd18b}
+  .skins .ball{width:44px;height:44px;border-radius:50%}
+  .skins small{font-size:13px;opacity:.85}
+  #toast{position:fixed;left:50%;top:calc(env(safe-area-inset-top) + 64px);transform:translateX(-50%);background:#11111ef2;border:1px solid #ffd34d;border-radius:14px;
+         padding:14px 18px;font-size:16px;z-index:9;display:none;text-align:center;max-width:86vw}
   .pages{display:grid;grid-template-columns:repeat(5,1fr);gap:5px;margin:12px 0 0}
   .pages button{padding:6px 0;font-size:13px;line-height:1.2;min-height:40px}
   .pages button small{display:block;font-size:10px;color:#ffd34d;min-height:12px}
@@ -82,12 +116,15 @@
     <p>You don't move the ball. You turn the world.</p>
     <button id="bContinue" class="primary big">▶ Play</button>
     <button id="bDaily" class="big" style="font-size:16px;font-weight:500">📅 Daily challenge</button>
-    <p id="worldName" style="font-size:13px;margin:12px 0 0;letter-spacing:1px;text-transform:uppercase;opacity:.7"></p>
-    <p id="totals" style="font-size:13px;margin:8px 0 0"></p>
-    <div class="pages" id="pageTabs"></div>
-    <div class="grid" id="levelGrid"></div>
+    <div class="bar" id="totals"></div>
+    <div class="bar2"><button id="bGift">🎁 Daily gift</button><button id="bShop">🛍 Shop</button></div>
+    <div id="worldList"></div>
+    <div id="levelView">
+      <div class="lvhead"><button id="bBackWorlds">← Worlds</button><b id="lvTitle"></b><span id="lvStars"></span></div>
+      <div class="grid" id="levelGrid"></div>
+    </div>
     <p class="help" id="helpText"></p>
-    <p style="font-size:11px;opacity:.45" id="ver">prototype v0.15</p>
+    <p style="font-size:11px;opacity:.45" id="ver">prototype v0.16</p>
   </div>
 </div>
 
@@ -133,6 +170,29 @@
     <button class="big" id="bEndMenu">Back to the menu</button>
   </div>
 </div>
+
+<div class="overlay" id="gift">
+  <div class="panel">
+    <div style="font-size:46px">🎁</div>
+    <h2 id="giftTitle">Daily gift</h2>
+    <div class="steps" id="giftSteps"></div>
+    <p id="giftText" style="font-size:18px"></p>
+    <button class="primary big" id="bGiftClaim">Claim</button>
+    <button class="big" id="bGiftDouble">Claim ×2 · watch an ad</button>
+  </div>
+</div>
+
+<div class="overlay" id="shop">
+  <div class="panel">
+    <h2>Ball skins</h2>
+    <p id="shopWallet"></p>
+    <div class="skins" id="skinGrid"></div>
+    <p class="help">Earn ◆ from hidden gems, daily gifts and streaks.</p>
+    <button class="primary big" id="bShopClose">Done</button>
+  </div>
+</div>
+
+<div id="toast"></div>
 
 <div class="overlay" id="win">
   <div class="panel">
@@ -1770,7 +1830,7 @@ window.addEventListener("keydown", Sfx.unlock, true);
 //   test       ?platform=test: fake 1-second ads, to try the ad flows anywhere
 const ADS = {
   firstLevel: 12,        // no interstitials before this level: players learn the game ad-free
-  minGapSec: 180,        // at most one interstitial every 3 minutes (CrazyGames' rule; used everywhere)
+  minGapSec: 240,        // at most one interstitial every 4 minutes (networks recommend 3–5 per hour; CrazyGames' own cap is 3 min)
   everyNWins: 3,         // ...and only after every 3rd level completed
   guideOfferDeaths: 5,   // offer "show the landing guide" for a rewarded ad after this many deaths on a level
   skipOfferDeaths: 10,   // offer "skip this level" for a rewarded ad
@@ -2057,6 +2117,149 @@ function predictPath() {
   return { pts, end: null };
 }
 
+// ---------- Economy: stars open worlds, ◆ gems are the currency, daily gift + streak ----------
+// Design and sources: studio/design/progression.md. Tune here after the playtest.
+const ECON = {
+  gemValue: 10,                 // ◆ added to the wallet the first time you collect a level's gem
+  starterGems: 50,
+  gatePct: [0.5, 0.6],          // world k opens at this share of all stars in earlier worlds (50% for World 2 → 60% for the last)
+  earlyWorldCost: 300,          // ◆ to open a world before you have the stars (or 1 rewarded ad)
+  guideCost: 20, skipCost: 60,  // ◆ prices when no ad is available (e.g. the ad-free web version)
+  gift: [10, 15, 20, 25, 30, 40, 60],         // daily gift, 7-step cycle; missing days never resets it
+  giftSkinStep: 7,              // the first cycle's last step also gives the Sunrise skin
+  streakBonus: { 3: 25, 7: 60, 14: 120, 30: 250 },
+  freezeEvery: 7, maxFreezes: 2, // a ❄ freeze every 7 streak days; a missed day uses one instead of resetting
+};
+const SKINS = [
+  { id: "classic", name: "Classic", price: 0, fill: "#f2f4ff", glow: "#cfd8ff", stripe: "#5a6aa8", trail: "#9fb4ff" },
+  { id: "mint", name: "Mint", price: 150, fill: "#c4ffe6", glow: "#4fd18b", stripe: "#1f7a52", trail: "#7cf0b8" },
+  { id: "ember", name: "Ember", price: 200, fill: "#ffd2b0", glow: "#ff7a3d", stripe: "#a8401a", trail: "#ff9a5c" },
+  { id: "ocean", name: "Ocean", price: 250, fill: "#b8ecff", glow: "#3da8ff", stripe: "#1a5aa8", trail: "#6cc6ff" },
+  { id: "neon", name: "Neon", price: 350, fill: "#ffc2f2", glow: "#ff4fd8", stripe: "#8a1a78", trail: "#ff7ae6" },
+  { id: "shadow", name: "Shadow", price: 450, fill: "#2c2c40", glow: "#b36bff", stripe: "#b36bff", trail: "#8a6ad0" },
+  { id: "gold", name: "Gold", price: 600, fill: "#ffe58a", glow: "#ffc400", stripe: "#a87a00", trail: "#ffd34d" },
+  { id: "sunrise", name: "Sunrise", price: -1, fill: "#ffd6b0", glow: "#ff8a7a", stripe: "#d04a6a", trail: "#ffb38a" }, // daily-gift reward
+];
+let econ = null;
+try { econ = JSON.parse(localStorage.getItem("ws_econ") || "null"); } catch (e) { econ = null; }
+if (!econ) econ = {};
+econ = Object.assign({ wallet: null, skipped: {}, worlds: {}, skins: ["classic"], skin: "classic",
+  gift: { last: "", step: 0 }, streak: { n: 0, last: "", freeze: 0, best: 0 } }, econ);
+if (econ.wallet === null) econ.wallet = ECON.starterGems + ECON.gemValue * Object.keys(gems).length; // existing saves keep their gems' worth
+function saveEcon() { try { localStorage.setItem("ws_econ", JSON.stringify(econ)); } catch (e) {} }
+saveEcon();
+const localDay = (d = new Date()) => d.toLocaleDateString("sv"); // YYYY-MM-DD in the player's own time zone
+const dayGap = (a, b) => Math.round((Date.parse(b) - Date.parse(a)) / 86400000);
+const skinNow = () => SKINS.find(k => k.id === econ.skin) || SKINS[0];
+
+// ---- unlocking ----
+const WORLD_SIZE = 50;
+const worldCount = () => Math.ceil(LEVELS.length / WORLD_SIZE);
+const beaten = i => !!progress[LEVELS[i].name];
+const skippedLv = i => !!econ.skipped[LEVELS[i].name];
+const starsIn = k => LEVELS.slice(k * WORLD_SIZE, (k + 1) * WORLD_SIZE).reduce((a, l) => a + (progress[l.name] || 0), 0);
+const totalStars = () => LEVELS.reduce((a, l) => a + (progress[l.name] || 0), 0);
+function gateNeed(k) {
+  if (k === 0) return 0;
+  const pct = ECON.gatePct[0] + (ECON.gatePct[1] - ECON.gatePct[0]) * (k - 1) / Math.max(1, worldCount() - 2);
+  return Math.round(pct * 3 * WORLD_SIZE * k);
+}
+function worldOpen(k) {
+  if (k === 0 || econ.worlds[k] || totalStars() >= gateNeed(k)) return true;
+  for (let i = k * WORLD_SIZE; i < Math.min(LEVELS.length, (k + 1) * WORLD_SIZE); i++) if (beaten(i)) return true; // never lock played worlds
+  return false;
+}
+function levelOpen(i) {
+  if (i < 0 || i >= LEVELS.length) return false;
+  if (beaten(i) || skippedLv(i)) return true;
+  if (!worldOpen(Math.floor(i / WORLD_SIZE))) return false;
+  return i % WORLD_SIZE === 0 || beaten(i - 1) || skippedLv(i - 1);
+}
+// the level Play should start: first open level not beaten (skipped ones last); -1 = waiting on a world gate
+function nextPlayable() {
+  let skippedPick = -1;
+  for (let i = 0; i < LEVELS.length; i++) {
+    if (!levelOpen(i) || beaten(i)) continue;
+    if (!skippedLv(i)) return i;
+    if (skippedPick < 0) skippedPick = i;
+  }
+  return skippedPick;
+}
+function unlockWorld(k, via) {
+  econ.worlds[k] = true; saveEcon();
+  Platform.event("world_unlock", { world: k + 1, via });
+}
+
+// ---- daily gift ----
+const giftReady = () => econ.gift.last !== localDay();
+function giftAmount() { return ECON.gift[econ.gift.step % ECON.gift.length]; }
+function openGift() {
+  const st = econ.gift.step % ECON.gift.length, ready = giftReady();
+  const steps = document.getElementById("giftSteps"); steps.innerHTML = "";
+  ECON.gift.forEach((g, k) => { const i = document.createElement("i"); i.textContent = k + 1; i.className = k < st ? "done" : k === st && ready ? "now" : ""; steps.appendChild(i); });
+  const skin = econ.gift.step + 1 === ECON.giftSkinStep && !econ.skins.includes("sunrise");
+  document.getElementById("giftTitle").textContent = ready ? `Daily gift · day ${st + 1} of ${ECON.gift.length}` : "Come back tomorrow";
+  document.getElementById("giftText").textContent = ready ? `+${giftAmount()} ◆` + (skin ? " and the Sunrise skin" : "") : `Today's gift is claimed. Next: +${giftAmount()} ◆`;
+  document.getElementById("bGiftClaim").textContent = ready ? "Claim" : "OK";
+  document.getElementById("bGiftDouble").style.display = ready && Platform.canReward ? "block" : "none";
+  show("gift");
+}
+function claimGift(mult) {
+  if (!giftReady()) return;
+  const amt = giftAmount() * mult;
+  econ.wallet += amt;
+  if (econ.gift.step + 1 === ECON.giftSkinStep && !econ.skins.includes("sunrise")) econ.skins.push("sunrise");
+  econ.gift.step++; econ.gift.last = localDay(); saveEcon();
+  Platform.event("gift_claim", { step: econ.gift.step, double: mult > 1 });
+  Sfx.gem(); toast(`+${amt} ◆`);
+}
+
+// ---- streak: one per day with a win; freezes cover missed days ----
+function bumpStreak() {
+  const d = localDay(), s = econ.streak;
+  if (s.last === d) return null;
+  let used = 0;
+  if (!s.last) s.n = 1;
+  else {
+    const gap = dayGap(s.last, d);
+    if (gap === 1) s.n++;
+    else if (gap > 1 && gap - 1 <= s.freeze) { used = gap - 1; s.freeze -= used; s.n++; }
+    else s.n = 1;
+  }
+  s.last = d; s.best = Math.max(s.best, s.n);
+  const bonus = ECON.streakBonus[s.n] || 0;
+  econ.wallet += bonus;
+  if (s.n % ECON.freezeEvery === 0 && s.freeze < ECON.maxFreezes) s.freeze++;
+  saveEcon();
+  Platform.event("streak", { days: s.n, bonus, freezesUsed: used });
+  return { n: s.n, bonus, used };
+}
+
+// ---- shop ----
+function openShop() {
+  document.getElementById("shopWallet").textContent = `You have ${econ.wallet} ◆`;
+  const g = document.getElementById("skinGrid"); g.innerHTML = "";
+  for (const k of SKINS) {
+    const owned = econ.skins.includes(k.id), on = econ.skin === k.id, b = document.createElement("button");
+    b.className = on ? "on" : "";
+    b.innerHTML = `<div class="ball" style="background:radial-gradient(circle at 35% 35%,#fff8,${k.fill} 45%,${k.stripe});box-shadow:0 0 14px ${k.glow}"></div>
+      ${k.name}<small>${on ? "Equipped" : owned ? "Tap to use" : k.price < 0 ? "Daily gift reward" : k.price + " ◆"}</small>`;
+    b.onclick = () => {
+      if (owned) { econ.skin = k.id; }
+      else if (k.price > 0 && econ.wallet >= k.price) { econ.wallet -= k.price; econ.skins.push(k.id); econ.skin = k.id; Sfx.gem(); Platform.event("shop_buy", { skin: k.id, price: k.price }); }
+      else { toast(k.price < 0 ? "Collect all 7 daily gifts to get Sunrise" : `You need ${k.price - econ.wallet} more ◆`); return; }
+      saveEcon(); openShop();
+    };
+    g.appendChild(b);
+  }
+  show("shop");
+}
+let toastTimer = null;
+function toast(msg) {
+  const t = document.getElementById("toast"); t.textContent = msg; t.style.display = "block";
+  clearTimeout(toastTimer); toastTimer = setTimeout(() => { t.style.display = "none"; }, 2200);
+}
+
 // ---------- First-time help: tutorial finger, piece cards, world banner ----------
 let banner = null, dailyRun = false, dailyNext = false;
 let seen = {};
@@ -2215,7 +2418,11 @@ function win() {
   const prev = progress[level.name] || 0;
   if (st > prev) { progress[level.name] = st; try { localStorage.setItem("ws_stars", JSON.stringify(progress)); } catch (e) {} }
   const gem = level.objs.find(o => o.t === "gem"), gotGem = !!(gem && gem.got);
-  if (gotGem && !gems[level.name]) { gems[level.name] = true; try { localStorage.setItem("ws_gems", JSON.stringify(gems)); } catch (e) {} }
+  let gemGain = 0;
+  if (gotGem && !gems[level.name]) { gems[level.name] = true; gemGain = ECON.gemValue; econ.wallet += gemGain; try { localStorage.setItem("ws_gems", JSON.stringify(gems)); } catch (e) {} }
+  if (econ.skipped[level.name]) delete econ.skipped[level.name];
+  const streak = window.__botQuiet ? null : bumpStreak();
+  saveEcon();
   Platform.event("level_complete", { level: levelIdx + 1, time: Math.round(t * 100) / 100, stars: st, deaths: deaths.n, gem: !!gotGem });
   lastWin = { n: levelIdx + 1, name: level.name, st, t, deaths: deaths.n, gem: gem ? gotGem : null, daily: dailyRun ? today() : null };
   if (dailyRun && (!daily[today()] || t < daily[today()])) { daily[today()] = Math.round(t * 100) / 100; try { localStorage.setItem("ws_daily", JSON.stringify(daily)); } catch (e) {} }
@@ -2227,6 +2434,10 @@ function win() {
     document.getElementById("winGem").innerHTML = !gem ? "" : gotGem ? '<span style="color:#ff6ad5">◆ Gem collected</span>'
       : gems[level.name] ? '<span style="opacity:.6">◆ Gem already found earlier</span>' : '<span style="opacity:.6">◇ A gem is hidden somewhere here…</span>';
     document.getElementById("bShare").textContent = "Share";
+    const extra = [];
+    if (gemGain) extra.push(`<span style="color:#ff6ad5">+${gemGain} ◆</span>`);
+    if (streak) extra.push(`🔥 ${streak.n}-day streak` + (streak.bonus ? ` · <span style="color:#ff6ad5">+${streak.bonus} ◆</span>` : "") + (streak.used ? " · ❄ freeze used" : ""));
+    if (extra.length) document.getElementById("winGem").innerHTML += "<br>" + extra.join(" · ");
     document.getElementById("bNext").textContent = dailyRun ? "Back to the menu" : levelIdx < LEVELS.length - 1 ? "Next ▶" : "Finish ▶";
     show("win");
     for (let i = 0; i < st; i++) Sfx.star(i);
@@ -2309,7 +2520,7 @@ function render(now) {
   // trail
   for (let i = 0; i < trail.length; i++) {
     const p = trail[i], a = i / trail.length;
-    ctx.globalAlpha = a * 0.35; ctx.fillStyle = "#9fb4ff";
+    ctx.globalAlpha = a * 0.35; ctx.fillStyle = skinNow().trail;
     ctx.beginPath(); ctx.arc(p.x, p.y, BALL_R * a, 0, Math.PI * 2); ctx.fill();
   }
   ctx.globalAlpha = 1;
@@ -2432,10 +2643,11 @@ function drawObj(o, now) {
 
 function drawBall(now) {
   ctx.save(); ctx.translate(ball.x, ball.y);
-  ctx.shadowColor = "#cfd8ff"; ctx.shadowBlur = 20;
-  ctx.fillStyle = "#f2f4ff"; ctx.beginPath(); ctx.arc(0, 0, BALL_R, 0, Math.PI * 2); ctx.fill();
+  const sk = skinNow();
+  ctx.shadowColor = sk.glow; ctx.shadowBlur = 20;
+  ctx.fillStyle = sk.fill; ctx.beginPath(); ctx.arc(0, 0, BALL_R, 0, Math.PI * 2); ctx.fill();
   ctx.shadowBlur = 0; ctx.rotate(ball.spin - angle);
-  ctx.strokeStyle = "#5a6aa8"; ctx.lineWidth = 3;
+  ctx.strokeStyle = sk.stripe; ctx.lineWidth = 3;
   ctx.beginPath(); ctx.moveTo(-BALL_R * 0.6, 0); ctx.lineTo(BALL_R * 0.6, 0); ctx.stroke();
   if (state === "play" && freeze > 0) {
     ctx.strokeStyle = "rgba(255,255,255,0.6)"; ctx.lineWidth = 2;
@@ -2548,41 +2760,75 @@ const worldOf = i => WORLDS[Math.floor(i / MENU_PAGE) % WORLDS.length];
 let menuPage = null;
 function buildMenu() {
   paintContinue(); paintDaily();
-  const stars = LEVELS.reduce((a, l) => a + (progress[l.name] || 0), 0);
-  const gemTotal = LEVELS.filter(l => l.objs.some(o => o.t === "gem")).length;
-  const gemsGot = LEVELS.filter(l => gems[l.name]).length;
-  document.getElementById("totals").innerHTML = `<span style="color:#ffd34d">★ ${stars} / ${LEVELS.length * 3}</span>` +
-    (gemTotal ? ` &nbsp;·&nbsp; <span style="color:#ff6ad5">◆ ${gemsGot} / ${gemTotal}</span>` : "");
-  // pages of MENU_PAGE levels; opens on the page with your first level without stars
-  const pages = Math.ceil(LEVELS.length / MENU_PAGE);
-  if (menuPage === null) { const k = LEVELS.findIndex(l => !progress[l.name]); menuPage = Math.floor(Math.max(0, k) / MENU_PAGE); }
-  const tabs = document.getElementById("pageTabs"); tabs.innerHTML = "";
-  tabs.style.display = pages > 1 ? "grid" : "none";
-  for (let k = 0; k < pages; k++) {
-    const t = document.createElement("button"), a = k * MENU_PAGE, z = Math.min(LEVELS.length, a + MENU_PAGE);
-    const pageStars = LEVELS.slice(a, z).reduce((n, l) => n + (progress[l.name] || 0), 0);
-    t.innerHTML = `${a + 1}–${z}<small>${pageStars ? "★" + pageStars : ""}</small>`;
-    if (k === menuPage) t.classList.add("sel");
-    t.onclick = () => { menuPage = k; buildMenu(); };
-    tabs.appendChild(t);
+  const st = econ.streak, gemTotal = LEVELS.filter(l => l.objs.some(o => o.t === "gem")).length;
+  const alive = st.last && dayGap(st.last, localDay()) <= 1 + st.freeze ? st.n : 0;
+  document.getElementById("totals").innerHTML =
+    `<span title="Day streak">🔥 ${alive}${st.freeze ? ` <small>❄${st.freeze}</small>` : ""}</span>` +
+    `<span style="color:#ff6ad5" title="Gems to spend">◆ ${econ.wallet}</span>` +
+    `<span style="color:#ffd34d" title="Stars">★ ${totalStars()} / ${LEVELS.length * 3}</span>` +
+    `<span style="opacity:.75" title="Hidden gems found">◇ ${LEVELS.filter(l => gems[l.name]).length}/${gemTotal}</span>`;
+  document.getElementById("bGift").classList.toggle("ready", giftReady());
+  document.getElementById("bGift").textContent = giftReady() ? "🎁 Daily gift!" : "🎁 Daily gift";
+  const list = document.getElementById("worldList"), view = document.getElementById("levelView");
+  list.style.display = menuPage === null ? "block" : "none";
+  view.style.display = menuPage === null ? "none" : "block";
+  if (menuPage === null) {
+    list.innerHTML = "";
+    const here = Math.floor(Math.max(0, nextPlayable()) / WORLD_SIZE);
+    for (let k = 0; k < worldCount(); k++) {
+      const w = WORLDS[k % WORLDS.length], a = k * WORLD_SIZE, z = Math.min(LEVELS.length, a + WORLD_SIZE);
+      const done = LEVELS.slice(a, z).filter((l, j) => beaten(a + j)).length, open = worldOpen(k);
+      const found = LEVELS.slice(a, z).filter(l => gems[l.name]).length;
+      const c = document.createElement("div");
+      c.className = "wcard" + (open ? "" : " locked") + (k === here && open ? " here" : "");
+      c.style.setProperty("--c0", w.c0); c.style.setProperty("--c1", "#11111e");
+      c.innerHTML = `<div class="t"><span>${open ? "" : "🔒 "}World ${k + 1} · ${w.name}</span><small>${a + 1}–${z}</small></div>
+        <div class="pb"><i style="width:${Math.round(100 * done / (z - a))}%"></i></div>
+        <div class="s">${done}/${z - a} levels · <span style="color:#ffd34d">★ ${starsIn(k)}/${(z - a) * 3}</span> · <span style="color:#ff6ad5">◇ ${found}</span></div>`;
+      if (!open) {
+        const need = gateNeed(k), have = totalStars(), lock = document.createElement("div");
+        lock.className = "lock";
+        lock.innerHTML = `Opens at <b style="color:#ffd34d">${need}★</b> · you have ${have}★<div class="acts"></div>`;
+        const acts = lock.querySelector(".acts");
+        if (Platform.canReward) { const b = document.createElement("button"); b.textContent = "▶ Watch an ad"; b.onclick = async e => { e.stopPropagation(); if (await Platform.rewarded()) { unlockWorld(k, "ad"); buildMenu(); } }; acts.appendChild(b); }
+        const g = document.createElement("button"); g.textContent = `Open for ${ECON.earlyWorldCost} ◆`;
+        g.onclick = e => { e.stopPropagation(); if (econ.wallet < ECON.earlyWorldCost) { toast(`You need ${ECON.earlyWorldCost - econ.wallet} more ◆`); return; } econ.wallet -= ECON.earlyWorldCost; unlockWorld(k, "gems"); buildMenu(); };
+        acts.appendChild(g);
+        c.appendChild(lock);
+      }
+      c.onclick = () => { if (!open) { toast(`World ${k + 1} opens at ${gateNeed(k)}★. Replay levels for more stars.`); return; } menuPage = k; buildMenu(); };
+      list.appendChild(c);
+    }
+  } else {
+    const k = menuPage, w = WORLDS[k % WORLDS.length], a = k * WORLD_SIZE, z = Math.min(LEVELS.length, a + WORLD_SIZE);
+    document.getElementById("lvTitle").textContent = `World ${k + 1} · ${w.name}`;
+    document.getElementById("lvStars").innerHTML = `<span style="color:#ffd34d">★ ${starsIn(k)}/${(z - a) * 3}</span>`;
+    const grid = document.getElementById("levelGrid"); grid.innerHTML = "";
+    const nx = nextPlayable();
+    for (let i = a; i < z; i++) {
+      const l = LEVELS[i], b = document.createElement("button"), sts = progress[l.name] || 0, open = levelOpen(i);
+      b.className = !open ? "lock" : i === nx ? "next" : "";
+      b.innerHTML = `${open ? i + 1 : "🔒"}<small>${sts ? "★".repeat(sts) : skippedLv(i) ? "⏭" : ""}${gems[l.name] ? '<span style="color:#ff6ad5">◆</span>' : ""}</small>`;
+      b.title = l.name;
+      b.onclick = () => { if (open) loadLevel(i); else toast(worldOpen(k) ? "Beat the level before it first" : `World ${k + 1} opens at ${gateNeed(k)}★`); };
+      grid.appendChild(b);
+    }
   }
-  document.getElementById("worldName").textContent = `World ${menuPage + 1} · ${WORLDS[menuPage % WORLDS.length].name}`;
-  const grid = document.getElementById("levelGrid"); grid.innerHTML = "";
-  LEVELS.forEach((l, i) => {
-    if (Math.floor(i / MENU_PAGE) !== menuPage) return;
-    const b = document.createElement("button");
-    const st = progress[l.name] || 0;
-    b.innerHTML = `${i + 1}<small>${st ? "★".repeat(st) : ""}${gems[l.name] ? '<span style="color:#ff6ad5">◆</span>' : ""}</small>`;
-    b.title = l.name;
-    b.onclick = () => loadLevel(i);
-    grid.appendChild(b);
-  });
 }
 function next() {
   hide("win");
   if (dailyRun) { buildMenu(); show("menu"); return; } // the daily is a one-off: back to the menu
   // the only place an interstitial can appear (Platform decides: never on the web, capped elsewhere)
-  Platform.betweenLevels(levelIdx + 1, () => { if (levelIdx < LEVELS.length - 1) loadLevel(levelIdx + 1); else showEnding(); });
+  Platform.betweenLevels(levelIdx + 1, goNext);
+}
+// on to the next level, or to the world list when the next world is still locked
+function goNext() {
+  const n = levelIdx + 1;
+  if (n >= LEVELS.length) return showEnding();
+  if (levelOpen(n)) return loadLevel(n);
+  const k = Math.floor(n / WORLD_SIZE);
+  menuPage = null; buildMenu(); show("menu");
+  toast(`World ${k + 1} opens at ${gateNeed(k)}★ · you have ${totalStars()}★`);
 }
 // UI click sound on every button (level grid included)
 document.addEventListener("click", e => { if (e.target.closest("button") && !e.target.closest("#snapBtns")) Sfx.click(); });
@@ -2624,15 +2870,17 @@ document.getElementById("bVibe").onclick = () => {
 };
 
 // ---------- Menu: Play / Resume, help text for this device ----------
-function nextUnbeaten() { const k = LEVELS.findIndex(l => !progress[l.name]); return k < 0 ? 0 : k; }
+function nextUnbeaten() { const k = nextPlayable(); return k < 0 ? 0 : k; }
 function paintContinue() {
   const b = document.getElementById("bContinue");
   const inRun = level && state === "paused" && dropped;
-  b.textContent = inRun ? `▶ Resume · Level ${levelIdx + 1}` : `▶ Play · Level ${nextUnbeaten() + 1}`;
+  const nx = nextPlayable();
+  b.textContent = inRun ? `▶ Resume · Level ${levelIdx + 1}` : nx < 0 ? "🔒 Next world: get more ★" : `▶ Play · Level ${nx + 1}`;
 }
 document.getElementById("bContinue").onclick = () => {
   if (level && state === "paused" && dropped) { hide("menu"); state = "play"; }
-  else loadLevel(nextUnbeaten());
+  else if (nextPlayable() < 0) { menuPage = null; buildMenu(); toast("Replay levels for more ★ to open the next world"); }
+  else loadLevel(nextPlayable());
 };
 document.getElementById("helpText").innerHTML = COARSE
   ? "Drag or draw circles to turn the world · tap or turn to drop the ball · ⚙ for music, sound and controls"
@@ -2670,27 +2918,41 @@ document.getElementById("bShare").onclick = async () => {
 
 document.getElementById("bCard").onclick = () => { hide("card"); if (state === "paused") state = "play"; };
 
+document.getElementById("bBackWorlds").onclick = () => { menuPage = null; buildMenu(); };
+document.getElementById("bGift").onclick = openGift;
+document.getElementById("bGiftClaim").onclick = () => { claimGift(1); hide("gift"); buildMenu(); };
+document.getElementById("bGiftDouble").onclick = async () => { if (await Platform.rewarded()) { claimGift(2); hide("gift"); buildMenu(); } };
+document.getElementById("bShop").onclick = openShop;
+document.getElementById("bShopClose").onclick = () => { hide("shop"); buildMenu(); };
+
 // ---------- Rewarded help: a stuck player can watch an ad for the landing guide, or to skip the level ----------
+// paid with a rewarded ad where ads exist, otherwise with ◆ (the ad-free web version)
 function offerKind() {
-  if (!level || !Platform.canReward || !deaths || dailyRun) return null;
-  if (deaths.n >= ADS.skipOfferDeaths && levelIdx < LEVELS.length - 1) return "skip";
-  if (deaths.n >= ADS.guideOfferDeaths && !guideOn()) return "guide";
-  return null;
+  if (!level || !deaths || dailyRun) return null;
+  let k = null;
+  if (deaths.n >= ADS.skipOfferDeaths && levelIdx < LEVELS.length - 1 && !beaten(levelIdx)) k = "skip";
+  else if (deaths.n >= ADS.guideOfferDeaths && !guideOn()) k = "guide";
+  if (!k) return null;
+  const cost = k === "skip" ? ECON.skipCost : ECON.guideCost;
+  if (Platform.canReward) return { k, via: "ad", cost };
+  return econ.wallet >= cost ? { k, via: "gems", cost } : null;
 }
 function paintOffer() {
-  const k = offerKind(), box = document.getElementById("offer");
-  box.classList.toggle("show", !!k);
-  if (k) document.getElementById("bOffer").textContent = k === "skip" ? "⏭ Skip this level · watch an ad" : "💡 Landing guide · watch an ad";
+  const o = offerKind(), box = document.getElementById("offer");
+  box.classList.toggle("show", !!o);
+  if (o) document.getElementById("bOffer").textContent = (o.k === "skip" ? "⏭ Skip this level" : "💡 Landing guide") + (o.via === "ad" ? " · watch an ad" : ` · ${o.cost} ◆`);
 }
 document.getElementById("bOffer").onclick = async () => {
-  const k = offerKind(); if (!k) return;
+  const o = offerKind(); if (!o) return;
   const was = state; state = "paused";
-  Platform.event("reward_offer_taken", { kind: k, level: levelIdx + 1, deaths: deaths.n });
-  const ok = await Platform.rewarded();
+  Platform.event("reward_offer_taken", { kind: o.k, via: o.via, level: levelIdx + 1, deaths: deaths.n });
+  let ok = false;
+  if (o.via === "ad") ok = await Platform.rewarded();
+  else if (econ.wallet >= o.cost) { econ.wallet -= o.cost; saveEcon(); ok = true; }
   state = was === "dead" ? "play" : was;
   if (!ok) { paintOffer(); return; }
-  if (k === "guide") { guideBoost[level.name] = true; paintOffer(); }
-  else loadLevel(levelIdx + 1); // skipped: no stars, the level stays open to beat later
+  if (o.k === "guide") { guideBoost[level.name] = true; paintOffer(); }
+  else { econ.skipped[level.name] = true; saveEcon(); goNext(); } // skipped: no stars, it stays open to beat later
 };
 
 // ---------- Daily challenge: one level a day, the same for everyone ----------
@@ -2764,7 +3026,7 @@ function fullExport() {
     for (let k = 0; k < g.p.length / 2; k += step) pts.push(g.p[2 * k], g.p[2 * k + 1]);
     ghostsLite[name] = { t: Math.round(g.t * 100) / 100, hz: GHOST_HZ / step, p: pts };
   }
-  return statsTSV() + "\n---WSDATA---\n" + JSON.stringify({ v: document.getElementById("ver").textContent, order: LEVELS.map(l => l.name), stats, ghosts: ghostsLite, stars: progress, gems, errors: Platform.errors, platform: Platform.env });
+  return statsTSV() + "\n---WSDATA---\n" + JSON.stringify({ v: document.getElementById("ver").textContent, order: LEVELS.map(l => l.name), stats, ghosts: ghostsLite, stars: progress, gems, econ, errors: Platform.errors, platform: Platform.env });
 }
 document.getElementById("bSaveStats").onclick = () => {
   const a = document.createElement("a");
@@ -2811,7 +3073,7 @@ Platform.init();
 if (!Platform.sharing) for (const id of ["bShare", "bEndShare"]) document.getElementById(id).style.display = "none";
 if (linkLevel >= 1 && linkLevel <= LEVELS.length) loadLevel(linkLevel - 1); // shared link: straight in
 else if (Platform.env === "crazygames") loadLevel(nextUnbeaten()); // portals require landing in gameplay
-else { loadLevel(0); show("menu"); state = "paused"; }
+else { loadLevel(Math.max(0, nextPlayable())); show("menu"); state = "paused"; menuPage = null; buildMenu(); if (giftReady()) openGift(); }
 if (/[?&]stats\b/.test(location.search)) openStats();
 requestAnimationFrame(frame);
 </script>
