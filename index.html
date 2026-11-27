@@ -286,7 +286,7 @@
   #scrHome .mtop .icon{width:calc(46px * var(--s));height:calc(46px * var(--s))}
   #scrHome .logo{margin-top:calc(clamp(10px,5vh,70px) * var(--s));font-size:min(13vw,calc(52px * var(--s)))}
   #scrHome .logo,#scrHome .logo .l2{flex-direction:column}
-  @media (max-height:520px){ #scrHome .orb{width:min(100%,29vh)} #scrHome .logo{margin-top:0} #scrHome .wcar{padding-top:6px;padding-bottom:6px} }
+  @media (max-height:520px){ #scrHome .orb{width:min(100%,22vh)} #scrHome .rowon{margin-top:6px} #scrHome .b3d{min-height:0} #scrHome .logo{margin-top:0} #scrHome .wcar{padding-top:6px;padding-bottom:6px} }
   #scrHome .logo .l2{transform:rotate(-5deg)} /* the tilted SHIFTER stays on every screen */
   #scrHome .hworld{margin-top:auto;width:100%;max-width:calc(520px * var(--s))}
   #scrHome .carwrap{max-width:none!important;margin-top:calc(8px * var(--s))}
@@ -335,6 +335,17 @@
   .likebtn{margin-top:8px;background:#e45cc6!important;color:#fff!important;border:0;border-radius:14px;font-weight:800;padding:8px 16px;box-shadow:0 4px 0 #a03490}
   .likebtn.done{background:#5a3a7a!important;box-shadow:none}
   body.duo #bMenu, body.duo #bSettings, body.duo #offer, body.duo #hint { display: none !important; }
+  .rowon{display:grid;grid-template-columns:1fr auto;gap:8px;margin-top:12px}
+  .rowon .b3d{height:58px;gap:10px;padding:0 14px}
+  .rowon #bHomeOnline span{display:flex;flex-direction:column;align-items:flex-start;line-height:1.05}
+  .rowon #bHomeOnline b{font-size:20px}.rowon #bHomeOnline small{font-size:13px;opacity:.85}
+  .rowon #bDuo{flex-direction:column;gap:0;font-size:14px;width:72px}
+  #scrHome .rowon{margin-top:calc(12px * var(--s));gap:calc(8px * var(--s))}
+  #scrHome .rowon .b3d{height:calc(58px * var(--s));border-radius:calc(20px * var(--s))}
+  #scrHome .rowon #bHomeOnline b{font-size:calc(20px * var(--s))}
+  #scrHome .rowon #bHomeOnline small{font-size:calc(13px * var(--s))}
+  #scrHome .rowon #bDuo{width:calc(72px * var(--s));font-size:calc(14px * var(--s))}
+  #scrHome .rowon svg{width:calc(24px * var(--s));height:calc(24px * var(--s))}
   #hint{position:fixed;bottom:calc(env(safe-area-inset-bottom) + 14px);left:0;right:0;text-align:center;opacity:.8;pointer-events:none;font-size:14px;padding:0 calc(env(safe-area-inset-right) + 24px) 0 calc(env(safe-area-inset-left) + 24px);text-shadow:0 1px 3px #000;transition:opacity .6s}
   #snapBtns.show ~ #hint, body.snap #hint{padding:0 110px}
   /* short landscape phones: tighter panels */
@@ -366,6 +377,10 @@
     <div class="pbar"><i id="homeBar"></i></div>
     <div class="psub" id="homeSub"></div></div>
     <div class="hplay"><button id="bContinue" class="b3d play"><svg aria-hidden="true" width="30" height="30" viewBox="0 0 24 24"><path d="M7 4.5v15l13-7.5z" fill="currentColor"></path></svg><span><b id="playMain">PLAY</b><small id="playSub"></small></span></button>
+    <div class="rowon">
+      <button id="bHomeOnline" class="b3d pink"><svg aria-hidden="true" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round"><circle cx="12" cy="12" r="9"></circle><path d="M3 12h18M12 3c2.8 3 2.8 15 0 18M12 3c-2.8 3-2.8 15 0 18"></path></svg><span><b>Online levels</b><small>Made by players</small></span></button>
+      <button id="bDuo" class="b3d blue" aria-label="2-player race"><svg aria-hidden="true" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round"><circle cx="8" cy="9" r="3"></circle><circle cx="16.5" cy="9" r="3"></circle><path d="M2.5 19c.8-3 3-4.5 5.5-4.5s4.7 1.5 5.5 4.5M11.5 19c.8-3 2.6-4.5 5-4.5s4.2 1.5 5 4.5"></path></svg><span>2P</span></button>
+    </div>
     <div class="row3 four">
       <button id="bDaily" class="b3d blue"><svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><rect x="3.5" y="5" width="17" height="15" rx="3"></rect><path d="M3.5 10h17M8 3v4M16 3v4"></path></svg><span id="dailyLabel">Daily</span><span class="badge" id="dailyBadge">NEW</span></button>
       <button id="bGift" class="b3d orange"><svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><rect x="3.5" y="9" width="17" height="11" rx="2"></rect><path d="M2.5 9h19v-2.5h-19zM12 6.5V20M12 6.5C10 2.5 6 3.5 7.5 6.5M12 6.5c2-4 6-3 4.5 0"></path></svg><span>Gift</span><span class="dot" id="giftDot"></span></button>
@@ -373,7 +388,7 @@
       <button id="bBuild" class="b3d teal"><svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 6.5l3 3M4 20l1-4L16 5a2.1 2.1 0 0 1 3 3L8 19z"></path></svg><span>Build</span></button>
     </div></div>
     <p class="help" id="helpText"></p>
-    <p class="ver" id="ver">prototype v0.38</p>
+    <p class="ver" id="ver">prototype v0.39</p>
   </section>
   <section class="mscr" id="scrBuild">
     <div class="prow"><button class="icon" id="bBuildBack" aria-label="Back"><svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"></path></svg></button>
@@ -2411,7 +2426,7 @@ if (!progress) { // one-time migration from v0.8 and earlier, which keyed stars 
 let lowFx = false; // set by watchFrameRate() on phones that can't keep up
 let lightUi = false; // a light level look (Candy, Paper): dark HUD text
 function homeScale() { // menu size follows the screen height (1 on a ~400x820 phone); narrow screens cap it by width
-  const w = window.innerWidth, h = window.innerHeight, sc = Math.min(h / 870, w / 380);
+  const w = window.innerWidth, h = window.innerHeight, sc = Math.min(h / 940, w / 380);
   const el = document.getElementById("scrHome"); if (el) el.style.setProperty("--s", Math.max(0.5, Math.min(1.6, sc)).toFixed(3));
 }
 function resize() {
@@ -4546,6 +4561,11 @@ function diffLabel(d) {
 }
 let onTab = "new";
 async function paintOnline() {
+  if (!Online.ready()) {
+    document.getElementById("onTabs").innerHTML = "";
+    document.getElementById("onList").innerHTML = `<p class="empty">🌐 Online levels are opening soon!<br><br>Until then: build a level under <b>Build</b>, beat it, and send the link to friends.</p>`;
+    return;
+  }
   const tabs = document.getElementById("onTabs"); tabs.innerHTML = "";
   for (const [id, label] of [["new", "New"], ["popular", "Popular"], ["hard", "Hard"], ["mine", "Mine"]]) {
     const b = document.createElement("button"); b.className = onTab === id ? "on" : ""; b.textContent = label;
@@ -4589,8 +4609,13 @@ async function publishMine(i) {
   try { row.online = await Online.publish(row.m); saveMine(); toast("Published! Players can find it under New"); Platform.event("builder_publish", { pieces: row.m.objs.length }); paintMine(); }
   catch (e) { toast("Couldn't publish right now. Try again later"); }
 }
-document.getElementById("bOnline").onclick = () => openMenu("online");
-document.getElementById("bOnlineBack").onclick = () => openMenu("build");
+let onlineFrom = "home";
+document.getElementById("bOnline").onclick = () => { onlineFrom = "build"; openMenu("online"); };
+document.getElementById("bHomeOnline").onclick = () => { onlineFrom = "home"; openMenu("online"); };
+document.getElementById("bOnlineBack").onclick = () => openMenu(onlineFrom);
+// 2-player race: the test page next to the game (website only: store / portal builds don't ship it)
+document.getElementById("bDuo").onclick = () => { location.href = "duo.html"; };
+if (Platform.env !== "web") document.getElementById("bDuo").style.display = "none";
 
 // ---- the editor: pieces on a grid, drag to move, handles to size and turn, pinch / wheel to zoom ----
 let editing = false, ed = null, edSlot = -1, edSel = null, edUndo = [], edGest = null;

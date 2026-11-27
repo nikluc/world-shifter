@@ -24,6 +24,7 @@
   #start p{margin:0;opacity:.8;max-width:420px;line-height:1.4}
   button{font:inherit;font-weight:900;font-size:22px;border:0;border-radius:20px;padding:14px 34px;background:#46d38a;color:#0b2a1a;box-shadow:0 6px 0 #23955a;cursor:pointer}
   #again{display:none}
+  .back{color:#c9b8ff;font-weight:800;text-decoration:none;font-size:17px;padding:8px}
 </style>
 </head>
 <body>
@@ -36,8 +37,9 @@
   <h1>2-player race (test)</h1>
   <p>Same level, two worlds. Turn your own half of the screen (phone) or use A / D and ← / → (keyboard). First to land wins the round. First to 3 wins the match.</p>
   <button id="go">Start</button>
+  <a class="back" href="index.html">‹ Back to the game</a>
 </div>
-<div id="again"><h1 id="winner"></h1><button id="re">Play again</button></div>
+<div id="again"><h1 id="winner"></h1><button id="re">Play again</button><a class="back" href="index.html">‹ Back to the game</a></div>
 <script>
 "use strict";
 const ROUNDS_TO_WIN = 3;
