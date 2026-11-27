@@ -372,7 +372,7 @@
       <button id="bBuild" class="b3d teal"><svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 6.5l3 3M4 20l1-4L16 5a2.1 2.1 0 0 1 3 3L8 19z"></path></svg><span>Build</span></button>
     </div></div>
     <p class="help" id="helpText"></p>
-    <p class="ver" id="ver">prototype v0.34</p>
+    <p class="ver" id="ver">prototype v0.35</p>
   </section>
   <section class="mscr" id="scrBuild">
     <div class="prow"><button class="icon" id="bBuildBack" aria-label="Back"><svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"></path></svg></button>
@@ -551,6 +551,9 @@ const GHOST_HZ = 30;      // best-run ghost samples per second
 const GLUE_RELEASE = 0.5; // glue lets go once gravity pulls away from it at >= this fraction of G (~60° turn)
 const DRAG_SENS_DEFAULT = 1.0; // drag turn speed multiplier; players change it in Settings (0.5–2.5)
 const HIT_FEEDBACK_SPEED = 350;
+// slow motion after a death / a landing: [time scale, seconds held, seconds to ease back] (real time)
+const SLOWMO_DEATH = [0.3, 0.3, 0.35];  // short: deaths happen a lot and the retry must stay quick
+const SLOWMO_WIN = [0.22, 0.75, 0.6];
 const WATER_GRAVITY = 0.32;  // water: gravity is this share of G (you sink slowly)...
 const WATER_DRAG = 2.4;      // ...speed bleeds off at this rate per second...
 const WATER_MAX_SPEED = 360; // ...and is capped, so the ball is easy to steer in water
@@ -2424,7 +2427,7 @@ function loadLevel(i, override) {
   if (level) leaveRun(i !== levelIdx);
   if (override !== undefined) levelOverride = override; else if (i < LEVELS.length) levelOverride = null;
   levelIdx = i; level = levelOverride || LEVELS[i];
-  rec = []; ghost = ghosts[level.name] || null; landFx = null;
+  rec = []; ghost = ghosts[level.name] || null; landFx = null; if (typeof slowmo !== "undefined") slowmo = null;
   spawnT = SPAWN_T; ballSq = 0; rings = []; hudStars = 3; hitStop = 0;
   for (const o of level.objs) if (o.bx === undefined) { o.bx = o.x; o.by = o.y; o.ba = o.a || 0; }
   for (const o of level.objs) if (o.t === "portal") o.pair = level.objs.find(q => q !== o && q.t === "portal" && q.link === o.link);
@@ -2981,7 +2984,7 @@ function update(dt) {
 function die(kind) {
   state = "dead"; deadT = 0.75; deaths.n++; shake = 1;
   if (!level.custom && !dailyRun && econ.combo) { econ.combo = 0; saveEcon(); }
-  burst(ball.x, ball.y, "#ff4d6d", 24); deathFx(kind);
+  burst(ball.x, ball.y, "#ff4d6d", 24); deathFx(kind); slowMo(SLOWMO_DEATH);
   floaters = floaters.filter(f => !WORDS.near.includes(f.text)); // no "Close!" over the spot you just died
   floatText(ball.x, ball.y - 30, nextWord(kind === "void" ? "void" : "dead"), "#ff6b86");
   if (kind === "void") Sfx.fall(); else Sfx.spike();
@@ -2999,7 +3002,7 @@ function win(goalHit) {
   Platform.setPlaying(false);
   buzz([20, 60, 20, 60, 40]);
   const t = timer, st = t <= level.par[0] ? 3 : t <= level.par[1] ? 2 : 1;
-  landingFx(goalHit, level.custom === "test" ? 3 : st);
+  landingFx(goalHit, level.custom === "test" ? 3 : st); slowMo(SLOWMO_WIN);
   if (deaths.n === 0 && stat().tries === 1) floatText(ball.x, ball.y - 78, "FIRST TRY!", "#4fe39a");
   const pb = level.custom ? null : stats[level.name] && stats[level.name].best;
   if (pb !== null && pb !== undefined && t < pb - 0.005) { floatText(ball.x, ball.y - 116, "NEW BEST!", "#42c8ff"); if (ghost) ring(ball.x, ball.y, "#9fe8ff", 140, 0.6, 5); }
@@ -3664,7 +3667,7 @@ function drawBall(now) {
   const bl = themeNow().ballLine; if (bl) { ctx.shadowBlur = 0; ctx.strokeStyle = bl; ctx.lineWidth = 2.5; ctx.stroke(); }
   ctx.shadowBlur = 0; ctx.rotate(ball.spin - angle);
   if (sk.art) paintSkinArt(ctx, sk, BALL_R);
-  else { ctx.strokeStyle = sk.stripe; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(-BALL_R * 0.6, 0); ctx.lineTo(BALL_R * 0.6, 0); ctx.stroke(); }
+  else if (!eyesOn) { ctx.strokeStyle = sk.stripe; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(-BALL_R * 0.6, 0); ctx.lineTo(BALL_R * 0.6, 0); ctx.stroke(); } // the roll stripe only without a face
   ctx.rotate(-(ball.spin - angle)); if (!lowFx) skinShine(ctx, BALL_R, !!sk.art);
   if (eyesOn && !(sk.art && sk.art.k === "face")) drawEyes(now);
   ctx.rotate(ball.spin - angle);
@@ -4909,9 +4912,17 @@ window.addEventListener("pagehide", () => { if (level) leaveRun(false); if (edit
 
 // ---------- Loop ----------
 let last = performance.now();
+let slowmo = null;
+function slowMo([scale, hold, ease]) { slowmo = { t: 0, scale, hold, ease }; }
 function frame(now) {
   watchFrameRate(now - last);
-  const dt = Math.min(1 / 30, (now - last) / 1000); last = now;
+  let dt = Math.min(1 / 30, (now - last) / 1000); last = now;
+  if (slowmo) { // game time runs slow, then eases back to normal
+    slowmo.t += dt;
+    const q = slowmo.t - slowmo.hold, sc = q <= 0 ? slowmo.scale : slowmo.scale + (1 - slowmo.scale) * Math.min(1, q / slowmo.ease);
+    if (q >= slowmo.ease) slowmo = null;
+    dt *= sc;
+  }
   if (editing) { renderEditor(now); requestAnimationFrame(frame); return; }
   if (level) update(dt);
   render(now);
