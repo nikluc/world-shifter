@@ -373,7 +373,7 @@
       <button id="bBuild" class="b3d teal"><svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 6.5l3 3M4 20l1-4L16 5a2.1 2.1 0 0 1 3 3L8 19z"></path></svg><span>Build</span></button>
     </div></div>
     <p class="help" id="helpText"></p>
-    <p class="ver" id="ver">prototype v0.37</p>
+    <p class="ver" id="ver">prototype v0.38</p>
   </section>
   <section class="mscr" id="scrBuild">
     <div class="prow"><button class="icon" id="bBuildBack" aria-label="Back"><svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"></path></svg></button>
@@ -2434,7 +2434,7 @@ function loadLevel(i, override) {
   if (level) leaveRun(i !== levelIdx);
   if (override !== undefined) levelOverride = override; else if (i < LEVELS.length) levelOverride = null;
   levelIdx = i; level = levelOverride || LEVELS[i];
-  rec = []; ghost = ghosts[level.name] || null; landFx = null; if (typeof slowmo !== "undefined") slowmo = null;
+  rec = []; ghost = DUO ? null : ghosts[level.name] || null; landFx = null; rival = null; if (typeof slowmo !== "undefined") slowmo = null;
   spawnT = SPAWN_T; ballSq = 0; rings = []; hudStars = 3; hitStop = 0;
   for (const o of level.objs) if (o.bx === undefined) { o.bx = o.x; o.by = o.y; o.ba = o.a || 0; }
   for (const o of level.objs) if (o.t === "portal") o.pair = level.objs.find(q => q !== o && q.t === "portal" && q.link === o.link);
@@ -3134,6 +3134,7 @@ function burst(x, y, color, n) {
 }
 // landing on the goal: rings, a flash, a zoom kick, confetti that falls toward the screen bottom, stars over the goal
 let landFx = null;
+let rival = null; // 2-player: the other player's ball
 // short words that pop up in the level, drawn from a shuffle bag so the same one doesn't keep repeating
 const WORDS = {
   near: ["Close!", "Phew!", "Whoa!", "Nice dodge!", "Too close!", "Yikes!", "Barely!", "Smooth!", "Clutch!", "Zoom!", "Risky!", "Inches!", "Daredevil!", "Wild!", "Slick!"],
@@ -3333,6 +3334,18 @@ function render(now) {
     ctx.stroke();
   }
 
+  // 2-player: the other player's ball, live, in their colour
+  if (DUO && rival && level) {
+    rival.dx += (rival.x - rival.dx) * 0.35; rival.dy += (rival.y - rival.dy) * 0.35;
+    const col = DUO_SEAT === 1 ? "#ff6ad5" : "#4fc3ff";
+    ctx.globalAlpha = rival.dead ? 0.25 : 0.6; ctx.fillStyle = col; ctx.shadowColor = col; ctx.shadowBlur = 16;
+    ctx.beginPath(); ctx.arc(rival.dx, rival.dy, BALL_R, 0, Math.PI * 2); ctx.fill(); ctx.shadowBlur = 0;
+    ctx.save(); ctx.translate(rival.dx, rival.dy); ctx.rotate(-angle); ctx.globalAlpha = 0.9;
+    ctx.font = "800 15px 'Baloo 2', system-ui"; ctx.textAlign = "center"; ctx.lineWidth = 4; ctx.strokeStyle = "#0c0820";
+    const tag = rival.dead ? "💥" : DUO_SEAT === 1 ? "P2" : "P1";
+    ctx.strokeText(tag, 0, -BALL_R - 6); ctx.fillStyle = col; ctx.fillText(tag, 0, -BALL_R - 6); ctx.restore();
+    ctx.globalAlpha = 1;
+  }
   // best-run ghost
   if (ghost && dropped && (state === "play" || state === "dead") && timer <= ghost.t + 0.4) {
     const n = ghost.p.length / 2, k = Math.min(n - 1, Math.floor(timer * GHOST_HZ));
@@ -4305,7 +4318,10 @@ let mine = [];
 try { mine = JSON.parse(localStorage.getItem("ws_mine") || "[]"); if (!Array.isArray(mine)) mine = []; } catch (e) { mine = []; }
 function saveMine() { try { localStorage.setItem("ws_mine", JSON.stringify(mine)); } catch (e) {} }
 let customFrom = "build"; // where "back" goes after playing a player-made level: build | link
-function playCustom(m, from) { customFrom = from; loadLevel(LEVELS.length, customLevel(m, "play")); }
+function playCustom(m, from) {
+  if (!m.clearT) { toast("This level was never beaten by its maker, so it can't be played"); return false; } // shared codes always carry the maker's clear
+  customFrom = from; loadLevel(LEVELS.length, customLevel(m, "play")); return true;
+}
 function leaveCustom() {
   hide("win"); stopCelebration();
   if (level.custom === "test") return openEditor(edSlot);
@@ -4440,7 +4456,7 @@ document.getElementById("bCodeCancel").onclick = () => hide("codePanel");
 document.getElementById("bCodePlay").onclick = () => {
   const m = decodeLevel(document.getElementById("codeIn").value);
   if (!m) { toast("That code doesn't work. Copy the whole link?"); return; }
-  hide("codePanel"); playCustom(m, "build");
+  if (playCustom(m, "build")) hide("codePanel");
 };
 document.getElementById("bEditBack").onclick = () => { if (level && level.custom === "test") { if (state === "play") state = "paused"; openEditor(edSlot); } };
 
@@ -4566,7 +4582,7 @@ async function paintOnline() {
 function burstHearts(el) { const r = el.getBoundingClientRect(); for (let k = 0; k < 8; k++) { const h = document.createElement("div"); h.className = "flygem"; h.textContent = "♥"; document.body.appendChild(h);
   const a = h.animate([{ transform: `translate(${r.left + r.width / 2}px,${r.top}px) scale(.6)`, opacity: 1 }, { transform: `translate(${r.left + r.width / 2 + (Math.random() - 0.5) * 160}px,${r.top - 80 - Math.random() * 80}px) scale(1.2)`, opacity: 0 }], { duration: 700 + Math.random() * 300, easing: "ease-out" });
   a.onfinish = () => h.remove(); } }
-function playOnline(m, id) { customFrom = "online"; loadLevel(LEVELS.length, customLevel(m, "play")); level.onlineId = id; }
+function playOnline(m, id) { if (!m.clearT) { toast("This level was never beaten by its maker"); return; } customFrom = "online"; loadLevel(LEVELS.length, customLevel(m, "play")); level.onlineId = id; }
 async function publishMine(i) {
   const row = mine[i];
   if (!isCleared(row.m)) { toast("Beat your level once (▶ Test) to publish it"); return; }
@@ -4969,8 +4985,10 @@ if (DUO) { // 2-player test: the race page (duo.html) drives this copy
     if (m.duo === "go") { freeze = 0; launch(); }
     if (m.duo === "key") { keys[m.dir] = m.down; }
     if (m.duo === "stop") { state = "paused"; }
+    if (m.duo === "rival") { if (!rival) rival = { dx: m.x, dy: m.y }; Object.assign(rival, { x: m.x, y: m.y, dead: m.dead }); }
   });
   parent.postMessage({ duo: "ready", seat: DUO_SEAT }, "*");
+  setInterval(() => { if (level && ball) parent.postMessage({ duo: "pos", seat: DUO_SEAT, x: ball.x, y: ball.y, dead: state === "dead" }, "*"); }, 50); // 20x a second
 }
 if (DUO) {} // nothing else at boot
 else if (linkModel) playCustom(linkModel, "link"); // a friend's own level

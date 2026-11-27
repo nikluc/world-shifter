@@ -61,6 +61,7 @@ function nextRound() {
 window.addEventListener("message", e => {
   const m = e.data || {};
   if (m.duo === "ready") ready++;
+  if (m.duo === "pos") send(3 - m.seat, { duo: "rival", x: m.x, y: m.y, dead: m.dead }); // each player sees the other's ball
   if (m.duo === "win" && roundOpen) {
     roundOpen = false; score[m.seat]++; paint();
     both({ duo: "stop" });
