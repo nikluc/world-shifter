@@ -367,7 +367,7 @@
       <button id="bBuild" class="b3d teal"><svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 6.5l3 3M4 20l1-4L16 5a2.1 2.1 0 0 1 3 3L8 19z"></path></svg><span>Build</span></button>
     </div></div>
     <p class="help" id="helpText"></p>
-    <p class="ver" id="ver">prototype v0.30</p>
+    <p class="ver" id="ver">prototype v0.31</p>
   </section>
   <section class="mscr" id="scrBuild">
     <div class="prow"><button class="icon" id="bBuildBack" aria-label="Back"><svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"></path></svg></button>
@@ -537,11 +537,15 @@ const GUIDE_TIME = 1.2;   // seconds of predicted path
 const GHOST_HZ = 30;      // best-run ghost samples per second
 const GLUE_RELEASE = 0.5; // glue lets go once gravity pulls away from it at >= this fraction of G (~60° turn)
 const DRAG_SENS_DEFAULT = 1.0; // drag turn speed multiplier; players change it in Settings (0.5–2.5)
-const HIT_FEEDBACK_SPEED = 350; // wall hits harder than this shake the screen + vibrate
+const HIT_FEEDBACK_SPEED = 350;
+const WATER_GRAVITY = 0.32;  // water: gravity is this share of G (you sink slowly)...
+const WATER_DRAG = 2.4;      // ...speed bleeds off at this rate per second...
+const WATER_MAX_SPEED = 360; // ...and is capped, so the ball is easy to steer in water // wall hits harder than this shake the screen + vibrate
 
 // ---------- Levels ----------
 // objs: rect centred at x,y with size w,h, rotated a degrees. t: wall | spike | goal | bounce | ice | glue | portal
 //   ice: no grip, barely bounces · glue: holds the ball until gravity pulls it away (GLUE_RELEASE)
+//   water: not solid; while the ball's centre is inside, gravity is weaker and the ball slows (WATER_*)
 //   portal: needs link: "a" — touching one sends the ball to the centre of the other with the same velocity
 //   gem: optional collectible (one per level, placed by tools/place_gems.py); counts if you win in the same run
 //   m: [dx, dy, period]  → slides back and forth by ±dx/±dy every `period` seconds
@@ -1978,6 +1982,10 @@ function mergeSpikes(L) {
   return merged;
 }
 const SPIKES_MERGED = LEVELS.reduce((n, L) => n + mergeSpikes(L), 0);
+// water pools added to generated levels by tools/place_water.py (bot-checked: still winnable by a human, gem
+// still collectable). Kept apart from the recipes so genLevel stays frozen. { level name: [x, y, w, h] }
+const WATER = {"Twisted Fall":[220,-40,200,160],"Shimmering Rift":[-100,140,200,160],"Silent Teeth":[80,-200,120,120],"Twisted Echo":[-160,-220,120,120],"Silent Turn":[130,260,200,160],"Crimson Crossing":[120,170,200,160],"Iron Ladder":[-110,420,200,160],"Lucky Ramp":[-70,140,200,160],"Rusty Turn":[-160,70,200,160],"Velvet Echo":[240,100,200,160],"Silent Shaft":[200,80,100,170],"Sudden Ladder":[-140,-140,120,120],"Rusty Well":[-80,-400,200,160],"Golden Lantern":[10,-70,120,120],"Twisted Gate":[-140,70,200,160],"Golden Ramp":[100,-450,200,160],"Lonely Chamber":[180,200,160,220],"Golden Edge":[-30,160,150,150],"Quiet Maze":[-30,140,200,160],"Rusty Ladder":[70,-110,120,120],"Restless Fall":[130,-160,150,150],"Burning Ladder":[90,-0.0,200,160],"Crimson Echo":[150,150,100,170],"Gentle Loop":[-130,-90,200,160],"Lucky Maze":[220,80,200,160],"Burning Teeth":[-20,60,200,160],"Narrow Drift":[-80,180,200,160],"Rusty Gate":[450,20,150,150],"Fragile Garden":[-370,-80,200,160],"Velvet Maze":[300,-180,120,120],"Gentle Drop":[220,80,200,160],"Hollow Passage":[-120,270,200,160],"Gentle Teeth":[240,120,200,160],"Wild Rift":[-290,170,200,160],"Broken Ramp":[90,-340,200,160],"Rusty Orbit":[-10,160,200,160],"Narrow Gate":[-360,190,200,160],"Frozen Spiral":[120,-100,200,160],"Wild Gate":[-110,320,200,160],"Crimson Hollow":[20,-150,160,220],"Silent Passage":[50,-120,200,160],"Fragile Maze":[290,90,200,160],"Burning Gate":[80,-80,200,160],"Narrow Maze":[90,120,200,160],"Velvet Ledge":[-80,-310,200,160]};
+for (const L of LEVELS) { const w = WATER[L.name]; if (w) L.objs.unshift({ x: w[0], y: w[1], w: w[2], h: w[3], t: "water" }); }
 // Daily challenge: its own level each day, the same for everyone, never one of the 500 (so it can't
 // spoil or unlock levels ahead). 605 generator levels that passed every bot check but weren't picked
 // for the run, medium difficulty (bot score 1.5-3.8). [type, seed, difficulty, 3★ seconds]
@@ -2182,6 +2190,10 @@ const Sfx = (() => {
       [523, 659, 784, 1047].forEach(f => tone(f, 1.5, { type: "triangle", vol: 0.055, delay: 0.42, attack: 0.25 }));
       [4186, 3136, 3520, 2637, 3136, 2349, 2637, 2093, 3136, 4186].forEach((f, i) => tone(f, 0.13, { vol: 0.032, delay: 0.45 + i * 0.055 }));
     },
+    splash(v = 0.5) {
+      noise(0.3, { vol: 0.08 + 0.12 * v, freq: 1400, slide: 0.35 }); tone(320, 0.18, { vol: 0.05, slide: 0.5 });
+      [0.06, 0.13, 0.2].forEach((d, i) => tone(500 + i * 180 + Math.random() * 120, 0.07, { vol: 0.04, slide: 1.8, delay: d })); // bubbles
+    },
     rocket() { tone(500, 0.4, { type: "sine", vol: 0.025, slide: 2.6 }); noise(0.35, { vol: 0.025, freq: 3000, type: "highpass" }); },
     pop() {
       noise(0.28, { vol: 0.13, freq: 800, slide: 0.4 }); tone(90, 0.2, { vol: 0.12, slide: 0.5 });
@@ -2382,6 +2394,7 @@ function loadLevel(i, override) {
   for (const o of level.objs) if (o.bx === undefined) { o.bx = o.x; o.by = o.y; o.ba = o.a || 0; }
   for (const o of level.objs) if (o.t === "portal") o.pair = level.objs.find(q => q !== o && q.t === "portal" && q.link === o.link);
   for (const o of level.objs) if (o.t === "gem") o.got = false;
+  level.hasWater = level.objs.some(o => o.t === "water");
   worldT = 0; placeObjs(0);
   ball ={ x: level.start[0], y: level.start[1], vx: 0, vy: 0, spin: 0 };
   angle = 0; angVel = 0; targetAngle = 0;
@@ -2447,10 +2460,17 @@ function respond(b, o, c, h) {
   b.vx -= tx * vt * k; b.vy -= ty * vt * k;
   return -vn;
 }
+function inRect(o, x, y) {
+  const dx = x - o.x, dy = y - o.y, lx = dx * o._c + dy * o._s, ly = -dx * o._s + dy * o._c;
+  return Math.abs(lx) <= o.w / 2 && Math.abs(ly) <= o.h / 2;
+}
+function inWater(b) { if (!level.hasWater) return false; for (const o of level.objs) if (o.t === "water" && inRect(o, b.x, b.y)) return true; return false; }
 function stepBody(b, gx, gy, h) {
+  const wet = inWater(b);
+  if (wet) { gx *= WATER_GRAVITY; gy *= WATER_GRAVITY; const k = Math.max(0, 1 - WATER_DRAG * h); b.vx *= k; b.vy *= k; }
   b.vx += gx * h; b.vy += gy * h;
-  const sp = Math.hypot(b.vx, b.vy);
-  if (sp > MAX_SPEED) { b.vx *= MAX_SPEED / sp; b.vy *= MAX_SPEED / sp; }
+  const sp = Math.hypot(b.vx, b.vy), cap = wet ? Math.max(WATER_MAX_SPEED, 0) : MAX_SPEED;
+  if (sp > cap) { const k = wet ? Math.max(cap / sp, 1 - 6 * h) : cap / sp; b.vx *= k; b.vy *= k; } // entering water brakes fast, not instantly
   b.x += b.vx * h; b.y += b.vy * h;
 }
 
@@ -2466,12 +2486,14 @@ function stuckOnGlue(b, gx, gy) {
 // one physics substep for body b, shared by the real ball and the preview.
 // onEvent(kind, o, impact) hears "portal" / "hit"; returns "spike" | "goal" | null
 function physStep(b, gx, gy, h, onEvent) {
+  if (b === ball && level.hasWater) { const w = inWater(b); if (w !== !!b.wet) { b.wet = w; if (onEvent) onEvent("splash", null, Math.hypot(b.vx, b.vy)); } }
   if (b.lock && !collide(b.lock, BALL_R, b)) b.lock = null; // left the exit portal: it works again
   if (!stuckOnGlue(b, gx, gy)) stepBody(b, gx, gy, h);
   for (const o of level.objs) {
     const c = collide(o, BALL_R, b);
     if (!c) continue;
     if (o.t === "gem") { if (b === ball && !o.got) { o.got = true; if (onEvent) onEvent("gem", o, 0); } continue; }
+    if (o.t === "water") continue;
     if (o.t === "spike" || o.t === "goal") return o.t;
     if (o.t === "portal") {
       if (b.lock === o || !o.pair) continue;
@@ -2491,6 +2513,10 @@ function onBallEvent(kind, o, imp) {
     if (!gems[level.name]) floatText(o.x, o.y - 10, `+${ECON.gemValue} ◆`, "#ff6ad5");
     try { flyGem(o.x, o.y); } catch (e) {}
     return;
+  }
+  if (kind === "splash") {
+    burst(ball.x, ball.y, "#7cc8ff", imp > 250 ? 18 : 8); if (imp > 120) ring(ball.x, ball.y, "#9fd8ff", 60, 0.4, 4);
+    Sfx.splash(Math.min(1, imp / 600)); if (imp > 250) buzz(8); return;
   }
   if (kind === "portal") { burst(ball.x, ball.y, PORTAL_COLORS[o.link] || "#b36bff", 14); Sfx.portal(); buzz(10); trail = []; return; }
   if (imp > 140) { ballSq = Math.max(ballSq, Math.min(0.32, imp / 1800 + (o.t === "bounce" ? 0.12 : 0))); ballSqA = Math.atan2(ball.ny || 0, ball.nx || 1); }
@@ -2758,13 +2784,14 @@ const CARDS = {
   glue: { icon: "🟩", title: "Glue", text: "Green glue holds the ball still while you turn the world. Turn far enough and it lets go." },
   ice: { icon: "🧊", title: "Ice", text: "Blue ice has no grip: whatever speed you build, you keep. Tilt back to slow down." },
   portal: { icon: "🌀", title: "Portals", text: "Portals come in pairs. Go in one, come out the other at the same speed." },
+  water: { icon: "💧", title: "Water", text: "In water you sink slowly and the world is easy to steer. Use it to slow a fall, or to line up a tricky drop." },
   gem: { icon: "◆", title: "Hidden gems", text: "Some levels hide a ◆ gem off the safe path. Grab it and still finish to collect it." },
 };
 function maybeCard() {
   const has = {
     moving: level.objs.some(o => o.m || o.spin), bounce: level.objs.some(o => o.t === "bounce"),
     glue: level.objs.some(o => o.t === "glue"), ice: level.objs.some(o => o.t === "ice"),
-    portal: level.objs.some(o => o.t === "portal"), gem: levelIdx > 0 && level.objs.some(o => o.t === "gem"),
+    portal: level.objs.some(o => o.t === "portal"), water: level.objs.some(o => o.t === "water"), gem: levelIdx > 0 && level.objs.some(o => o.t === "gem"),
   };
   const k = Object.keys(CARDS).find(m => has[m] && !seen[m]);
   if (!k) return;
@@ -2902,6 +2929,7 @@ function update(dt) {
   const sx = ball.vx * Math.cos(angle) - ball.vy * Math.sin(angle);
   ball.spin += sx / BALL_R * dt;
   trail.push({ x: ball.x, y: ball.y }); if (trail.length > 18) trail.shift();
+  if (ball.wet && Math.random() < dt * 9) particles.push({ x: ball.x + (Math.random() - 0.5) * 12, y: ball.y, vx: -Math.sin(angle) * 60, vy: -Math.cos(angle) * 60, life: 0.7, color: "rgba(190,230,255,0.8)", bub: true });
   if (level.cam === "follow") { const k = Math.min(1, dt * 6); cam.x += (ball.x - cam.x) * k; cam.y += (ball.y - cam.y) * k; }
 }
 
@@ -3215,7 +3243,8 @@ function render(now) {
     ctx.beginPath(); ctx.arc(0, 0, level.bounds, 0, Math.PI * 2); ctx.stroke(); ctx.setLineDash([]);
   }
 
-  for (const o of level.objs) drawObj(o, now);
+  for (const o of level.objs) if (o.t === "water") drawObj(o, now);
+  for (const o of level.objs) if (o.t !== "water") drawObj(o, now);
 
   if (showDeaths && stats[level.name]) { // designer view: where players died
     ctx.strokeStyle = "rgba(255,90,120,0.75)"; ctx.lineWidth = 3;
@@ -3272,7 +3301,8 @@ function render(now) {
   }
   for (const p of particles) {
     ctx.globalAlpha = Math.max(0, Math.min(1, p.life)); ctx.fillStyle = p.color;
-    if (p.ghost) { ctx.globalAlpha = p.life / 0.6 * 0.8; ctx.beginPath(); ctx.arc(p.x, p.y, BALL_R * (p.life / 0.6), 0, Math.PI * 2); ctx.fill(); }
+    if (p.bub) { ctx.globalAlpha = Math.max(0, p.life) * 0.9; ctx.strokeStyle = p.color; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.arc(p.x, p.y, 3 + (0.7 - p.life) * 4, 0, Math.PI * 2); ctx.stroke(); }
+    else if (p.ghost) { ctx.globalAlpha = p.life / 0.6 * 0.8; ctx.beginPath(); ctx.arc(p.x, p.y, BALL_R * (p.life / 0.6), 0, Math.PI * 2); ctx.fill(); }
     else if (p.shard) { ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(p.rot); ctx.beginPath(); ctx.moveTo(-p.w / 2, p.w / 3); ctx.lineTo(p.w / 2, p.w / 2.5); ctx.lineTo(0, -p.w / 2); ctx.closePath(); ctx.fill(); ctx.restore(); }
     else if (p.conf) { ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(p.rot); ctx.fillRect(-p.w / 2, -p.w / 4, p.w, p.w / 2 * (0.4 + Math.abs(Math.sin(p.rot * 2)))); ctx.restore(); }
     else { ctx.beginPath(); ctx.arc(p.x, p.y, 4, 0, Math.PI * 2); ctx.fill(); }
@@ -3413,6 +3443,17 @@ function drawObj(o, now) {
     ctx.setLineDash([4, 8]); ctx.lineDashOffset = now / 60;
     ctx.beginPath(); ctx.arc(0, 0, r * 0.55, 0, Math.PI * 2); ctx.stroke();
     ctx.setLineDash([]);
+  } else if (o.t === "water") {
+    ctx.fillStyle = "rgba(40,140,255,0.22)"; ctx.fillRect(-hw, -hh, o.w, o.h);
+    ctx.save(); ctx.beginPath(); ctx.rect(-hw, -hh, o.w, o.h); ctx.clip();
+    ctx.strokeStyle = "rgba(160,220,255,0.35)"; ctx.lineWidth = 2;
+    for (let y = -hh + 14; y < hh; y += 22) { // gentle moving waves
+      ctx.beginPath();
+      for (let x = -hw; x <= hw; x += 8) ctx.lineTo(x, y + Math.sin(x / 18 + now / 380 + y) * 3);
+      ctx.stroke();
+    }
+    ctx.restore();
+    ctx.strokeStyle = "rgba(140,210,255,0.7)"; ctx.lineWidth = 2; ctx.setLineDash([10, 6]); ctx.strokeRect(-hw, -hh, o.w, o.h); ctx.setLineDash([]);
   } else if (o.t === "bounce") {
     ctx.fillStyle = "#4a2a08"; ctx.fillRect(-hw, -hh, o.w, o.h);
     ctx.strokeStyle = "#ffa640"; ctx.lineWidth = 2; ctx.shadowColor = "#ffa640"; ctx.shadowBlur = 12;
@@ -4029,7 +4070,7 @@ const BUILD = {
   arenaHalf: { S: 220, M: 300, L: 400, O: 0 },  // box half-size in world units
   arenaName: { S: "Small box", M: "Box", L: "Big box", O: "Open void" },
   openBounds: 620,
-  size: { wall: [160, 20], spike: [120, 20], bounce: [120, 20], ice: [160, 20], glue: [120, 20], goal: [120, 20], portal: [60, 60], gem: [26, 26] },
+  size: { wall: [160, 20], spike: [120, 20], bounce: [120, 20], ice: [160, 20], glue: [120, 20], goal: [120, 20], portal: [60, 60], gem: [26, 26], water: [200, 160] },
   minSize: 20, maxSize: 900,
   slide: 80, slidePeriod: 2.6, spin: 60,       // motion: slide ±80 every 2.6 s, or spin 60°/s
   grid: 10, rotStep: 15,
@@ -4037,9 +4078,9 @@ const BUILD = {
 };
 const PIECES = [
   ["wall", "Wall", "#6b6bff"], ["spike", "Spikes", "#ff4d6d"], ["goal", "Goal", "#4fd18b"], ["bounce", "Bounce", "#ffa640"],
-  ["ice", "Ice", "#8fe3ff"], ["glue", "Glue", "#b6e34f"], ["portal", "Portals", "#b36bff"], ["gem", "Gem", "#ff6ad5"],
+  ["ice", "Ice", "#8fe3ff"], ["glue", "Glue", "#b6e34f"], ["portal", "Portals", "#b36bff"], ["water", "Water", "#3da8ff"], ["gem", "Gem", "#ff6ad5"],
 ];
-const PIECE_CODE = { wall: "w", spike: "s", bounce: "b", ice: "i", glue: "g", goal: "o", gem: "e", portal: "p" };
+const PIECE_CODE = { wall: "w", spike: "s", bounce: "b", ice: "i", glue: "g", goal: "o", gem: "e", portal: "p", water: "q" };
 const CODE_PIECE = Object.fromEntries(Object.entries(PIECE_CODE).map(([k, v]) => [v, k]));
 const MOTIONS = ["Still", "↔ Slide", "↕ Slide", "⟳ Spin"];
 const customName = n => `${GEN_A[n % GEN_A.length]} ${GEN_B[Math.floor(n / GEN_A.length) % GEN_B.length]}`;
@@ -4390,8 +4431,9 @@ function edPick(x, y) {
     for (const key of ["size", "turn"]) if (hs[key] && Math.hypot(hs[key][0] - x, hs[key][1] - y) < 22 / k) return { kind: key, o: edSel };
   }
   if (Math.hypot(ed.start[0] - x, ed.start[1] - y) < BALL_R + pad) return { kind: "move", o: "start" };
-  for (let i = ed.objs.length - 1; i >= 0; i--) {
+  for (const wantWater of [false, true]) for (let i = ed.objs.length - 1; i >= 0; i--) { // pieces first, water (drawn behind) last
     const o = ed.objs[i], [lx, ly] = edLocal(o, x, y);
+    if ((o.t === "water") !== wantWater) continue;
     if (Math.abs(lx) <= o.w / 2 + pad && Math.abs(ly) <= o.h / 2 + pad) return { kind: "move", o };
   }
   return null;
@@ -4479,7 +4521,7 @@ function renderEditor(now) {
   const prep = o => { o.bx = o.x; o.by = o.y; o._ang = (o.a || 0) * Math.PI / 180; o._c = Math.cos(o._ang); o._s = Math.sin(o._ang); return o; };
   if (hw) for (const o of box(hw, hw)) drawObj(prep(o), now);
   else { ctx.strokeStyle = "rgba(255,77,109,0.35)"; ctx.lineWidth = 3; ctx.setLineDash([14, 14]); ctx.beginPath(); ctx.arc(0, 0, BUILD.openBounds, 0, Math.PI * 2); ctx.stroke(); ctx.setLineDash([]); }
-  for (const o of ed.objs) {
+  for (const o of [...ed.objs].sort((a, b) => (b.t === "water") - (a.t === "water"))) { // water behind the rest
     const q = prep({ t: o.t, x: o.x, y: o.y, w: o.w, h: o.h, a: o.a, link: o.link });
     if (o.mo === 1 || o.mo === 2) { // slide range: faint copies at both ends
       const dx = o.mo === 1 ? BUILD.slide : 0, dy = o.mo === 2 ? BUILD.slide : 0;
