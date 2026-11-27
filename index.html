@@ -345,7 +345,7 @@
       <button id="bBuild" class="b3d teal"><svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 6.5l3 3M4 20l1-4L16 5a2.1 2.1 0 0 1 3 3L8 19z"></path></svg><span>Build</span></button>
     </div></div>
     <p class="help" id="helpText"></p>
-    <p class="ver" id="ver">prototype v0.26</p>
+    <p class="ver" id="ver">prototype v0.27</p>
   </section>
   <section class="mscr" id="scrBuild">
     <div class="prow"><button class="icon" id="bBuildBack" aria-label="Back"><svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"></path></svg></button>
@@ -1930,13 +1930,39 @@ function buildLevels() {
   return RUN.map(e => typeof e === "string" ? byName[e] : genLevel(e));
 }
 const LEVELS = buildLevels();
+// spikes that overlap end-to-end on the same line (same angle, thickness and centre line) are drawn as one
+// long spike. Their union is exactly the merged rectangle, so collisions, and every bot-checked solution, stay the same.
+function mergeSpikes(L) {
+  const sp = L.objs.filter(o => o.t === "spike" && !o.m && !o.spin);
+  let merged = 0, again = true;
+  while (again) {
+    again = false;
+    outer: for (let i = 0; i < sp.length; i++) for (let j = i + 1; j < sp.length; j++) {
+      const A = sp[i], B = sp[j];
+      if (((A.a || 0) - (B.a || 0)) % 180 !== 0) continue;
+      const aLong = A.w >= A.h, bLong = B.w >= B.h;
+      const thA = aLong ? A.h : A.w, thB = bLong ? B.h : B.w;
+      if (aLong !== bLong || Math.abs(thA - thB) > 0.5) continue;
+      const r = (A.a || 0) * Math.PI / 180, ux = aLong ? Math.cos(r) : -Math.sin(r), uy = aLong ? Math.sin(r) : Math.cos(r);
+      const dx = B.x - A.x, dy = B.y - A.y, along = dx * ux + dy * uy, across = -dx * uy + dy * ux;
+      const lenA = aLong ? A.w : A.h, lenB = bLong ? B.w : B.h;
+      if (Math.abs(across) > 0.5 || Math.abs(along) > (lenA + lenB) / 2 + 0.5) continue; // not on one line, or a gap
+      const lo = Math.min(-lenA / 2, along - lenB / 2), hi = Math.max(lenA / 2, along + lenB / 2), mid = (lo + hi) / 2;
+      A.x += ux * mid; A.y += uy * mid;
+      if (aLong) A.w = hi - lo; else A.h = hi - lo;
+      L.objs.splice(L.objs.indexOf(B), 1); sp.splice(j, 1); merged++; again = true; break outer;
+    }
+  }
+  return merged;
+}
+const SPIKES_MERGED = LEVELS.reduce((n, L) => n + mergeSpikes(L), 0);
 // Daily challenge: its own level each day, the same for everyone, never one of the 500 (so it can't
 // spoil or unlock levels ahead). 605 generator levels that passed every bot check but weren't picked
 // for the run, medium difficulty (bot score 1.5-3.8). [type, seed, difficulty, 3★ seconds]
 const DAILY_POOL = [["room", 3, 0.54, 9],["room", 4, 0.1, 4],["room", 8, 0.96, 7],["room", 14, 0.7, 4],["tower", 19, 0.78, 22],["room", 25, 0.93, 11],["room", 32, 0.21, 4],["void", 33, 0.63, 5],["tower", 37, 0.09, 16],["room", 41, 0.23, 4],["room", 45, 0.49, 6],["void", 58, 0.21, 4],["room", 59, 0.93, 14],["room", 60, 0.58, 6],["room", 67, 0.77, 4],["void", 75, 0.44, 4],["room", 100, 0.45, 6],["void", 101, 0.19, 4],["room", 117, 0.16, 7],["tower", 118, 0.18, 13],["void", 122, 0.6, 4],["tower", 140, 0.1, 49],["room", 149, 0.25, 4],["tower", 150, 0.9, 31],["room", 165, 0.96, 7],["room", 166, 0.6, 9],["room", 176, 0.77, 6],["room", 183, 0.75, 4],["room", 192, 0.3, 10],["void", 195, 0.04, 4],["room", 203, 0.84, 6],["room", 223, 0.44, 9],["tower", 225, 0.24, 21],["void", 226, 0.86, 6],["room", 239, 0.83, 17],["room", 254, 0.25, 4],["room", 267, 0.44, 4],["tower", 270, 0.36, 16],["room", 273, 0.63, 4],["tower", 275, 0.83, 31],["room", 276, 0.2, 6],["room", 280, 0.66, 6],["room", 281, 0.25, 6],["tower", 289, 0.27, 9],["room", 299, 0.72, 11],["tower", 318, 0.05, 38],["tower", 329, 0.31, 20],["room", 332, 0.53, 6],["void", 333, 0.35, 4],["room", 339, 0.98, 9],["room", 343, 0.76, 11],["room", 347, 0.47, 4],["room", 357, 0.94, 6],["tower", 358, 0.24, 14],["room", 359, 0.5, 4],["room", 375, 0.25, 4],["room", 377, 0.09, 6],["room", 378, 0.71, 16],["void", 392, 0.45, 4],["room", 396, 0.66, 9],["room", 403, 0.34, 9],["tower", 409, 0.55, 17],["room", 416, 0.01, 12],["room", 428, 0.05, 4],["room", 433, 0.5, 8],["void", 437, 0.1, 4],["room", 451, 0.13, 21],["room", 453, 0.53, 4],["void", 462, 0.07, 4],["room", 470, 0.35, 4],["room", 488, 0.73, 5],["room", 505, 0.84, 6],["room", 514, 0.63, 8],["room", 521, 0.86, 7],["room", 522, 0.39, 8],["tower", 525, 0.97, 15],["room", 533, 0.69, 9],["room", 538, 0.05, 11],["room", 539, 0.75, 8],["void", 554, 0.17, 4],["room", 555, 0.16, 4],["tower", 560, 0.04, 16],["room", 571, 0.87, 6],["tower", 581, 0.18, 18],["void", 583, 0.11, 4],["room", 585, 0.72, 5],["tower", 586, 0.12, 23],["room", 590, 0.05, 8],["tower", 606, 0.06, 18],["room", 623, 0.17, 9],["tower", 631, 0.34, 18],["room", 632, 0.95, 9],["room", 635, 0.78, 6],["room", 645, 0.15, 5],["room", 649, 0.23, 5],["tower", 654, 0.38, 22],["void", 657, 0.79, 4],["room", 658, 0.06, 4],["tower", 664, 0.91, 16],["room", 667, 0.43, 7],["room", 672, 0.21, 6],["void", 674, 0.08, 5],["room", 675, 0.35, 6],["void", 681, 0.32, 4],["room", 683, 0.88, 12],["room", 684, 0.6, 13],["void", 689, 0.86, 4],["room", 690, 0.46, 4],["room", 700, 0.19, 4],["room", 716, 0.74, 4],["room", 718, 0.63, 4],["tower", 734, 0.79, 19],["room", 750, 0.14, 4],["void", 752, 0.72, 4],["room", 760, 0.86, 5],["room", 765, 0.24, 8],["tower", 767, 0.72, 19],["room", 770, 0.91, 9],["room", 773, 0.67, 4],["room", 780, 0.81, 9],["tower", 791, 0.59, 16],["void", 792, 0.52, 4],["room", 801, 0.36, 4],["tower", 810, 0.57, 26],["room", 823, 0.87, 4],["room", 825, 0.98, 4],["room", 829, 0.47, 6],["void", 833, 0.29, 5],["void", 839, 0.11, 5],["room", 846, 0.49, 4],["tower", 876, 0.73, 17],["room", 877, 0.85, 6],["room", 888, 0.58, 8],["room", 890, 0.31, 7],["void", 895, 0.03, 4],["tower", 905, 0.35, 21],["room", 914, 0.8, 6],["tower", 923, 0.16, 13],["room", 940, 0.27, 7],["room", 944, 0.92, 4],["room", 947, 0.28, 4],["room", 949, 0.37, 9],["room", 986, 0.88, 5],["void", 987, 0.53, 5],["room", 993, 0.08, 4],["tower", 999, 0.08, 12],["room", 1015, 0.3, 8],["room", 1018, 0.77, 4],["room", 1022, 0.93, 9],["tower", 1035, 0.89, 15],["room", 1038, 0.25, 7],["tower", 1039, 0.19, 15],["room", 1051, 0.12, 7],["room", 1054, 0.84, 6],["room", 1059, 0.6, 7],["room", 1060, 0.02, 4],["void", 1061, 0.33, 4],["tower", 1074, 0.38, 11],["room", 1087, 0.86, 4],["room", 1093, 0.6, 4],["void", 1103, 0.47, 4],["tower", 1105, 0.09, 29],["tower", 1107, 0.78, 15],["room", 1112, 0.25, 5],["room", 1115, 0.03, 6],["void", 1117, 0.06, 4],["room", 1142, 0.21, 9],["room", 1145, 0.3, 4],["room", 1150, 0.53, 4],["room", 1151, 0.71, 4],["room", 1153, 0.69, 4],["tower", 1158, 0.07, 38],["room", 1159, 0.65, 8],["tower", 1165, 0.14, 16],["tower", 1169, 0.51, 22],["void", 1172, 0.62, 4],["room", 1174, 0.31, 4],["room", 1180, 0.41, 9],["room", 1204, 0.39, 8],["room", 1206, 0.49, 4],["room", 1210, 0.48, 4],["void", 1218, 0.11, 4],["void", 1222, 0.41, 5],["room", 1231, 0.26, 4],["room", 1233, 0.51, 15],["room", 1237, 0.4, 4],["room", 1238, 0.21, 7],["room", 1239, 0.46, 6],["void", 1240, 0.36, 4],["room", 1255, 0.13, 4],["room", 1260, 0.33, 4],["room", 1268, 0.07, 6],["tower", 1279, 0.62, 24],["room", 1281, 0.96, 9],["room", 1282, 0.2, 4],["room", 1295, 0.79, 4],["room", 1299, 0.71, 4],["room", 1300, 0.39, 5],["room", 1311, 0.32, 5],["room", 1315, 0.38, 8],["room", 1316, 0.25, 5],["room", 1328, 0.52, 7],["tower", 1360, 0.82, 15],["tower", 1364, 0.16, 9],["void", 1367, 0.1, 4],["room", 1368, 0.59, 6],["tower", 1372, 0.1, 11],["room", 1378, 0.16, 4],["room", 1393, 0.35, 5],["room", 1397, 0.2, 5],["room", 1400, 0.55, 4],["void", 1405, 0.24, 4],["room", 1407, 0.47, 4],["room", 1417, 0.71, 10],["room", 1421, 0.18, 9],["room", 1422, 0.44, 4],["room", 1429, 0.97, 5],["void", 1431, 0.33, 4],["room", 1443, 0.71, 8],["room", 1446, 0.55, 5],["room", 1447, 0.43, 11],["room", 1451, 0.25, 7],["room", 1452, 0.95, 4],["room", 1457, 0.5, 11],["tower", 1460, 0.87, 16],["tower", 1468, 0.89, 26],["room", 1474, 0.75, 6],["room", 1482, 0.38, 4],["room", 1484, 0.37, 4],["room", 1488, 0.14, 6],["room", 1494, 0.3, 8],["room", 1506, 0.58, 6],["room", 1514, 0.54, 4],["room", 1524, 0.21, 4],["room", 1529, 0.55, 4],["room", 1530, 0.27, 12],["tower", 1531, 0.21, 33],["tower", 1533, 0.61, 28],["room", 1537, 0.47, 9],["room", 1540, 0.5, 6],["room", 1546, 0.37, 10],["room", 1548, 0.61, 12],["room", 1552, 0.0, 4],["room", 1556, 0.56, 4],["room", 1557, 0.36, 4],["void", 1567, 0.17, 4],["tower", 1573, 0.85, 17],["tower", 1580, 0.0, 19],["room", 1582, 0.24, 4],["tower", 1584, 0.33, 13],["void", 1588, 0.06, 4],["room", 1589, 0.95, 4],["room", 1592, 0.2, 6],["tower", 1597, 0.5, 29],["room", 1601, 0.77, 5],["tower", 1602, 0.31, 24],["room", 1604, 0.78, 16],["room", 1612, 0.81, 5],["room", 1613, 0.06, 6],["room", 1615, 0.74, 6],["tower", 1618, 0.08, 15],["room", 1619, 0.3, 4],["room", 1624, 0.01, 5],["room", 1626, 0.13, 10],["room", 1630, 0.26, 4],["room", 1632, 0.62, 5],["tower", 1634, 0.42, 15],["room", 1639, 0.8, 5],["tower", 1640, 0.33, 10],["room", 1648, 0.47, 4],["tower", 1660, 0.24, 14],["void", 1665, 0.06, 4],["tower", 1670, 0.41, 38],["room", 1671, 0.26, 6],["void", 1672, 0.21, 4],["room", 1673, 0.36, 8],["tower", 1674, 0.35, 17],["room", 1676, 0.06, 5],["room", 1680, 0.31, 4],["room", 1681, 0.84, 7],["tower", 1688, 0.14, 20],["room", 1691, 0.53, 4],["room", 1696, 0.19, 5],["room", 1707, 0.12, 4],["void", 1718, 0.54, 4],["room", 1720, 0.59, 6],["room", 1730, 0.31, 10],["room", 1732, 0.53, 5],["room", 1736, 0.94, 5],["room", 1737, 0.68, 7],["room", 1739, 0.46, 8],["tower", 1741, 0.19, 13],["room", 1744, 0.61, 6],["room", 1746, 0.38, 4],["tower", 1749, 0.24, 31],["room", 1751, 0.35, 6],["room", 1752, 0.97, 12],["room", 1754, 0.15, 5],["tower", 1755, 0.94, 22],["tower", 1759, 0.18, 16],["void", 1760, 0.53, 4],["room", 1765, 0.24, 5],["room", 1766, 0.5, 4],["room", 1774, 0.64, 5],["room", 1775, 0.1, 4],["void", 1776, 0.11, 5],["tower", 1778, 0.13, 14],["void", 1782, 0.11, 4],["room", 1784, 0.88, 5],["tower", 1788, 0.24, 43],["tower", 1791, 0.36, 20],["tower", 1792, 0.39, 14],["room", 1793, 0.17, 5],["room", 1794, 0.22, 14],["tower", 1802, 0.65, 17],["void", 1803, 0.3, 4],["tower", 1805, 0.57, 17],["room", 1810, 0.65, 5],["void", 1812, 0.35, 5],["room", 1816, 0.84, 10],["room", 1818, 0.96, 19],["room", 1820, 0.71, 5],["room", 1821, 0.53, 4],["tower", 1826, 0.7, 18],["room", 1834, 0.31, 9],["room", 1839, 0.77, 8],["room", 1845, 0.57, 10],["room", 1849, 0.43, 6],["room", 1853, 0.41, 6],["room", 1854, 0.19, 4],["tower", 1859, 0.79, 17],["tower", 1861, 0.49, 20],["room", 1863, 0.89, 7],["room", 1864, 0.3, 5],["room", 1872, 0.29, 11],["room", 1877, 0.77, 4],["tower", 1885, 0.11, 24],["room", 1886, 0.52, 9],["tower", 1896, 0.19, 18],["room", 1900, 0.13, 6],["room", 1907, 0.57, 5],["room", 1908, 0.65, 4],["room", 1909, 0.66, 4],["room", 1911, 0.5, 10],["void", 1913, 0.16, 4],["room", 1916, 0.92, 5],["room", 1917, 0.87, 8],["room", 1922, 0.04, 4],["tower", 1927, 0.82, 13],["room", 1934, 0.76, 12],["room", 1935, 0.51, 6],["void", 1948, 0.35, 5],["room", 1951, 0.7, 11],["tower", 1959, 0.58, 15],["room", 1960, 0.38, 5],["tower", 1962, 0.1, 28],["void", 1967, 0.01, 4],["void", 1969, 0.16, 4],["room", 1970, 0.21, 7],["void", 1975, 0.03, 4],["room", 1978, 0.31, 7],["room", 1981, 0.55, 4],["room", 1984, 0.49, 4],["room", 1990, 0.08, 4],["void", 1998, 0.13, 4],["room", 1999, 0.14, 7],["void", 2005, 0.08, 4],["room", 2007, 0.66, 8],["room", 2012, 0.36, 4],["room", 2017, 0.34, 4],["room", 2023, 0.97, 18],["room", 2028, 0.18, 4],["room", 2030, 0.37, 5],["tower", 2035, 0.79, 10],["room", 2041, 0.89, 4],["tower", 2042, 0.6, 23],["room", 2051, 0.54, 11],["room", 2053, 0.81, 8],["room", 2061, 0.29, 4],["void", 2065, 0.25, 4],["room", 2067, 0.2, 4],["tower", 2068, 0.72, 32],["tower", 2074, 0.24, 19],["room", 2076, 0.09, 7],["tower", 2082, 0.08, 20],["room", 2085, 0.74, 6],["room", 2091, 0.09, 7],["tower", 2092, 0.72, 21],["room", 2098, 0.74, 7],["room", 2122, 0.45, 7],["room", 2126, 0.97, 7],["room", 2128, 0.39, 9],["room", 2129, 0.29, 4],["void", 2132, 0.15, 5],["tower", 2139, 0.65, 31],["void", 2143, 0.0, 4],["room", 2150, 0.56, 7],["void", 2151, 0.85, 5],["room", 2155, 0.74, 6],["tower", 2157, 0.93, 18],["room", 2159, 0.63, 11],["room", 2171, 0.75, 15],["room", 2176, 0.78, 10],["tower", 2177, 0.68, 9],["room", 2181, 0.48, 6],["room", 2184, 0.19, 4],["room", 2189, 0.72, 4],["tower", 2195, 0.11, 15],["tower", 2198, 0.06, 17],["tower", 2201, 0.42, 23],["room", 2202, 0.98, 5],["room", 2213, 0.53, 11],["room", 2217, 0.12, 4],["room", 2218, 0.7, 4],["tower", 2221, 0.5, 21],["tower", 2223, 0.27, 21],["tower", 2224, 0.7, 12],["room", 2225, 0.04, 4],["tower", 2227, 0.27, 12],["void", 2229, 0.7, 4],["room", 2230, 0.36, 5],["tower", 2231, 0.23, 9],["void", 2233, 0.08, 5],["room", 2235, 0.72, 4],["room", 2237, 0.33, 5],["tower", 2238, 0.19, 27],["room", 2245, 0.42, 4],["void", 2247, 0.01, 4],["room", 2249, 0.7, 9],["void", 2253, 0.98, 4],["room", 2257, 0.53, 8],["room", 2258, 0.66, 7],["room", 2261, 0.55, 4],["room", 2263, 0.46, 9],["room", 2265, 0.29, 4],["room", 2268, 0.27, 5],["room", 2276, 0.15, 4],["void", 2279, 0.96, 4],["room", 2286, 0.14, 4],["void", 2288, 0.36, 4],["void", 2306, 0.1, 4],["room", 2311, 0.96, 4],["room", 2317, 0.15, 7],["room", 2319, 0.1, 4],["room", 2333, 0.25, 4],["void", 2335, 0.01, 4],["room", 2344, 0.3, 4],["tower", 2345, 0.95, 18],["tower", 2357, 0.63, 19],["room", 2364, 0.27, 6],["room", 2367, 0.63, 8],["room", 2368, 0.3, 4],["room", 2369, 0.84, 10],["room", 2374, 0.2, 4],["room", 2375, 0.15, 4],["room", 2379, 0.17, 9],["void", 2383, 0.16, 4],["room", 2391, 0.29, 4],["tower", 2395, 0.66, 31],["tower", 2399, 0.34, 27],["room", 2400, 0.5, 8],["tower", 2402, 0.07, 20],["room", 2405, 0.97, 8],["tower", 2416, 0.32, 28],["tower", 2418, 0.61, 13],["room", 2420, 0.54, 4],["room", 2421, 0.1, 7],["void", 2422, 0.02, 4],["room", 2424, 0.0, 4],["room", 2429, 0.07, 6],["room", 2434, 0.89, 6],["void", 2437, 0.78, 4],["room", 2439, 0.67, 10],["void", 2445, 0.64, 4],["void", 2450, 0.67, 4],["room", 2451, 0.78, 4],["void", 2455, 0.62, 4],["void", 2456, 0.35, 5],["room", 2459, 0.65, 12],["room", 2462, 0.3, 6],["void", 2464, 0.5, 4],["room", 2470, 0.81, 15],["room", 2472, 0.7, 5],["room", 2473, 0.29, 4],["void", 2479, 0.82, 4],["void", 2480, 0.06, 7],["room", 2485, 0.77, 5],["room", 2489, 0.64, 5],["room", 2495, 0.95, 6],["void", 2497, 0.35, 4],["room", 2501, 0.12, 6],["room", 2502, 0.62, 6],["room", 2513, 0.83, 4],["void", 2538, 0.29, 4],["void", 2549, 0.17, 4],["room", 2554, 0.64, 10],["room", 2562, 0.44, 6],["room", 2565, 0.32, 6],["room", 2566, 0.22, 7],["tower", 2567, 0.31, 19],["void", 2570, 0.02, 4],["room", 2574, 0.2, 7],["room", 2575, 0.17, 4],["tower", 2579, 0.67, 13],["room", 2581, 0.24, 6],["room", 2586, 0.17, 5],["room", 2591, 0.3, 4],["tower", 2598, 0.66, 21],["tower", 2601, 0.0, 52],["room", 2607, 0.62, 6],["room", 2609, 0.54, 4],["tower", 2618, 0.64, 21],["tower", 2620, 0.49, 21],["room", 2622, 0.11, 8],["tower", 2624, 0.08, 37],["room", 2625, 0.24, 4],["void", 2627, 0.23, 4],["tower", 2630, 0.92, 16],["tower", 2635, 0.42, 13],["room", 2652, 0.46, 7],["room", 2656, 0.34, 7],["room", 2657, 0.32, 4],["room", 2658, 0.51, 7],["room", 2660, 0.46, 6],["tower", 2662, 0.1, 16],["room", 2676, 0.47, 8],["room", 2684, 0.62, 6],["room", 2690, 0.07, 11],["room", 2694, 0.26, 4],["tower", 2697, 0.33, 20],["void", 2699, 0.24, 4],["room", 2705, 0.92, 4],["void", 2706, 0.23, 4],["room", 2707, 0.83, 7],["room", 2718, 0.31, 4],["room", 2722, 0.67, 4],["room", 2727, 0.45, 4],["room", 2728, 0.31, 8],["room", 2729, 0.02, 6],["room", 2730, 0.41, 5],["tower", 2732, 0.34, 12],["room", 2734, 0.45, 8],["room", 2735, 0.13, 4],["room", 2738, 0.38, 7],["room", 2742, 0.86, 6],["room", 2747, 0.29, 8],["tower", 2748, 0.3, 37],["room", 2749, 0.8, 7],["void", 2766, 0.43, 4],["room", 2771, 0.58, 4],["tower", 2775, 0.63, 12],["room", 2776, 0.69, 11],["tower", 2779, 0.21, 19],["room", 2781, 0.29, 4],["tower", 2786, 0.44, 16],["room", 2788, 1.0, 10],["room", 2790, 0.79, 6],["room", 2792, 0.28, 5],["room", 2794, 0.13, 5],["tower", 2798, 0.2, 26],["room", 2802, 0.63, 11],["tower", 2803, 0.08, 15],["room", 2810, 0.88, 6],["void", 2812, 0.7, 4],["room", 2819, 0.31, 6],["room", 2822, 0.51, 4],["room", 2826, 0.49, 4],["room", 2827, 0.81, 7],["tower", 2833, 0.09, 24],["void", 2836, 0.95, 4],["room", 2842, 0.32, 4],["room", 2846, 0.8, 6],["tower", 2847, 0.0, 21],["void", 2848, 0.14, 4],["room", 2850, 0.92, 7],["room", 2852, 0.79, 6],["void", 2858, 0.87, 4],["tower", 2860, 0.0, 48],["room", 2861, 0.13, 4],["void", 2864, 0.72, 4],["room", 2874, 0.27, 5],["room", 2884, 0.86, 7],["room", 2888, 0.59, 11],["room", 2897, 0.17, 4],["room", 2898, 0.26, 5],["tower", 2903, 0.51, 14],["tower", 2904, 0.37, 25],["tower", 2905, 0.83, 25],["room", 2913, 0.2, 4],["tower", 2915, 0.4, 39],["void", 2916, 0.1, 4],["room", 2921, 0.57, 8],["room", 2929, 0.85, 5],["room", 2931, 0.41, 9],["tower", 2937, 0.53, 21],["room", 2938, 0.26, 4],["room", 2947, 0.45, 5],["tower", 2949, 0.36, 11],["room", 2957, 0.18, 4],["tower", 2963, 0.81, 23],["void", 2971, 0.85, 4],["room", 2974, 0.77, 6],["room", 2976, 0.46, 6],["void", 2977, 0.53, 4],["room", 2995, 0.13, 4]];
 function dailyLevel(d) {
   let h = 2166136261; for (const ch of d) h = Math.imul(h ^ ch.charCodeAt(0), 16777619) >>> 0;
-  const L = genLevel(DAILY_POOL[h % DAILY_POOL.length]);
+  const L = genLevel(DAILY_POOL[h % DAILY_POOL.length]); mergeSpikes(L);
   L.name = `Daily ${d}`; L.hint = "Today's daily challenge: the same level for everyone. Beat your friends' time.";
   return L;
 }
@@ -2311,7 +2337,7 @@ function loadLevel(i, override) {
   if (level) leaveRun(i !== levelIdx);
   if (override !== undefined) levelOverride = override; else if (i < LEVELS.length) levelOverride = null;
   levelIdx = i; level = levelOverride || LEVELS[i];
-  rec = []; ghost = ghosts[level.name] || null;
+  rec = []; ghost = ghosts[level.name] || null; landFx = null;
   for (const o of level.objs) if (o.bx === undefined) { o.bx = o.x; o.by = o.y; o.ba = o.a || 0; }
   for (const o of level.objs) if (o.t === "portal") o.pair = level.objs.find(q => q !== o && q.t === "portal" && q.link === o.link);
   for (const o of level.objs) if (o.t === "gem") o.got = false;
@@ -2332,7 +2358,7 @@ function loadLevel(i, override) {
   dailyRun = !!levelOverride && !levelOverride.custom;
   if (level.custom) customStat = { tries: 0, deaths: 0, spikes: 0, voids: 0, wins: 0, firstWin: 0, best: null, time: 0, resets: 0, gaveUp: 0, spots: [] };
   document.body.classList.toggle("testing", level.custom === "test");
-  if (!levelOverride && i % MENU_PAGE === 0 && i > 0 && !window.__botQuiet) banner = { text: `World ${i / MENU_PAGE + 1}`, sub: worldOf(i).name, t: 2.6 };
+  if (!levelOverride && i > 0 && i === worldStart(worldIdx(i)) && !window.__botQuiet) banner = { text: `World ${worldIdx(i) + 1}`, sub: worldOf(i).name, t: 2.6 };
   if (!window.__botQuiet) maybeCard();
   paintOffer();
 }
@@ -2485,27 +2511,41 @@ const dayGap = (a, b) => Math.round((Date.parse(b) - Date.parse(a)) / 86400000);
 const skinNow = () => SKINS.find(k => k.id === econ.skin) || SKINS[0];
 
 // ---- unlocking ----
-const WORLD_SIZE = 50;
-const worldCount = () => Math.ceil(LEVELS.length / WORLD_SIZE);
+// worlds grow: short ones first so a player finishes a world fast (playtest v0.26), then 20 a world
+const WORLD_SIZES = (() => {
+  const a = [5, 8, 10, 12, 15]; let n = a.reduce((x, y) => x + y, 0);
+  while (n < LEVELS.length) { const k = Math.min(20, LEVELS.length - n); a.push(k); n += k; }
+  return a;
+})();
+const WORLD_START = WORLD_SIZES.reduce((acc, k) => (acc.push(acc[acc.length - 1] + k), acc), [0]); // [0, 5, 13, 23, ...]
+const worldStart = k => WORLD_START[k], worldEnd = k => Math.min(LEVELS.length, WORLD_START[k + 1]);
+function worldIdx(i) { let k = 0; while (k < WORLD_SIZES.length - 1 && i >= WORLD_START[k + 1]) k++; return k; }
+const worldCount = () => WORLD_SIZES.length;
+// old saves: worlds opened early were numbered by 50-level pages -> the new world holding that page's first level
+if (!econ.worldsV) {
+  const old = econ.worlds || {}; econ.worlds = {};
+  for (const k of Object.keys(old)) if (old[k]) econ.worlds[worldIdx(+k * 50)] = true;
+  econ.worldsV = 2;
+}
 const beaten = i => !!progress[LEVELS[i].name];
 const skippedLv = i => !!econ.skipped[LEVELS[i].name];
-const starsIn = k => LEVELS.slice(k * WORLD_SIZE, (k + 1) * WORLD_SIZE).reduce((a, l) => a + (progress[l.name] || 0), 0);
+const starsIn = k => LEVELS.slice(worldStart(k), worldEnd(k)).reduce((a, l) => a + (progress[l.name] || 0), 0);
 const totalStars = () => LEVELS.reduce((a, l) => a + (progress[l.name] || 0), 0);
 function gateNeed(k) {
   if (k === 0) return 0;
   const pct = ECON.gatePct[0] + (ECON.gatePct[1] - ECON.gatePct[0]) * (k - 1) / Math.max(1, worldCount() - 2);
-  return Math.round(pct * 3 * WORLD_SIZE * k);
+  return Math.round(pct * 3 * worldStart(k)); // a share of all the stars in the worlds before it
 }
 function worldOpen(k) {
   if (k === 0 || econ.worlds[k] || totalStars() >= gateNeed(k)) return true;
-  for (let i = k * WORLD_SIZE; i < Math.min(LEVELS.length, (k + 1) * WORLD_SIZE); i++) if (beaten(i)) return true; // never lock played worlds
+  for (let i = worldStart(k); i < worldEnd(k); i++) if (beaten(i)) return true; // never lock played worlds
   return false;
 }
 function levelOpen(i) {
   if (i < 0 || i >= LEVELS.length) return false;
   if (beaten(i) || skippedLv(i)) return true;
-  if (!worldOpen(Math.floor(i / WORLD_SIZE))) return false;
-  return i % WORLD_SIZE === 0 || beaten(i - 1) || skippedLv(i - 1);
+  if (!worldOpen(worldIdx(i))) return false;
+  return i === worldStart(worldIdx(i)) || beaten(i - 1) || skippedLv(i - 1);
 }
 // the level Play should start: first open level not beaten (skipped ones last); -1 = waiting on a world gate
 function nextPlayable() {
@@ -2770,7 +2810,7 @@ function update(dt) {
   for (let s = 0; s < SUBSTEPS; s++) {
     const end = physStep(ball, gx, gy, h, onBallEvent);
     if (end === "spike") return die("spike");
-    if (end === "goal") return win();
+    if (end === "goal") { const g = level.objs.find(o => o.t === "goal" && collide(o, BALL_R + 2)); return win(g); }
   }
   recordGhost();
   if (level.bounds && Math.hypot(ball.x, ball.y) > level.bounds) return die("void");
@@ -2794,13 +2834,13 @@ function die(kind) {
   Platform.event("level_fail", { level: levelIdx + 1, cause: kind, deaths: deaths.n });
   paintOffer();
 }
-function win() {
+function win(goalHit) {
   state = "won";
-  burst(ball.x, ball.y, "#4fd18b", 40);
   Sfx.win();
   Platform.setPlaying(false);
   buzz([20, 60, 20, 60, 40]);
   const t = timer, st = t <= level.par[0] ? 3 : t <= level.par[1] ? 2 : 1;
+  landingFx(goalHit, level.custom === "test" ? 3 : st);
   if (level.custom) return customWin(t, st); // player-made: no stars, gems, streak or ghost saved
   const ls = stat();
   const prevBest = ls.best, prevStars = progress[level.name] || 0;
@@ -2840,7 +2880,7 @@ function win() {
     document.getElementById("bNext").textContent = dailyRun ? "Back to the menu" : levelIdx < LEVELS.length - 1 ? "Next ▶" : "Finish ▶";
     show("win");
     celebrate(st, gemGain, st > prevStars && prevStars > 0);
-  }, 650);
+  }, 1000);
 }
 
 // ---------- Level-complete celebration: stars pop in one by one; 3★ = PERFECT + confetti ----------
@@ -2891,10 +2931,33 @@ function burst(x, y, color, n) {
     particles.push({ x, y, vx: Math.cos(a) * s, vy: Math.sin(a) * s, life: 0.5 + Math.random() * 0.5, color });
   }
 }
+// landing on the goal: rings, a flash, a zoom kick, confetti that falls toward the screen bottom, stars over the goal
+let landFx = null;
+const LAND_COLORS = ["#ffd34d", "#ff6ad5", "#4fe39a", "#5b6cff", "#ffb02e", "#ffffff", "#42c8ff"];
+function landingFx(goal, st) {
+  landFx = { t: 0, x: ball.x, y: ball.y, goal, st };
+  const n = lowFx ? 40 : 90, gx = Math.sin(angle), gy = Math.cos(angle); // screen-up in world units = -(gx, gy)
+  for (let i = 0; i < n; i++) {
+    const spread = (Math.random() - 0.5) * 1.6, sp = 380 + Math.random() * 520;
+    const ux = -gx * Math.cos(spread) + gy * Math.sin(spread), uy = -gy * Math.cos(spread) - gx * Math.sin(spread); // up, fanned sideways
+    particles.push({ x: ball.x, y: ball.y, vx: ux * sp, vy: uy * sp, life: 1.4 + Math.random() * 0.9, color: LAND_COLORS[i % LAND_COLORS.length],
+      conf: true, rot: Math.random() * 6, vr: (Math.random() - 0.5) * 14, w: 6 + Math.random() * 6 });
+  }
+  burst(ball.x, ball.y, "#4fd18b", 26); burst(ball.x, ball.y, "#ffffff", 14);
+  floatText(ball.x, ball.y - 40, "★".repeat(st) + "☆".repeat(3 - st), "#ffd34d");
+  shake = Math.max(shake, 0.35);
+}
 function updateParticles(dt) {
+  if (landFx) { landFx.t += dt; if (landFx.t > 2.5) landFx = null; }
   for (const f of floaters) { f.y -= 60 * dt; f.life -= dt; }
   floaters = floaters.filter(f => f.life > 0);
-  for (const p of particles) { p.x += p.vx * dt; p.y += p.vy * dt; p.vx *= 0.96; p.vy *= 0.96; p.life -= dt; }
+  const cgx = Math.sin(angle) * 900, cgy = Math.cos(angle) * 900;
+  for (const p of particles) {
+    p.x += p.vx * dt; p.y += p.vy * dt;
+    if (p.conf) { p.vx = (p.vx + cgx * dt) * 0.975; p.vy = (p.vy + cgy * dt) * 0.975; p.rot += p.vr * dt; }
+    else { p.vx *= 0.96; p.vy *= 0.96; }
+    p.life -= dt;
+  }
   particles = particles.filter(p => p.life > 0);
 }
 
@@ -2929,7 +2992,8 @@ function render(now) {
   ctx.save();
   const sh = shake * 8;
   ctx.translate(W / 2 + (Math.random() - 0.5) * sh, H / 2 + (Math.random() - 0.5) * sh);
-  ctx.scale(scale, scale);
+  const kick = landFx && landFx.t < 0.35 ? 1 + 0.07 * Math.sin(landFx.t / 0.35 * Math.PI) : 1; // zoom kick on landing
+  ctx.scale(scale * kick, scale * kick);
   ctx.rotate(angle);
   ctx.translate(-cam.x, -cam.y);
 
@@ -2981,9 +3045,18 @@ function render(now) {
 
   if (state !== "dead") drawBall(now);
 
+  if (landFx && landFx.t < 0.9) { // shock rings from the landing spot
+    for (const d of [0, 0.15, 0.3]) {
+      const q = (landFx.t - d) / 0.6; if (q < 0 || q > 1) continue;
+      ctx.globalAlpha = (1 - q) * 0.8; ctx.strokeStyle = d === 0.15 ? "#ffd34d" : "#4fe39a"; ctx.lineWidth = 6 * (1 - q) + 1;
+      ctx.beginPath(); ctx.arc(landFx.x, landFx.y, 20 + q * 170, 0, Math.PI * 2); ctx.stroke();
+    }
+    ctx.globalAlpha = 1;
+  }
   for (const p of particles) {
-    ctx.globalAlpha = Math.max(0, p.life); ctx.fillStyle = p.color;
-    ctx.beginPath(); ctx.arc(p.x, p.y, 4, 0, Math.PI * 2); ctx.fill();
+    ctx.globalAlpha = Math.max(0, Math.min(1, p.life)); ctx.fillStyle = p.color;
+    if (p.conf) { ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(p.rot); ctx.fillRect(-p.w / 2, -p.w / 4, p.w, p.w / 2 * (0.4 + Math.abs(Math.sin(p.rot * 2)))); ctx.restore(); }
+    else { ctx.beginPath(); ctx.arc(p.x, p.y, 4, 0, Math.PI * 2); ctx.fill(); }
   }
   for (const f of floaters) {
     ctx.save(); ctx.translate(f.x, f.y); ctx.rotate(-angle); ctx.globalAlpha = Math.min(1, f.life * 1.5);
@@ -2998,6 +3071,7 @@ function render(now) {
   ctx.beginPath(); ctx.moveTo(W / 2 - 9, H - 46); ctx.lineTo(W / 2 + 9, H - 46); ctx.lineTo(W / 2, H - 34); ctx.fill();
 
   if (state === "dead") { ctx.fillStyle = `rgba(255,40,70,${Math.min(0.35, deadT * 0.5)})`; ctx.fillRect(0, 0, W, H); }
+  if (landFx && landFx.t < 0.3) { ctx.fillStyle = `rgba(255,255,240,${0.45 * (1 - landFx.t / 0.3)})`; ctx.fillRect(0, 0, W, H); } // landing flash
   if (tutorialOn()) drawTutorial(now);
   drawBanner(1 / 60);
   if (state === "play" && (freeze > 0 || waiting)) {
@@ -3077,11 +3151,13 @@ function drawObj(o, now) {
     ctx.fill();
     if (S.line) { ctx.shadowBlur = 0; ctx.strokeStyle = S.line; ctx.lineWidth = 2; ctx.lineJoin = "round"; ctx.stroke(); if (!S.body) ctx.strokeRect(-hw, -hh, o.w, o.h); }
   } else if (o.t === "goal") {
-    const pulse = 0.6 + 0.4 * Math.sin(now / 250), S = TH.goal;
+    const lit = landFx && landFx.goal === o ? Math.max(0, 1 - landFx.t / 1.2) : 0;
+    const pulse = 0.6 + 0.4 * Math.sin(now / 250) + lit * 2.5, S = TH.goal;
     if (S.fill) { ctx.fillStyle = S.fill; ctx.fillRect(-hw, -hh, o.w, o.h); }
     if (S.dash) ctx.setLineDash(S.dash);
     ctx.strokeStyle = S.stroke; ctx.lineWidth = 3; ctx.shadowColor = S.stroke; ctx.shadowBlur = S.glow * pulse;
     ctx.strokeRect(-hw, -hh, o.w, o.h); ctx.setLineDash([]);
+    if (lit) { ctx.globalAlpha = lit * 0.85; ctx.fillStyle = "#ffffff"; ctx.fillRect(-hw, -hh, o.w, o.h); ctx.globalAlpha = 1; }
   } else if (o.t === "ice") {
     ctx.fillStyle = "#0f3040"; ctx.fillRect(-hw, -hh, o.w, o.h);
     ctx.strokeStyle = "#8fe3ff"; ctx.lineWidth = 2; ctx.shadowColor = "#8fe3ff"; ctx.shadowBlur = 10;
@@ -3233,7 +3309,7 @@ function show(id) { document.getElementById(id).classList.add("show"); Platform.
 function hide(id) { document.getElementById(id).classList.remove("show"); }
 function isShown(id) { return document.getElementById(id).classList.contains("show"); }
 const MENU_PAGE = 50;
-// a "world" per page of 50 levels: its own name and background colours (the song changes with it too)
+// a world: its own name and background colours. Worlds are 5-20 levels (WORLD_SIZES); the last one is always World's End
 const WORLDS = [
   { name: "Drift Fields", c0: "#14142a", c1: "#05050b", star: "#c9c9ff" },
   { name: "Bloom Gardens", c0: "#1c1430", c1: "#07050d", star: "#f0c9ff" },
@@ -3244,9 +3320,27 @@ const WORLDS = [
   { name: "Ember Rift", c0: "#2a1014", c1: "#0b0405", star: "#ffb0b8" },
   { name: "Frost Hollow", c0: "#142630", c1: "#05090c", star: "#e0f6ff" },
   { name: "Neon Spire", c0: "#22102a", c1: "#09040b", star: "#ffa8f0" },
+  { name: "Moss Steps", c0: "#122414", c1: "#040a05", star: "#c8ffb0" },
+  { name: "Copper Coil", c0: "#2a1c10", c1: "#0b0704", star: "#ffd2a0" },
+  { name: "Tidal Vault", c0: "#0c1c2a", c1: "#03070b", star: "#9fd8ff" },
+  { name: "Velvet Maze", c0: "#24102a", c1: "#09040b", star: "#e8b0ff" },
+  { name: "Sunken Bell", c0: "#0e2224", c1: "#04090a", star: "#a8fff4" },
+  { name: "Rust Gardens", c0: "#2a160e", c1: "#0b0604", star: "#ffbe98" },
+  { name: "Lantern Row", c0: "#2a2410", c1: "#0b0904", star: "#fff0a0" },
+  { name: "Orbit Yard", c0: "#10142a", c1: "#04050b", star: "#b8c0ff" },
+  { name: "Static Fields", c0: "#1a1a24", c1: "#06060a", star: "#e0e0ff" },
+  { name: "Coral Steps", c0: "#2a1018", c1: "#0b0407", star: "#ffb0c8" },
+  { name: "Quiet Peaks", c0: "#141e26", c1: "#05080a", star: "#d8eeff" },
+  { name: "Thorn Hall", c0: "#22100e", c1: "#090404", star: "#ffa898" },
+  { name: "Prism Way", c0: "#181028", c1: "#06040b", star: "#d0b8ff" },
+  { name: "Ash Reach", c0: "#1e1a18", c1: "#080706", star: "#f0d8c8" },
+  { name: "Glow Marsh", c0: "#10241c", c1: "#040a07", star: "#b0ffd8" },
+  { name: "Storm Gate", c0: "#101a2a", c1: "#04070b", star: "#a8c8ff" },
+  { name: "Gilded Drop", c0: "#2a2210", c1: "#0b0904", star: "#ffe8a0" },
   { name: "World's End", c0: "#1a1a1a", c1: "#050505", star: "#ffffff" },
 ];
-const worldOf = i => WORLDS[Math.floor(i / MENU_PAGE) % WORLDS.length];
+const worldAt = k => k === worldCount() - 1 ? WORLDS[WORLDS.length - 1] : WORLDS[k % (WORLDS.length - 1)];
+const worldOf = i => worldAt(worldIdx(i));
 // ---- level looks: each world has one; any look can be bought in the shop and used everywhere ----
 // Spikes always stay red-ish teeth and goals stay a bright pad, in every look: only the style changes.
 const THEMES = {
@@ -3270,10 +3364,11 @@ const THEMES = {
                spike: { body: "#4a0814", tooth: "#ff3b5c", glow: 0 }, goal: { fill: "#2aa8ff", stroke: "#ffffff", glow: 0 } },
 };
 const WORLD_THEME = ["neon", "candy", "blueprint", "paper", "arcade", "neon", "volcano", "blueprint", "neon", "paper"];
-const worldThemeId = k => WORLD_THEME[k % WORLD_THEME.length];
+const themeForLevel = i => WORLD_THEME[Math.floor(i / 50) % WORLD_THEME.length]; // the look changes every ~50 levels
+const worldThemeId = k => themeForLevel(worldStart(k));
 function themeNow() {
   const pick = typeof econ !== "undefined" && econ.theme && econ.theme !== "auto" ? econ.theme : null;
-  const id = pick || (levelOverride || editing ? "neon" : worldThemeId(Math.floor((levelIdx || 0) / MENU_PAGE)));
+  const id = pick || (levelOverride || editing ? "neon" : themeForLevel(levelIdx || 0));
   return THEMES[id] || THEMES.neon;
 }
 let menuPage = null;   // world shown on the path screen
@@ -3311,7 +3406,7 @@ function setFocus(k) {
   carFocus = k;
   const car = document.getElementById("worldCar");
   [...car.children].forEach((el, j) => el.classList.toggle("on", j === k));
-  const w = WORLDS[k % WORLDS.length], a = k * WORLD_SIZE, z = Math.min(LEVELS.length, a + WORLD_SIZE), open = worldOpen(k);
+  const w = worldAt(k), a = worldStart(k), z = worldEnd(k), open = worldOpen(k);
   const done = LEVELS.slice(a, z).filter((l, j) => beaten(a + j)).length, found = LEVELS.slice(a, z).filter(l => gems[l.name]).length;
   document.getElementById("homeWorld").textContent = `World ${k + 1} · ${w.name}`;
   document.getElementById("homeBar").style.width = Math.round(100 * done / (z - a)) + "%";
@@ -3364,7 +3459,7 @@ function buildMenu() {
   const ready = giftReady();
   for (const id of ["giftDot", "giftDot2"]) document.getElementById(id).classList.toggle("on", ready);
   document.getElementById("bGift").classList.toggle("ready", ready);
-  const nx = nextPlayable(), here = Math.floor(Math.max(0, nx) / WORLD_SIZE), wd = WORLDS[here % WORLDS.length];
+  const nx = nextPlayable(), here = worldIdx(Math.max(0, nx)), wd = worldAt(here);
   if (menuView === "home") {
     const car = document.getElementById("worldCar"), mini = (k, w0, open) => { const T = THEMES[worldThemeId(k)], w = { star: T.wall.stroke }; return `
       <svg class="spin" aria-hidden="true" width="78%" height="78%" viewBox="0 0 200 200" style="animation-duration:${16 + k * 1.3}s;animation-direction:${k % 2 ? "reverse" : "normal"}">
@@ -3375,7 +3470,7 @@ function buildMenu() {
       </svg>`; };
     car.innerHTML = "";
     for (let k = 0; k < worldCount(); k++) {
-      const w = WORLDS[k % WORLDS.length], open = worldOpen(k), slide = document.createElement("div");
+      const w = worldAt(k), open = worldOpen(k), slide = document.createElement("div");
       slide.className = "wslide"; slide.dataset.k = k;
       const b = document.createElement("button");
       const th = THEMES[worldThemeId(k)];
@@ -3392,7 +3487,7 @@ function buildMenu() {
     if (carFocus === null || carFocus >= worldCount()) carFocus = here;
     requestAnimationFrame(() => focusWorld(carFocus, false));
   } else if (menuView === "path") {
-    const k = menuPage === null ? here : menuPage, w = WORLDS[k % WORLDS.length], a = k * WORLD_SIZE, z = Math.min(LEVELS.length, a + WORLD_SIZE);
+    const k = menuPage === null ? here : menuPage, w = worldAt(k), a = worldStart(k), z = worldEnd(k);
     menuPage = k;
     document.getElementById("scrPath").style.background = `linear-gradient(180deg, ${w.c0} 0%, #1a1035 60%, #0c0820 100%)`;
     document.getElementById("lvNum").textContent = `World ${k + 1}`;
@@ -3446,7 +3541,7 @@ function goNext() {
   const n = levelIdx + 1;
   if (n >= LEVELS.length) return showEnding();
   if (levelOpen(n)) return loadLevel(n);
-  const k = Math.floor(n / WORLD_SIZE);
+  const k = worldIdx(n);
   carFocus = k; openMenu("home");
   toast(`World ${k + 1} opens at ${gateNeed(k)}★ · you have ${totalStars()}★`);
 }
@@ -3514,7 +3609,7 @@ document.getElementById("bContinue").onclick = () => {
 document.getElementById("helpText").innerHTML = COARSE
   ? "Drag or draw circles to turn the world · tap or turn to drop the ball · ⚙ for music, sound and controls"
   : "Drag or circle with the mouse, or ← → / A D · Q / E snap 90° · R restart · M switch controls<br>Click, turn or Space drops the ball";
-document.getElementById("bMenu").onclick =() => { if (level.custom) { if (state === "play") state = "paused"; leaveCustom(); return; } if (dailyRun) openMenu("home"); else openMenu("path", Math.floor(levelIdx / MENU_PAGE)); state = state === "play" ? "paused" : state; };
+document.getElementById("bMenu").onclick =() => { if (level.custom) { if (state === "play") state = "paused"; leaveCustom(); return; } if (dailyRun) openMenu("home"); else openMenu("path", worldIdx(levelIdx)); state = state === "play" ? "paused" : state; };
 document.getElementById("bRestart").onclick = restart;
 document.getElementById("bMode").onclick = () => { toggleMode(); paintSettings(); };
 document.getElementById("bRetry").onclick = () => { hide("win"); restart(); };
@@ -3556,9 +3651,9 @@ document.getElementById("carPrev").onclick = () => focusWorld(Math.max(0, carFoc
 document.getElementById("carNext").onclick = () => focusWorld(Math.min(worldCount() - 1, carFocus + 1), true);
 document.getElementById("bMenuSettings").onclick = openSettings;
 document.getElementById("bPathPlay").onclick = () => {
-  const nx = nextPlayable(), a = menuPage * WORLD_SIZE;
+  const nx = nextPlayable(), a = worldStart(menuPage);
   if (nx < 0) { openMenu("home"); toast("Replay levels for more ★ to open the next world"); return; }
-  for (let i = a; i < Math.min(LEVELS.length, a + WORLD_SIZE); i++) if (levelOpen(i) && !beaten(i) && !skippedLv(i)) return loadLevel(i);
+  for (let i = a; i < worldEnd(menuPage); i++) if (levelOpen(i) && !beaten(i) && !skippedLv(i)) return loadLevel(i);
   loadLevel(nx);
 };
 document.getElementById("bPathDaily").onclick = () => playDaily();
@@ -3760,7 +3855,7 @@ function customWin(t, st) {
       document.getElementById("winTitle").style.display = ""; document.getElementById("winTitle").textContent = firstClear ? "Level cleared!" : "Cleared again!";
       if (firstClear) { confetti(lowFx ? 30 : 70); Sfx.star(2); buzz([20, 40, 20]); }
     } else celebrate(st, 0, false);
-  }, 650);
+  }, 1000);
 }
 const levelLink = code => location.origin + location.pathname + "?lvl=" + code;
 function customShareText(w) {
