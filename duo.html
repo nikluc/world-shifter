@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<title>World Shifter · 2-player test</title>
+<style>
+  /* 2-player TEST: two copies of the game (index.html?duo=1) race on the same level. Not linked from the game yet. */
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{margin:0;height:100%;background:#0c0820;overflow:hidden;font-family:system-ui,-apple-system,Segoe UI,sans-serif;color:#fff;user-select:none;-webkit-user-select:none}
+  #wrap{position:fixed;inset:0;display:flex;flex-direction:column}
+  @media (min-aspect-ratio: 1/1) { #wrap{flex-direction:row} }
+  .seat{flex:1;position:relative;min-width:0;min-height:0;border:3px solid transparent}
+  .seat iframe{position:absolute;inset:0;width:100%;height:100%;border:0;display:block}
+  #s1{border-color:#4fc3ff55} #s2{border-color:#ff6ad555}
+  .tag{position:absolute;left:8px;bottom:8px;z-index:2;font-weight:800;font-size:15px;padding:2px 10px;border-radius:99px;pointer-events:none}
+  #s1 .tag{background:#4fc3ff;color:#06203a} #s2 .tag{background:#ff6ad5;color:#3a0630}
+  #hud{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);z-index:5;pointer-events:none;text-align:center}
+  #score{background:#0c0820e6;border:3px solid #ffffff33;border-radius:99px;padding:4px 18px;font-weight:900;font-size:22px;white-space:nowrap}
+  #score .a{color:#4fc3ff} #score .b{color:#ff6ad5}
+  #big{font-size:64px;font-weight:900;text-shadow:0 4px 0 #0008;margin-top:6px;min-height:76px}
+  #start,#again{position:fixed;inset:0;z-index:6;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;background:#0c0820ee;text-align:center;padding:20px}
+  #start h1,#again h1{margin:0;font-size:34px}
+  #start p{margin:0;opacity:.8;max-width:420px;line-height:1.4}
+  button{font:inherit;font-weight:900;font-size:22px;border:0;border-radius:20px;padding:14px 34px;background:#46d38a;color:#0b2a1a;box-shadow:0 6px 0 #23955a;cursor:pointer}
+  #again{display:none}
+</style>
+</head>
+<body>
+<div id="wrap">
+  <div class="seat" id="s1"><iframe id="f1" title="Player 1" src="index.html?duo=1&seat=1"></iframe><span class="tag">P1 · A / D</span></div>
+  <div class="seat" id="s2"><iframe id="f2" title="Player 2" src="index.html?duo=1&seat=2"></iframe><span class="tag">P2 · ← / →</span></div>
+</div>
+<div id="hud"><div id="score"><span class="a">P1 0</span> – <span class="b">0 P2</span></div><div id="big"></div></div>
+<div id="start">
+  <h1>2-player race (test)</h1>
+  <p>Same level, two worlds. Turn your own half of the screen (phone) or use A / D and ← / → (keyboard). First to land wins the round. First to 3 wins the match.</p>
+  <button id="go">Start</button>
+</div>
+<div id="again"><h1 id="winner"></h1><button id="re">Play again</button></div>
+<script>
+"use strict";
+const ROUNDS_TO_WIN = 3;
+const POOL = [3, 4, 6, 7, 9, 10, 12, 14, 16, 18, 20, 22, 25, 27, 30, 33, 36, 40, 44, 48]; // 0-based levels: early, short, readable
+const f = [null, document.getElementById("f1"), document.getElementById("f2")];
+const send = (seat, msg) => f[seat].contentWindow.postMessage(msg, "*");
+const both = msg => { send(1, msg); send(2, msg); };
+let score = [0, 0, 0], ready = 0, roundOpen = false, played = [];
+const big = document.getElementById("big");
+function paint() { document.getElementById("score").innerHTML = `<span class="a">P1 ${score[1]}</span> – <span class="b">${score[2]} P2</span>`; }
+function nextRound() {
+  const left = POOL.filter(l => !played.includes(l)); const lv = left[Math.floor(Math.random() * left.length)]; played.push(lv);
+  both({ duo: "load", level: lv }); roundOpen = false;
+  let n = 3; big.textContent = n;
+  const tick = setInterval(() => {
+    n--; if (n > 0) { big.textContent = n; return; }
+    clearInterval(tick); big.textContent = "GO!"; both({ duo: "go" }); roundOpen = true;
+    setTimeout(() => { if (big.textContent === "GO!") big.textContent = ""; }, 700);
+  }, 800);
+}
+window.addEventListener("message", e => {
+  const m = e.data || {};
+  if (m.duo === "ready") ready++;
+  if (m.duo === "win" && roundOpen) {
+    roundOpen = false; score[m.seat]++; paint();
+    both({ duo: "stop" });
+    big.innerHTML = `<span style="color:${m.seat === 1 ? "#4fc3ff" : "#ff6ad5"}">P${m.seat} +1</span>`;
+    if (score[m.seat] >= ROUNDS_TO_WIN) {
+      setTimeout(() => { document.getElementById("winner").textContent = `Player ${m.seat} wins ${score[1]}–${score[2]}!`; document.getElementById("again").style.display = "flex"; }, 1200);
+    } else setTimeout(nextRound, 1800);
+  }
+});
+document.getElementById("go").onclick = () => { document.getElementById("start").style.display = "none"; nextRound(); };
+document.getElementById("re").onclick = () => { score = [0, 0, 0]; played = []; paint(); document.getElementById("again").style.display = "none"; nextRound(); };
+// keyboard: P1 A/D, P2 arrows (forwarded to each player's game)
+const KEYS = { KeyA: [1, "left"], KeyD: [1, "right"], ArrowLeft: [2, "left"], ArrowRight: [2, "right"] };
+for (const type of ["keydown", "keyup"]) window.addEventListener(type, e => {
+  const k = KEYS[e.code]; if (!k) return; e.preventDefault();
+  send(k[0], { duo: "key", dir: k[1], down: type === "keydown" });
+});
+</script>
+</body>
+</html>

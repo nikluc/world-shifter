@@ -334,6 +334,7 @@
   .diff{display:inline-block;border-radius:99px;padding:0 8px;font-size:12px;font-weight:800;color:#0c0820;margin-left:4px}
   .likebtn{margin-top:8px;background:#e45cc6!important;color:#fff!important;border:0;border-radius:14px;font-weight:800;padding:8px 16px;box-shadow:0 4px 0 #a03490}
   .likebtn.done{background:#5a3a7a!important;box-shadow:none}
+  body.duo #bMenu, body.duo #bSettings, body.duo #offer, body.duo #hint { display: none !important; }
   #hint{position:fixed;bottom:calc(env(safe-area-inset-bottom) + 14px);left:0;right:0;text-align:center;opacity:.8;pointer-events:none;font-size:14px;padding:0 calc(env(safe-area-inset-right) + 24px) 0 calc(env(safe-area-inset-left) + 24px);text-shadow:0 1px 3px #000;transition:opacity .6s}
   #snapBtns.show ~ #hint, body.snap #hint{padding:0 110px}
   /* short landscape phones: tighter panels */
@@ -372,7 +373,7 @@
       <button id="bBuild" class="b3d teal"><svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 6.5l3 3M4 20l1-4L16 5a2.1 2.1 0 0 1 3 3L8 19z"></path></svg><span>Build</span></button>
     </div></div>
     <p class="help" id="helpText"></p>
-    <p class="ver" id="ver">prototype v0.35</p>
+    <p class="ver" id="ver">prototype v0.36</p>
   </section>
   <section class="mscr" id="scrBuild">
     <div class="prow"><button class="icon" id="bBuildBack" aria-label="Back"><svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"></path></svg></button>
@@ -530,6 +531,12 @@
   </div>
 </div>
 
+<script>
+// 2-player test (duo.html): this copy is one player's screen. It must not save anything (two copies share storage).
+const DUO = /[?&]duo=1(&|$)/.test(location.search) && window.parent !== window;
+const DUO_SEAT = DUO ? +(new URLSearchParams(location.search).get("seat") || 1) : 0;
+if (DUO) { Storage.prototype.setItem = () => {}; window.__botQuiet = true; }
+</script>
 <script>
 "use strict";
 // ---------- Tuning ----------
@@ -3040,6 +3047,7 @@ function win(goalHit) {
   const later2 = (ms, fn) => setTimeout(() => { if (state === "won" && levelIdx === wonLevel) fn(); }, ms); // not cleared by celebrate()
   setTimeout(() => {
     if (state !== "won" || levelIdx !== wonLevel) return; // player restarted / left meanwhile
+    if (DUO) { parent.postMessage({ duo: "win", seat: DUO_SEAT, t }, "*"); return; } // the race page shows the result
     const newBest = prevBest !== null && t < prevBest - 0.005;
     document.getElementById("winInfo").innerHTML = `Time ${t.toFixed(2)}s${newBest ? '<span class="newbest">NEW BEST!</span>' : ""} · Deaths ${deaths.n}` + (st < 3 ? ` · 3★ under ${level.par[0]}s` : "");
     // gem: big spinning gem when you got it now; a wobbling outline when you missed it
@@ -4935,7 +4943,20 @@ Platform.init();
 if (!Platform.sharing) for (const id of ["bShare", "bEndShare"]) document.getElementById(id).style.display = "none";
 const linkCode = new URLSearchParams(location.search).get("lvl");
 const linkModel = linkCode ? decodeLevel(linkCode) : null;
-if (linkModel) playCustom(linkModel, "link"); // a friend's own level
+if (DUO) { // 2-player test: the race page (duo.html) drives this copy
+  document.body.classList.add("duo");
+  if (Sfx.musicOn) Sfx.toggleMusic();
+  window.addEventListener("message", e => {
+    const m = e.data || {};
+    if (m.duo === "load") { hide("menu"); hide("win"); hide("gift"); hide("card"); loadLevel(m.level); freeze = 999; }
+    if (m.duo === "go") { freeze = 0; launch(); }
+    if (m.duo === "key") { keys[m.dir] = m.down; }
+    if (m.duo === "stop") { state = "paused"; }
+  });
+  parent.postMessage({ duo: "ready", seat: DUO_SEAT }, "*");
+}
+if (DUO) {} // nothing else at boot
+else if (linkModel) playCustom(linkModel, "link"); // a friend's own level
 else if (linkDaily) playDaily(); // a friend's daily link: straight into today's daily
 else if (linkLevel >= 1 && linkLevel <= LEVELS.length) loadLevel(linkLevel - 1); // shared link: straight in
 else if (Platform.env === "crazygames") loadLevel(nextUnbeaten()); // portals require landing in gameplay
