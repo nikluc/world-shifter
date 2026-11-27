@@ -329,6 +329,11 @@
   .skins canvas.sk{position:static;display:block;touch-action:auto}
   .skins button.locked canvas.sk{opacity:.85}
   .skins button.owned small{color:#4fe39a}
+  #scrOnline .stabs{position:static;background:none;margin-top:12px}
+  .lvinfo .who{font-size:12px;color:#ffb8e2}
+  .diff{display:inline-block;border-radius:99px;padding:0 8px;font-size:12px;font-weight:800;color:#0c0820;margin-left:4px}
+  .likebtn{margin-top:8px;background:#e45cc6!important;color:#fff!important;border:0;border-radius:14px;font-weight:800;padding:8px 16px;box-shadow:0 4px 0 #a03490}
+  .likebtn.done{background:#5a3a7a!important;box-shadow:none}
   #hint{position:fixed;bottom:calc(env(safe-area-inset-bottom) + 14px);left:0;right:0;text-align:center;opacity:.8;pointer-events:none;font-size:14px;padding:0 calc(env(safe-area-inset-right) + 24px) 0 calc(env(safe-area-inset-left) + 24px);text-shadow:0 1px 3px #000;transition:opacity .6s}
   #snapBtns.show ~ #hint, body.snap #hint{padding:0 110px}
   /* short landscape phones: tighter panels */
@@ -367,14 +372,21 @@
       <button id="bBuild" class="b3d teal"><svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 6.5l3 3M4 20l1-4L16 5a2.1 2.1 0 0 1 3 3L8 19z"></path></svg><span>Build</span></button>
     </div></div>
     <p class="help" id="helpText"></p>
-    <p class="ver" id="ver">prototype v0.33</p>
+    <p class="ver" id="ver">prototype v0.34</p>
   </section>
   <section class="mscr" id="scrBuild">
     <div class="prow"><button class="icon" id="bBuildBack" aria-label="Back"><svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"></path></svg></button>
       <div class="ptitle"><small>Level builder</small><b>My levels</b></div></div>
     <button class="b3d play" id="bNewLevel"><svg aria-hidden="true" width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round"><path d="M12 5v14M5 12h14"></path></svg><span><b>NEW LEVEL</b><small>Build it · beat it · share it</small></span></button>
     <button class="b3d blue wide" id="bPlayCode">▶ Play a friend's level</button>
+    <button class="b3d pink wide" id="bOnline">🌐 Online levels</button>
     <div class="mylist" id="myList"></div>
+  </section>
+  <section class="mscr" id="scrOnline">
+    <div class="prow"><button class="icon" id="bOnlineBack" aria-label="Back"><svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"></path></svg></button>
+      <div class="ptitle"><small>Made by players</small><b>Online levels</b></div></div>
+    <div class="stabs" id="onTabs"></div>
+    <div class="mylist" id="onList"></div>
   </section>
   <section class="mscr path" id="scrPath">
     <div id="levelView">
@@ -2144,8 +2156,11 @@ const Sfx = (() => {
     g.gain.exponentialRampToValueAtTime(vol, t + att);
     g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
   }
+  // pv / vv: pitch and volume factors, randomised per call for effect sounds (see VARY below)
+  let pv = 1, vv = 1;
   function tone(freq, dur, { type = "sine", vol = 0.3, slide = 1, delay = 0, attack = 0.008 } = {}) {
     if (!ok()) return;
+    freq *= pv; vol *= vv;
     const t = ac.currentTime + delay, o = ac.createOscillator(), g = ac.createGain();
     o.type = type; o.frequency.setValueAtTime(freq, t);
     if (slide !== 1) o.frequency.exponentialRampToValueAtTime(Math.max(20, freq * slide), t + dur);
@@ -2153,12 +2168,13 @@ const Sfx = (() => {
   }
   function noise(dur, { vol = 0.3, freq = 1000, q = 1, type = "lowpass", slide = 1, delay = 0 } = {}) {
     if (!ok()) return;
+    freq *= pv; vol *= vv;
     const t = ac.currentTime + delay, s = ac.createBufferSource(), f = ac.createBiquadFilter(), g = ac.createGain();
     s.buffer = noiseBuf; f.type = type; f.Q.value = q; f.frequency.setValueAtTime(freq, t);
     if (slide !== 1) f.frequency.exponentialRampToValueAtTime(Math.max(20, freq * slide), t + dur);
     env(g, t, vol, dur); s.connect(f); f.connect(g); g.connect(master); s.start(t, Math.random() * 0.5); s.stop(t + dur + 0.05);
   }
-  return {
+  const api = {
     unlock,
     get muted() { return muted; },
     get musicOn() { return musicOn; },
@@ -2224,6 +2240,15 @@ const Sfx = (() => {
     portal() { tone(300, 0.25, { type: "sine", vol: 0.2, slide: 4 }); tone(900, 0.2, { type: "triangle", vol: 0.08, slide: 0.5, delay: 0.05 }); },
     splat(v) { noise(0.12, { vol: 0.25 * v + 0.05, freq: 380 }); tone(140, 0.12, { vol: 0.15 * v + 0.03, slide: 0.5 }); },
   };
+  // effect sounds heard over and over get a small random pitch / volume change each time, so repeats don't
+  // sound copy-pasted (melodic ones - win, stars, music - stay exact so they stay in tune). [pitch ±, volume ±]
+  const VARY = { thud: [0.08, 0.15], bounce: [0.07, 0.1], splat: [0.1, 0.15], snap: [0.06, 0.1], portal: [0.05, 0.1], splash: [0.08, 0.15],
+                 spike: [0.06, 0.1], fall: [0.05, 0.1], pop: [0.12, 0.2], rocket: [0.1, 0.15], click: [0.04, 0.05], drop: [0.04, 0.08], gem: [0, 0.1] };
+  for (const [name, [dp, dv]] of Object.entries(VARY)) {
+    const fn = api[name];
+    api[name] = (...a) => { pv = 1 + (Math.random() * 2 - 1) * dp; vv = 1 + (Math.random() * 2 - 1) * dv; try { return fn(...a); } finally { pv = 1; vv = 1; } };
+  }
+  return api;
 })();
 window.addEventListener("pointerdown", Sfx.unlock, true);
 window.addEventListener("keydown", Sfx.unlock, true);
@@ -2921,6 +2946,7 @@ function update(dt) {
   // (drag, keys, 90° buttons): turning the map starts the run too
   if (waiting && Math.abs(angle) > 0.02) launch();
   if (waiting) return;
+  if (!dropped && level.onlineId && !level._played) { level._played = true; Online.bump(level.onlineId, "plays"); }
   if (!dropped) { dropped = true; Sfx.drop(); stat().tries++; runOpen = true; Platform.event("level_start", { level: levelIdx + 1, name: level.name }); }
   Platform.setPlaying(true);
   timer += dt;
@@ -3880,8 +3906,9 @@ function openMenu(view, world) {
 }
 function buildMenu() {
   paintContinue(); paintDaily();
-  for (const [id, v] of [["scrHome", "home"], ["scrPath", "path"], ["scrBuild", "build"]]) document.getElementById(id).classList.toggle("on", menuView === v);
-  if (menuView === "build") paintMine();
+  for (const [id, v] of [["scrHome", "home"], ["scrPath", "path"], ["scrBuild", "build"], ["scrOnline", "online"]]) document.getElementById(id).classList.toggle("on", menuView === v);
+  if (menuView === "build") { paintMine(); document.getElementById("bOnline").style.display = Online.ready() ? "" : "none"; }
+  if (menuView === "online") paintOnline();
   const st = econ.streak, gemTotal = LEVELS.filter(l => l.objs.some(o => o.t === "gem")).length;
   const alive = st.last && dayGap(st.last, localDay()) <= 1 + st.freeze ? st.n : 0;
   const chips = `<span title="Day streak">🔥 ${alive}${st.freeze ? ` <small>❄${st.freeze}</small>` : ""}</span>` +
@@ -4254,7 +4281,7 @@ function playCustom(m, from) { customFrom = from; loadLevel(LEVELS.length, custo
 function leaveCustom() {
   hide("win"); stopCelebration();
   if (level.custom === "test") return openEditor(edSlot);
-  openMenu(customFrom === "link" ? "home" : "build");
+  openMenu(customFrom === "link" ? "home" : customFrom === "online" ? "online" : "build");
 }
 function customWin(t, st) {
   const test = level.custom === "test", m = level.model;
@@ -4269,6 +4296,8 @@ function customWin(t, st) {
   }
   Platform.event(test ? "builder_clear" : "custom_level_complete", { time: Math.round(t * 100) / 100, deaths: deaths.n, pieces: m.objs.length });
   lastWin = { custom: test ? "made" : "played", name: level.title, t, st, deaths: deaths.n, code: level.code, makerT: m.clearT };
+  const onId = level.onlineId;
+  if (onId && onlineMark(onId, "clear")) Online.bump(onId, "clears");
   const wonLevel = level;
   setTimeout(() => {
     if (state !== "won" || level !== wonLevel) return;
@@ -4280,6 +4309,12 @@ function customWin(t, st) {
     gb.className = "wgem" + (gem ? (gotGem ? " show old" : " show miss") : "");
     gb.innerHTML = gem ? `<span class="g">◆</span><b>${gotGem ? "Gem grabbed!" : "There's a gem in here too…"}</b>` : "";
     document.getElementById("winGem").innerHTML = "";
+    if (onId) {
+      const liked = !!onlineDone[onId + ":like"], lb = document.createElement("button");
+      lb.className = "likebtn" + (liked ? " done" : ""); lb.textContent = liked ? "♥ Liked" : "♥ Like this level";
+      lb.onclick = () => { if (onlineMark(onId, "like")) { Online.bump(onId, "likes"); Sfx.gem(); burstHearts(lb); } lb.textContent = "♥ Liked"; lb.classList.add("done"); };
+      document.getElementById("winGem").appendChild(lb);
+    }
     document.getElementById("winProg").style.display = "none";
     document.getElementById("bShare").textContent = test ? "Share level" : "Share";
     document.getElementById("bNext").textContent = test ? "✎ Back to editing" : "Done";
@@ -4344,6 +4379,7 @@ function paintMine() {
     const mk = (label, cls, fn, aria) => { const b = document.createElement("button"); b.textContent = label; if (cls) b.className = cls; if (aria) b.setAttribute("aria-label", aria); b.onclick = fn; btns.appendChild(b); };
     mk("✎ Edit", "go", () => openEditor(i));
     mk(Platform.sharing ? "Share" : "Copy code", ok ? "" : "off", () => ok ? shareLevel(m) : toast("Beat your level once (▶ Test) to share it"));
+    if (Online.ready() && ok) mk(row.online ? "🌐 Online" : "🌐 Publish", row.online ? "off" : "", () => row.online ? toast("Already online · it's under Online levels › Mine") : publishMine(i));
     mk("🗑", "del", () => askYes("Delete this level?", `“${customName(m.nameSeed || 0)}” will be gone for good.`, "Delete", () => { mine.splice(i, 1); saveMine(); paintMine(); }), "Delete level");
     info.appendChild(btns); card.append(c, info); list.appendChild(card);
   });
@@ -4379,6 +4415,138 @@ document.getElementById("bCodePlay").onclick = () => {
   hide("codePanel"); playCustom(m, "build");
 };
 document.getElementById("bEditBack").onclick = () => { if (level && level.custom === "test") { if (state === "play") state = "paused"; openEditor(edSlot); } };
+
+// ---- online levels: Firebase (anonymous sign-in + Firestore over plain REST, no SDK) ----
+// Fill these in from the Firebase console (studio/online-levels.md). Empty = online levels hidden.
+// ?online=mock runs the same features on a pretend server kept on this device, for testing.
+const ONLINE_CONFIG = { apiKey: "", projectId: "" };
+const ONLINE = { pageSize: 30, hideReports: 3, minPlaysForRate: 3 };
+const MAKER_ANIMALS = ["Otter", "Fox", "Panda", "Koala", "Gecko", "Moth", "Heron", "Lynx", "Yak", "Newt", "Wombat", "Puffin", "Ferret", "Bison", "Crane", "Hare",
+  "Seal", "Owl", "Tapir", "Squid", "Badger", "Lemur", "Ibis", "Mole", "Quokka", "Sloth", "Toucan", "Walrus", "Raven", "Beetle"];
+const hash32 = str => { let h = 2166136261; for (const ch of String(str)) h = Math.imul(h ^ ch.charCodeAt(0), 16777619) >>> 0; return h; };
+const makerName = uid => { const h = hash32(uid); return `${GEN_A[h % GEN_A.length]} ${MAKER_ANIMALS[Math.floor(h / GEN_A.length) % MAKER_ANIMALS.length]}`; };
+const Online = (() => {
+  const mock = /[?&]online=mock\b/.test(location.search), cfg = ONLINE_CONFIG;
+  const ready = () => mock || !!(cfg.apiKey && cfg.projectId);
+  const base = () => `https://firestore.googleapis.com/v1/projects/${cfg.projectId}/databases/(default)/documents`;
+  let session = null;
+  try { session = JSON.parse(localStorage.getItem("ws_auth") || "null"); } catch (e) {}
+  async function token() {
+    if (mock) { if (!session) { session = { uid: "mock" + Math.random().toString(36).slice(2, 10) }; localStorage.setItem("ws_auth", JSON.stringify(session)); } return null; }
+    if (session && session.exp > Date.now() + 60000) return session.idToken;
+    let r;
+    if (session && session.refreshToken) {
+      r = await fetch(`https://securetoken.googleapis.com/v1/token?key=${cfg.apiKey}`, { method: "POST", headers: { "Content-Type": "application/x-www-form-urlencoded" }, body: `grant_type=refresh_token&refresh_token=${encodeURIComponent(session.refreshToken)}` });
+      if (r.ok) { const j = await r.json(); session = { uid: j.user_id, idToken: j.id_token, refreshToken: j.refresh_token, exp: Date.now() + j.expires_in * 1000 }; }
+      else session = null;
+    }
+    if (!session) {
+      r = await fetch(`https://identitytoolkit.googleapis.com/v1/accounts:signUp?key=${cfg.apiKey}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ returnSecureToken: true }) });
+      if (!r.ok) throw new Error("sign-in " + r.status);
+      const j = await r.json(); session = { uid: j.localId, idToken: j.idToken, refreshToken: j.refreshToken, exp: Date.now() + j.expiresIn * 1000 };
+    }
+    try { localStorage.setItem("ws_auth", JSON.stringify(session)); } catch (e) {}
+    return session.idToken;
+  }
+  const uid = () => session && session.uid;
+  // Firestore REST value <-> plain JS
+  const toF = v => typeof v === "number" ? (Number.isInteger(v) ? { integerValue: String(v) } : { doubleValue: v }) : v instanceof Date ? { timestampValue: v.toISOString() } : { stringValue: String(v) };
+  const fromF = f => "integerValue" in f ? +f.integerValue : "doubleValue" in f ? f.doubleValue : "timestampValue" in f ? Date.parse(f.timestampValue) : f.stringValue;
+  const docOut = d => { const o = { id: d.name.split("/").pop() }; for (const [k, v] of Object.entries(d.fields || {})) o[k] = fromF(v); return o; };
+  const mockDb = () => { try { return JSON.parse(localStorage.getItem("ws_mock_levels") || "{}"); } catch (e) { return {}; } };
+  const mockSave = db => localStorage.setItem("ws_mock_levels", JSON.stringify(db));
+  async function publish(m) {
+    await token();
+    const code = encodeLevel(m), id = (hash32(encodeLevel({ ...m, clearT: 0 })) >>> 0).toString(36) + hash32(uid()).toString(36).slice(0, 4);
+    const doc = { code, nameSeed: m.nameSeed || 0, maker: uid(), created: new Date(), clearT: m.clearT || 0, pieces: m.objs.length, plays: 0, clears: 0, likes: 0, reports: 0 };
+    if (mock) { const db = mockDb(); if (!db[id]) db[id] = { ...doc, created: Date.now() }; mockSave(db); return id; }
+    const r = await fetch(`${base()}/levels?documentId=${id}&key=${cfg.apiKey}`, { method: "POST", headers: { "Content-Type": "application/json", Authorization: "Bearer " + await token() },
+      body: JSON.stringify({ fields: Object.fromEntries(Object.entries(doc).map(([k, v]) => [k, toF(v)])) }) });
+    if (!r.ok && r.status !== 409) throw new Error("publish " + r.status); // 409: already online
+    return id;
+  }
+  async function list(order) { // order: created | likes | plays
+    if (mock) return Object.entries(mockDb()).map(([id, d]) => ({ id, ...d })).sort((a, b) => b[order] - a[order]).slice(0, ONLINE.pageSize * 2);
+    const q = { structuredQuery: { from: [{ collectionId: "levels" }], orderBy: [{ field: { fieldPath: order }, direction: "DESCENDING" }], limit: ONLINE.pageSize * 2 } };
+    const r = await fetch(`${base()}:runQuery?key=${cfg.apiKey}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(q) });
+    if (!r.ok) throw new Error("list " + r.status);
+    return (await r.json()).filter(x => x.document).map(x => docOut(x.document));
+  }
+  async function mine() {
+    await token();
+    if (mock) return Object.entries(mockDb()).map(([id, d]) => ({ id, ...d })).filter(d => d.maker === uid());
+    const q = { structuredQuery: { from: [{ collectionId: "levels" }], where: { fieldFilter: { field: { fieldPath: "maker" }, op: "EQUAL", value: { stringValue: uid() } } }, limit: 50 } };
+    const r = await fetch(`${base()}:runQuery?key=${cfg.apiKey}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(q) });
+    if (!r.ok) throw new Error("mine " + r.status);
+    return (await r.json()).filter(x => x.document).map(x => docOut(x.document));
+  }
+  async function bump(id, field) { // plays | clears | likes | reports, +1 (the database rules only allow +1)
+    try {
+      if (mock) { const db = mockDb(); if (db[id]) { db[id][field] = (db[id][field] || 0) + 1; mockSave(db); } return; }
+      const t = await token();
+      await fetch(`${base()}:commit?key=${cfg.apiKey}`, { method: "POST", headers: { "Content-Type": "application/json", Authorization: "Bearer " + t },
+        body: JSON.stringify({ writes: [{ transform: { document: `projects/${cfg.projectId}/databases/(default)/documents/levels/${id}`, fieldTransforms: [{ fieldPath: field, increment: { integerValue: "1" } }] } }] }) });
+    } catch (e) { /* counters are best-effort */ }
+  }
+  return { ready, publish, list, mine, bump, uid, mock };
+})();
+// once per device: plays are counted per load, clears / likes / reports once ever
+let onlineDone = {};
+try { onlineDone = JSON.parse(localStorage.getItem("ws_online") || "{}"); } catch (e) {}
+const onlineMark = (id, what) => { const k = id + ":" + what; if (onlineDone[k]) return false; onlineDone[k] = 1; try { localStorage.setItem("ws_online", JSON.stringify(onlineDone)); } catch (e) {} return true; };
+function clearRate(d) { return d.plays >= ONLINE.minPlaysForRate ? Math.min(1, d.clears / d.plays) : null; }
+function diffLabel(d) {
+  const r = clearRate(d);
+  if (r === null) return ["New", "#9fe8ff"];
+  return r >= 0.6 ? ["Easy", "#4fe39a"] : r >= 0.3 ? ["Normal", "#ffd34d"] : r >= 0.1 ? ["Hard", "#ffb02e"] : ["Expert", "#ff6b86"];
+}
+let onTab = "new";
+async function paintOnline() {
+  const tabs = document.getElementById("onTabs"); tabs.innerHTML = "";
+  for (const [id, label] of [["new", "New"], ["popular", "Popular"], ["hard", "Hard"], ["mine", "Mine"]]) {
+    const b = document.createElement("button"); b.className = onTab === id ? "on" : ""; b.textContent = label;
+    b.onclick = () => { onTab = id; paintOnline(); }; tabs.appendChild(b);
+  }
+  const list = document.getElementById("onList");
+  list.innerHTML = `<p class="empty">Loading…</p>`;
+  let rows;
+  try {
+    rows = onTab === "mine" ? await Online.mine() : await Online.list(onTab === "new" ? "created" : onTab === "popular" ? "likes" : "plays");
+  } catch (e) { list.innerHTML = `<p class="empty">Can't reach online levels right now.<br>Check your connection and try again.</p>`; return; }
+  rows = rows.filter(d => onTab === "mine" || (d.reports || 0) < ONLINE.hideReports);
+  if (onTab === "hard") rows = rows.filter(d => clearRate(d) !== null).sort((a, b) => clearRate(a) - clearRate(b));
+  rows = rows.slice(0, ONLINE.pageSize);
+  list.innerHTML = rows.length ? "" : `<p class="empty">${onTab === "mine" ? "You haven't published a level yet.<br>Beat one of your levels, then tap 🌐 Publish." : "No levels here yet. Be the first: build one and publish it!"}</p>`;
+  for (const d of rows) {
+    const m = decodeLevel(d.code); if (!m) continue;
+    const card = document.createElement("div"); card.className = "lvcard";
+    const c = document.createElement("canvas"); c.width = c.height = 168; drawThumb(c, m);
+    const [dl, dc] = diffLabel(d), rate = clearRate(d);
+    const info = document.createElement("div"); info.className = "lvinfo";
+    info.innerHTML = `<b>${customName(m.nameSeed || 0)}</b><span class="who">by ${makerName(d.maker)}${d.maker === Online.uid() ? " (you)" : ""}</span>` +
+      `<small>▶ ${d.plays || 0} · ${rate === null ? "✓ –" : `✓ ${Math.round(rate * 100)}%`} · ♥ ${d.likes || 0}<span class="diff" style="background:${dc}">${dl}</span></small>`;
+    const btns = document.createElement("div"); btns.className = "lvbtns";
+    const play = document.createElement("button"); play.className = "go"; play.textContent = "▶ Play"; play.onclick = () => playOnline(m, d.id); btns.appendChild(play);
+    if (d.maker !== Online.uid()) {
+      const rep = document.createElement("button"); rep.className = "del"; rep.textContent = "⚑"; rep.setAttribute("aria-label", "Report level");
+      rep.onclick = () => askYes("Report this level?", "Reported levels are hidden once enough players report them.", "Report", () => { if (onlineMark(d.id, "report")) Online.bump(d.id, "reports"); card.remove(); toast("Thanks: level reported"); });
+      btns.appendChild(rep);
+    }
+    info.appendChild(btns); card.append(c, info); list.appendChild(card);
+  }
+}
+function burstHearts(el) { const r = el.getBoundingClientRect(); for (let k = 0; k < 8; k++) { const h = document.createElement("div"); h.className = "flygem"; h.textContent = "♥"; document.body.appendChild(h);
+  const a = h.animate([{ transform: `translate(${r.left + r.width / 2}px,${r.top}px) scale(.6)`, opacity: 1 }, { transform: `translate(${r.left + r.width / 2 + (Math.random() - 0.5) * 160}px,${r.top - 80 - Math.random() * 80}px) scale(1.2)`, opacity: 0 }], { duration: 700 + Math.random() * 300, easing: "ease-out" });
+  a.onfinish = () => h.remove(); } }
+function playOnline(m, id) { customFrom = "online"; loadLevel(LEVELS.length, customLevel(m, "play")); level.onlineId = id; }
+async function publishMine(i) {
+  const row = mine[i];
+  if (!isCleared(row.m)) { toast("Beat your level once (▶ Test) to publish it"); return; }
+  try { row.online = await Online.publish(row.m); saveMine(); toast("Published! Players can find it under New"); Platform.event("builder_publish", { pieces: row.m.objs.length }); paintMine(); }
+  catch (e) { toast("Couldn't publish right now. Try again later"); }
+}
+document.getElementById("bOnline").onclick = () => openMenu("online");
+document.getElementById("bOnlineBack").onclick = () => openMenu("build");
 
 // ---- the editor: pieces on a grid, drag to move, handles to size and turn, pinch / wheel to zoom ----
 let editing = false, ed = null, edSlot = -1, edSel = null, edUndo = [], edGest = null;
