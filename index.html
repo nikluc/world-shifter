@@ -313,6 +313,11 @@
   #stats .hs{color:#ffd34d;letter-spacing:-1px}
   #stats .hs i{font-style:normal;opacity:.3}
   .flygem{position:fixed;left:0;top:0;z-index:6;pointer-events:none;font-size:30px;color:#ff6ad5;text-shadow:0 0 12px #ff6ad5,0 2px 0 #7a1a5c;margin:-18px 0 0 -12px}
+  #win.overlay{background:rgba(12,8,32,.42);-webkit-backdrop-filter:blur(1px);backdrop-filter:blur(1px)} /* see the level + fireworks behind */
+  .wprog{margin:6px auto 2px;max-width:260px;font-size:14px;font-weight:700;color:#c9b8ff}
+  .wprog .gb{height:12px;border-radius:99px;background:#ffffff1c;overflow:hidden;margin-top:3px}
+  .wprog .gb i{display:block;height:100%;border-radius:99px;background:linear-gradient(90deg,#4fe39a,#b6f56b);transition:width .8s cubic-bezier(.3,1.4,.5,1)}
+  .wprog.full .gb i{background:linear-gradient(90deg,#ffd34d,#ffb02e)}
   #hint{position:fixed;bottom:calc(env(safe-area-inset-bottom) + 14px);left:0;right:0;text-align:center;opacity:.8;pointer-events:none;font-size:14px;padding:0 calc(env(safe-area-inset-right) + 24px) 0 calc(env(safe-area-inset-left) + 24px);text-shadow:0 1px 3px #000;transition:opacity .6s}
   #snapBtns.show ~ #hint, body.snap #hint{padding:0 110px}
   /* short landscape phones: tighter panels */
@@ -351,7 +356,7 @@
       <button id="bBuild" class="b3d teal"><svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 6.5l3 3M4 20l1-4L16 5a2.1 2.1 0 0 1 3 3L8 19z"></path></svg><span>Build</span></button>
     </div></div>
     <p class="help" id="helpText"></p>
-    <p class="ver" id="ver">prototype v0.28</p>
+    <p class="ver" id="ver">prototype v0.29</p>
   </section>
   <section class="mscr" id="scrBuild">
     <div class="prow"><button class="icon" id="bBuildBack" aria-label="Back"><svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"></path></svg></button>
@@ -494,6 +499,7 @@
     <h2 id="winTitle">Landed!</h2>
     <div class="wstars" id="winStars"></div>
     <p id="winInfo"></p>
+    <div class="wprog" id="winProg"><span id="winProgLbl"></span><div class="gb"><i id="winProgBar"></i></div></div>
     <div class="wgem" id="winGemBox"></div>
     <p id="winGem" style="font-size:14px;margin:4px 0"></p>
     <button id="bNext" class="primary big">Next ▶</button>
@@ -2105,17 +2111,17 @@ const Sfx = (() => {
     if (document.hidden) ac.suspend(); else ac.resume();
   });
   const ok = () => ac && !muted && ac.state === "running";
-  function env(g, t, vol, dur) {
+  function env(g, t, vol, dur, att = 0.008) {
     g.gain.setValueAtTime(0.0001, t);
-    g.gain.exponentialRampToValueAtTime(vol, t + 0.008);
+    g.gain.exponentialRampToValueAtTime(vol, t + att);
     g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
   }
-  function tone(freq, dur, { type = "sine", vol = 0.3, slide = 1, delay = 0 } = {}) {
+  function tone(freq, dur, { type = "sine", vol = 0.3, slide = 1, delay = 0, attack = 0.008 } = {}) {
     if (!ok()) return;
     const t = ac.currentTime + delay, o = ac.createOscillator(), g = ac.createGain();
     o.type = type; o.frequency.setValueAtTime(freq, t);
     if (slide !== 1) o.frequency.exponentialRampToValueAtTime(Math.max(20, freq * slide), t + dur);
-    env(g, t, vol, dur); o.connect(g); g.connect(master); o.start(t); o.stop(t + dur + 0.05);
+    env(g, t, vol, dur, attack); o.connect(g); g.connect(master); o.start(t); o.stop(t + dur + 0.05);
   }
   function noise(dur, { vol = 0.3, freq = 1000, q = 1, type = "lowpass", slide = 1, delay = 0 } = {}) {
     if (!ok()) return;
@@ -2155,14 +2161,32 @@ const Sfx = (() => {
     bounce() { tone(200, 0.28, { type: "triangle", vol: 0.3, slide: 3.5 }); tone(400, 0.2, { type: "sine", vol: 0.12, slide: 3, delay: 0.03 }); },
     spike() { noise(0.35, { vol: 0.4, freq: 2400, q: 2, type: "bandpass", slide: 0.25 }); tone(320, 0.4, { type: "sawtooth", vol: 0.18, slide: 0.3 }); },
     fall() { tone(500, 0.7, { type: "sine", vol: 0.25, slide: 0.12 }); noise(0.7, { vol: 0.1, freq: 1200, slide: 0.2 }); },
-    win() { [523, 659, 784, 1047].forEach((f, i) => tone(f, 0.35, { type: "triangle", vol: 0.22, delay: i * 0.08 })); },
+    // landing on the goal: a soft low thump + whoosh, a rising bell arpeggio, a warm chord swell and a sparkle shower
+    win() {
+      tone(131, 0.6, { type: "sine", vol: 0.22, slide: 0.5 });
+      noise(0.45, { vol: 0.05, freq: 1500, type: "highpass", slide: 4 });
+      [523, 659, 784, 988, 1319, 1568].forEach((f, i) => {
+        const d = 0.04 + i * 0.065;
+        tone(f, 0.55, { type: "sine", vol: 0.15, delay: d }); tone(f * 2.76, 0.22, { vol: 0.025, delay: d }); tone(f * 2, 0.3, { type: "triangle", vol: 0.035, delay: d });
+      });
+      [523, 659, 784, 1047].forEach(f => tone(f, 1.5, { type: "triangle", vol: 0.055, delay: 0.42, attack: 0.25 }));
+      [4186, 3136, 3520, 2637, 3136, 2349, 2637, 2093, 3136, 4186].forEach((f, i) => tone(f, 0.13, { vol: 0.032, delay: 0.45 + i * 0.055 }));
+    },
+    rocket() { tone(500, 0.4, { type: "sine", vol: 0.025, slide: 2.6 }); noise(0.35, { vol: 0.025, freq: 3000, type: "highpass" }); },
+    pop() {
+      noise(0.28, { vol: 0.13, freq: 800, slide: 0.4 }); tone(90, 0.2, { vol: 0.12, slide: 0.5 });
+      for (let i = 0; i < 7; i++) noise(0.035, { vol: 0.045, freq: 5000, type: "highpass", delay: 0.08 + i * 0.055 + Math.random() * 0.03 });
+    },
     perfect() { [784, 988, 1175, 1568, 1976].forEach((f, i) => tone(f, 0.3, { type: "triangle", vol: 0.16, delay: 0.05 + i * 0.07 })); noise(0.6, { vol: 0.06, freq: 6000, type: "highpass", delay: 0.1 }); },
     missStar() { tone(330, 0.12, { type: "sine", vol: 0.06 }); },
     coin(i) { tone(1568 + i * 40, 0.06, { type: "square", vol: 0.04 }); },
     star(i) { tone(1047 * Math.pow(1.26, i), 0.4, { type: "sine", vol: 0.2, delay: i * 0.15 }); tone(2094 * Math.pow(1.26, i), 0.25, { vol: 0.06, delay: i * 0.15 }); },
     snap() { tone(240, 0.12, { type: "triangle", vol: 0.15, slide: 1.6 }); noise(0.08, { vol: 0.06, freq: 2000, type: "highpass" }); },
     click() { tone(720, 0.05, { type: "triangle", vol: 0.1 }); },
-    gem() { [1319, 1568, 2093].forEach((f, i) => tone(f, 0.22, { type: "triangle", vol: 0.13, delay: i * 0.05 })); },
+    gem() {
+      [1319, 1568, 2093, 2637].forEach((f, i) => { tone(f, 0.32, { vol: 0.14, delay: i * 0.05 }); tone(f * 2.76, 0.15, { vol: 0.022, delay: i * 0.05 }); });
+      [3136, 4186, 3520, 4699, 5274].forEach((f, i) => tone(f, 0.1, { vol: 0.028, delay: 0.22 + i * 0.045 }));
+    },
     pauseAll() { if (ac) ac.suspend(); },                       // while an ad plays
     resumeAll() { if (ac && !document.hidden) ac.resume(); },
     portal() { tone(300, 0.25, { type: "sine", vol: 0.2, slide: 4 }); tone(900, 0.2, { type: "triangle", vol: 0.08, slide: 0.5, delay: 0.05 }); },
@@ -2453,7 +2477,7 @@ function physStep(b, gx, gy, h, onEvent) {
 function onBallEvent(kind, o, imp) {
   if (kind === "gem") {
     burst(o.x, o.y, "#ff6ad5", 30); burst(o.x, o.y, "#ffffff", 10); ring(o.x, o.y, "#ff6ad5", 90, 0.5, 6);
-    hitStop = 0.05; Sfx.gem(); buzz([10, 30, 10]);
+    hitStop = 0.05; Sfx.gem(); buzz([10, 30, 10]); launchFireworks(3, "gem", 0.28);
     if (!gems[level.name]) floatText(o.x, o.y - 10, `+${ECON.gemValue} ◆`, "#ff6ad5");
     try { flyGem(o.x, o.y); } catch (e) {}
     return;
@@ -2501,7 +2525,9 @@ const ECON = {
   gift: [10, 15, 20, 25, 30, 40, 60],         // daily gift, 7-step cycle; missing days never resets it
   giftSkinStep: 7,              // the first cycle's last step also gives the Sunrise skin
   streakBonus: { 3: 25, 7: 60, 14: 120, 30: 250 },
-  freezeEvery: 7, maxFreezes: 2, // a ❄ freeze every 7 streak days; a missed day uses one instead of resetting
+  freezeEvery: 7, maxFreezes: 2,
+  worldChest: 20,               // ◆ the first time every level of a world is beaten
+  comboEvery: 3, comboBonus: 5, // ◆ for every 3 levels in a row won without dying // a ❄ freeze every 7 streak days; a missed day uses one instead of resetting
 };
 const SKINS = [
   { id: "classic", name: "Classic", price: 0, fill: "#f2f4ff", glow: "#cfd8ff", stripe: "#5a6aa8", trail: "#9fb4ff" },
@@ -2517,7 +2543,7 @@ let econ = null;
 try { econ = JSON.parse(localStorage.getItem("ws_econ") || "null"); } catch (e) { econ = null; }
 if (!econ) econ = {};
 econ = Object.assign({ wallet: null, skipped: {}, worlds: {}, skins: ["classic"], skin: "classic", themes: [], theme: "auto",
-  gift: { last: "", step: 0 }, streak: { n: 0, last: "", freeze: 0, best: 0 } }, econ);
+  gift: { last: "", step: 0 }, streak: { n: 0, last: "", freeze: 0, best: 0 }, chests: {}, combo: 0 }, econ);
 if (econ.wallet === null) econ.wallet = ECON.starterGems + ECON.gemValue * Object.keys(gems).length; // existing saves keep their gems' worth
 function saveEcon() { try { localStorage.setItem("ws_econ", JSON.stringify(econ)); } catch (e) {} }
 saveEcon();
@@ -2833,7 +2859,7 @@ function update(dt) {
   // near miss: flying past spikes at speed
   if (nearT <= 0 && Math.hypot(ball.vx, ball.vy) > 260) {
     for (const o of level.objs) if (o.t === "spike" && collide(o, BALL_R + 13)) {
-      nearT = 1.6; floatText(ball.x, ball.y - 26, "Close!", "#ffb02e"); Sfx.snap(); buzz(6); break;
+      nearT = 1.6; floatText(ball.x, ball.y - 26, nextWord("near"), "#ffb02e"); Sfx.snap(); buzz(6); break;
     }
   }
   // live stars in the HUD drain as the 3★ / 2★ times pass
@@ -2849,7 +2875,10 @@ function update(dt) {
 
 function die(kind) {
   state = "dead"; deadT = 0.75; deaths.n++; shake = 1;
+  if (!level.custom && !dailyRun && econ.combo) { econ.combo = 0; saveEcon(); }
   burst(ball.x, ball.y, "#ff4d6d", 24); deathFx(kind);
+  floaters = floaters.filter(f => !WORDS.near.includes(f.text)); // no "Close!" over the spot you just died
+  floatText(ball.x, ball.y - 30, nextWord(kind === "void" ? "void" : "dead"), "#ff6b86");
   if (kind === "void") Sfx.fall(); else Sfx.spike();
   buzz([30, 40, 60]);
   const st = stat();
@@ -2867,6 +2896,9 @@ function win(goalHit) {
   const t = timer, st = t <= level.par[0] ? 3 : t <= level.par[1] ? 2 : 1;
   landingFx(goalHit, level.custom === "test" ? 3 : st);
   if (deaths.n === 0 && stat().tries === 1) floatText(ball.x, ball.y - 78, "FIRST TRY!", "#4fe39a");
+  const pb = level.custom ? null : stats[level.name] && stats[level.name].best;
+  if (pb !== null && pb !== undefined && t < pb - 0.005) { floatText(ball.x, ball.y - 116, "NEW BEST!", "#42c8ff"); if (ghost) ring(ball.x, ball.y, "#9fe8ff", 140, 0.6, 5); }
+  if (!level.custom && !dailyRun && deaths.n === 0 && econ.combo + 1 >= 2) floatText(ball.x, ball.y - 154, `🔥 ${econ.combo + 1} IN A ROW`, "#ffb02e");
   if (level.custom) return customWin(t, st); // player-made: no stars, gems, streak or ghost saved
   const ls = stat();
   const prevBest = ls.best, prevStars = progress[level.name] || 0;
@@ -2884,6 +2916,13 @@ function win(goalHit) {
   let gemGain = 0;
   if (gotGem && !gems[level.name]) { gems[level.name] = true; gemGain = ECON.gemValue; econ.wallet += gemGain; try { localStorage.setItem("ws_gems", JSON.stringify(gems)); } catch (e) {} }
   if (econ.skipped[level.name]) delete econ.skipped[level.name];
+  let comboGain = 0, chestGain = 0;
+  if (!dailyRun) {
+    econ.combo = deaths.n === 0 ? econ.combo + 1 : 0;
+    if (econ.combo && econ.combo % ECON.comboEvery === 0) { comboGain = ECON.comboBonus; econ.wallet += comboGain; }
+    const done = LEVELS.slice(worldStart(wk), worldEnd(wk)).every(l => progress[l.name]);
+    if (done && !worldWasDone && !econ.chests[wk]) { econ.chests[wk] = true; chestGain = ECON.worldChest; econ.wallet += chestGain; }
+  }
   const streak = window.__botQuiet ? null : bumpStreak();
   saveEcon();
   Platform.event("level_complete", { level: levelIdx + 1, time: Math.round(t * 100) / 100, stars: st, deaths: deaths.n, gem: !!gotGem });
@@ -2904,7 +2943,23 @@ function win(goalHit) {
     document.getElementById("bShare").textContent = "Share";
     const extra = [];
     const worldNowDone = !dailyRun && !worldWasDone && LEVELS.slice(worldStart(wk), worldEnd(wk)).every(l => progress[l.name]);
-    if (worldNowDone) { extra.push(`<b style="color:#ffd34d;font-size:18px">🏆 World ${wk + 1} complete!</b>`); later2(1300, () => { confetti(lowFx ? 50 : 120); Sfx.win(); buzz([30, 50, 30, 50, 60]); }); }
+    if (worldNowDone) {
+      extra.push(`<b style="color:#ffd34d;font-size:18px">🏆 World ${wk + 1} complete!${chestGain ? ` 🎁 +${chestGain} ◆` : ""}</b>`);
+      later2(1300, () => { confetti(lowFx ? 50 : 120); launchFireworks(7, "gold", 0.2); Sfx.win(); buzz([30, 50, 30, 50, 60]); });
+    }
+    if (comboGain) extra.push(`<span style="color:#ffb02e">🔥 ${econ.combo} in a row! +${comboGain} ◆</span>`);
+    else if (!dailyRun && econ.combo >= 2) extra.push(`<span style="color:#ffb02e">🔥 ${econ.combo} in a row</span>`);
+    if (gemGain) later2(900, () => launchFireworks(5, "gem", 0.25));
+    // world progress bar fills up to the new count
+    const wp = document.getElementById("winProg");
+    if (dailyRun) wp.style.display = "none";
+    else {
+      const n = worldEnd(wk) - worldStart(wk), now = LEVELS.slice(worldStart(wk), worldEnd(wk)).filter(l => progress[l.name]).length, before = now - (prev ? 0 : 1);
+      wp.style.display = ""; wp.classList.toggle("full", now === n);
+      document.getElementById("winProgLbl").textContent = `World ${wk + 1} · ${now}/${n}`;
+      const bar = document.getElementById("winProgBar"); bar.style.transition = "none"; bar.style.width = (100 * before / n) + "%";
+      later2(450, () => { bar.style.transition = ""; bar.style.width = (100 * now / n) + "%"; });
+    }
     if (streak) extra.push(`🔥 ${streak.n}-day streak` + (streak.bonus ? ` · <span style="color:#ff6ad5">+${streak.bonus} ◆</span>` : "") + (streak.used ? " · ❄ freeze used" : ""));
     if (extra.length) document.getElementById("winGem").innerHTML += "<br>" + extra.join(" · ");
     document.getElementById("bNext").textContent = dailyRun ? "Back to the menu" : levelIdx < LEVELS.length - 1 ? "Next ▶" : "Finish ▶";
@@ -2963,6 +3018,56 @@ function burst(x, y, color, n) {
 }
 // landing on the goal: rings, a flash, a zoom kick, confetti that falls toward the screen bottom, stars over the goal
 let landFx = null;
+// short words that pop up in the level, drawn from a shuffle bag so the same one doesn't keep repeating
+const WORDS = {
+  near: ["Close!", "Phew!", "Whoa!", "Nice dodge!", "Too close!", "Yikes!", "Barely!", "Smooth!", "Clutch!", "Zoom!", "Risky!", "Inches!", "Daredevil!", "Wild!", "Slick!"],
+  dead: ["Ouch!", "Oops!", "Splat!", "Not quite!", "So close!", "Again!", "Pop!", "Yowch!", "Whoops!", "Bonk!", "Almost!", "Try again!", "Eek!", "Owie!", "Next time!"],
+  void: ["Bye-bye!", "Into the void!", "Wheee!", "Lost in space!", "Gone!", "Too far!", "Off the map!", "See ya!"],
+};
+const wordBags = {};
+function nextWord(kind) {
+  let bag = wordBags[kind];
+  if (!bag || !bag.length) {
+    bag = wordBags[kind] = WORDS[kind].slice();
+    for (let i = bag.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [bag[i], bag[j]] = [bag[j], bag[i]]; }
+  }
+  return bag.pop();
+}
+let fireworks = [];
+const FW_COLORS = { gem: ["#ff6ad5", "#ffb3ee", "#ffd34d", "#ffffff", "#c78bff"], gold: ["#ffd34d", "#ffb02e", "#ffffff", "#4fe39a", "#5b6cff", "#ff6ad5"] };
+// rockets rise from the bottom of the screen and burst into sparks; drawn behind the level
+function launchFireworks(n, palette = "gem", gap = 0.22) {
+  const cols = FW_COLORS[palette] || FW_COLORS.gem;
+  for (let i = 0; i < (lowFx ? Math.ceil(n / 2) : n); i++)
+    fireworks.push({ t: -i * gap - Math.random() * 0.08, x: W * (0.15 + Math.random() * 0.7), y: H + 10, ty: H * (0.12 + Math.random() * 0.33),
+      col: cols[i % cols.length], sparks: null, launched: false });
+}
+function updateFireworks(dt) {
+  for (const f of fireworks) {
+    f.t += dt; if (f.t < 0) continue;
+    if (!f.launched) { f.launched = true; Sfx.rocket(); }
+    if (!f.sparks) {
+      f.y -= (H * 1.6) * dt * (0.4 + Math.max(0, f.y - f.ty) / H);
+      if (f.y <= f.ty + 4) {
+        f.sparks = []; Sfx.pop();
+        const n = lowFx ? 22 : 40, sp = Math.min(W, H) * (0.22 + Math.random() * 0.1);
+        for (let k = 0; k < n; k++) { const a = k / n * Math.PI * 2 + Math.random() * 0.1, v = sp * (0.6 + Math.random() * 0.5); f.sparks.push({ x: f.x, y: f.y, vx: Math.cos(a) * v, vy: Math.sin(a) * v, life: 1 + Math.random() * 0.5 }); }
+      }
+    } else for (const p of f.sparks) { p.vy += 160 * dt; p.vx *= 0.97; p.vy *= 0.97; p.x += p.vx * dt; p.y += p.vy * dt; p.life -= dt; }
+  }
+  fireworks = fireworks.filter(f => !f.sparks || f.sparks.some(p => p.life > 0));
+}
+function drawFireworks() {
+  if (!fireworks.length) return;
+  ctx.save(); ctx.globalCompositeOperation = "lighter";
+  for (const f of fireworks) {
+    if (f.t < 0) continue;
+    ctx.fillStyle = f.col;
+    if (!f.sparks) { ctx.globalAlpha = 0.9; ctx.beginPath(); ctx.arc(f.x, f.y, 3, 0, Math.PI * 2); ctx.fill(); ctx.globalAlpha = 0.35; ctx.fillRect(f.x - 1, f.y, 2, 26); }
+    else for (const p of f.sparks) { if (p.life <= 0) continue; ctx.globalAlpha = Math.min(1, p.life); ctx.beginPath(); ctx.arc(p.x, p.y, 2.6, 0, Math.PI * 2); ctx.fill(); }
+  }
+  ctx.restore(); ctx.globalAlpha = 1;
+}
 let hitStop = 0, spawnT = 0, ballSq = 0, ballSqA = 0, rings = [], hudStars = 3, nearT = 0;
 const SPAWN_T = 0.32;
 const popScale = q => { const c = 1.70158; q -= 1; return 1 + (c + 1) * q * q * q + c * q * q; }; // ease-out-back
@@ -3012,6 +3117,7 @@ function landingFx(goal, st) {
   shake = Math.max(shake, 0.35);
 }
 function updateParticles(dt) {
+  updateFireworks(dt);
   if (landFx) { landFx.t += dt; if (landFx.t > 2.5) landFx = null; }
   if (spawnT > 0) spawnT = Math.max(0, spawnT - dt);
   ballSq *= Math.exp(-dt * 13); nearT = Math.max(0, nearT - dt);
@@ -3056,6 +3162,7 @@ function render(now) {
     for (const s of stars) { ctx.globalAlpha = s.a * (TH.deco === "embers" ? 0.8 : 1); ctx.fillStyle = col; ctx.fillRect(s.x * R, s.y * R, s.s * (TH.deco === "embers" ? 1.6 : 1), s.s * (TH.deco === "embers" ? 1.6 : 1)); }
   }
   ctx.restore(); ctx.globalAlpha = 1;
+  drawFireworks();
 
   ctx.save();
   const sh = shake * 8;
@@ -3925,6 +4032,7 @@ function customWin(t, st) {
     gb.className = "wgem" + (gem ? (gotGem ? " show old" : " show miss") : "");
     gb.innerHTML = gem ? `<span class="g">◆</span><b>${gotGem ? "Gem grabbed!" : "There's a gem in here too…"}</b>` : "";
     document.getElementById("winGem").innerHTML = "";
+    document.getElementById("winProg").style.display = "none";
     document.getElementById("bShare").textContent = test ? "Share level" : "Share";
     document.getElementById("bNext").textContent = test ? "✎ Back to editing" : "Done";
     show("win");
