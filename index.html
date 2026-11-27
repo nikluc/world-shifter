@@ -373,7 +373,7 @@
       <button id="bBuild" class="b3d teal"><svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 6.5l3 3M4 20l1-4L16 5a2.1 2.1 0 0 1 3 3L8 19z"></path></svg><span>Build</span></button>
     </div></div>
     <p class="help" id="helpText"></p>
-    <p class="ver" id="ver">prototype v0.36</p>
+    <p class="ver" id="ver">prototype v0.37</p>
   </section>
   <section class="mscr" id="scrBuild">
     <div class="prow"><button class="icon" id="bBuildBack" aria-label="Back"><svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"></path></svg></button>
@@ -3365,6 +3365,18 @@ function render(now) {
   }
   ctx.globalAlpha = 1;
 
+  // speed lines: streaks behind the ball that grow with its speed
+  const spd = Math.hypot(ball.vx, ball.vy);
+  if (state === "play" && spd > 420 && !lowFx) {
+    const ux = ball.vx / spd, uy = ball.vy / spd, q = Math.min(1, (spd - 420) / 500);
+    ctx.strokeStyle = skinNow().trail; ctx.lineCap = "round"; ctx.lineWidth = 2;
+    for (const [off, len] of [[-7, 0.7], [0, 1], [7, 0.75]]) {
+      const px = -uy * off, py = ux * off, L = (18 + 34 * q) * len, s0 = BALL_R + 6;
+      ctx.globalAlpha = 0.25 + 0.45 * q;
+      ctx.beginPath(); ctx.moveTo(ball.x + px - ux * s0, ball.y + py - uy * s0); ctx.lineTo(ball.x + px - ux * (s0 + L), ball.y + py - uy * (s0 + L)); ctx.stroke();
+    }
+    ctx.globalAlpha = 1;
+  }
   if (state !== "dead") drawBall(now);
 
   if (landFx && landFx.t < 0.9) { // shock rings from the landing spot
@@ -3676,6 +3688,11 @@ function drawBall(now) {
   ctx.shadowBlur = 0; ctx.rotate(ball.spin - angle);
   if (sk.art) paintSkinArt(ctx, sk, BALL_R);
   else if (!eyesOn) { ctx.strokeStyle = sk.stripe; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(-BALL_R * 0.6, 0); ctx.lineTo(BALL_R * 0.6, 0); ctx.stroke(); } // the roll stripe only without a face
+  else { // with a face: two marks on the rim roll with the ball, so you can still see it spin
+    ctx.strokeStyle = sk.stripe; ctx.globalAlpha = 0.7; ctx.lineWidth = 2.4; ctx.lineCap = "round";
+    for (const a0 of [0, Math.PI]) { ctx.beginPath(); ctx.arc(0, 0, BALL_R - 2.4, a0 - 0.42, a0 + 0.42); ctx.stroke(); }
+    ctx.globalAlpha = 1;
+  }
   ctx.rotate(-(ball.spin - angle)); if (!lowFx) skinShine(ctx, BALL_R, !!sk.art);
   if (eyesOn && !(sk.art && sk.art.k === "face")) drawEyes(now);
   ctx.rotate(ball.spin - angle);
