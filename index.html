@@ -383,6 +383,8 @@
   .reveal button{width:min(80vw,300px);margin-top:10px;border:0;border-radius:20px;font-weight:900;font-size:20px;padding:14px;background:#4a3388;color:#fff;box-shadow:0 5px 0 #0008}
   .reveal button.primary{background:#46d38a;color:#0b2a1a;box-shadow:0 6px 0 #23955a}
   .chestbox{display:block;height:auto;flex:none}
+  #giftChests .gc{margin:12px 0 2px;padding:10px 12px;border-radius:18px;background:#ffb02e22;border:2px solid #ffb02e88;font-weight:800;font-size:17px;color:#ffd34d}
+  #giftChests .gc button{display:block;width:100%;margin-top:8px;background:#ffb02e!important;color:#3a2100!important;box-shadow:0 5px 0 #c47a0e!important;border-radius:16px;font-size:18px;padding:12px}
   #hint{position:fixed;bottom:calc(env(safe-area-inset-bottom) + 14px);left:0;right:0;text-align:center;opacity:.8;pointer-events:none;font-size:14px;padding:0 calc(env(safe-area-inset-right) + 24px) 0 calc(env(safe-area-inset-left) + 24px);text-shadow:0 1px 3px #000;transition:opacity .6s}
   #snapBtns.show ~ #hint, body.snap #hint{padding:0 110px}
   /* short landscape phones: tighter panels */
@@ -425,7 +427,7 @@
       <button id="bBuild" class="b3d teal"><svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 6.5l3 3M4 20l1-4L16 5a2.1 2.1 0 0 1 3 3L8 19z"></path></svg><span>Build</span></button>
     </div></div>
     <p class="help" id="helpText"></p>
-    <p class="ver" id="ver">prototype v0.40</p>
+    <p class="ver" id="ver">prototype v0.41</p>
   </section>
   <section class="mscr" id="scrBuild">
     <div class="prow"><button class="icon" id="bBuildBack" aria-label="Back"><svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"></path></svg></button>
@@ -510,6 +512,7 @@
     <h2 id="giftTitle">Daily gift</h2>
     <div class="steps" id="giftSteps"></div>
     <p id="giftText" style="font-size:18px"></p>
+    <div id="giftChests"></div>
     <button class="primary big" id="bGiftClaim">Claim</button>
     <button class="big" id="bGiftDouble">Claim ×2 · watch an ad</button>
   </div>
@@ -2739,7 +2742,7 @@ let econ = null;
 try { econ = JSON.parse(localStorage.getItem("ws_econ") || "null"); } catch (e) { econ = null; }
 if (!econ) econ = {};
 econ = Object.assign({ wallet: null, skipped: {}, worlds: {}, skins: ["classic"], skin: "classic", themes: [], theme: "auto",
-  gift: { last: "", step: 0 }, streak: { n: 0, last: "", freeze: 0, best: 0 }, chests: {}, combo: 0 }, econ);
+  gift: { last: "", step: 0 }, streak: { n: 0, last: "", freeze: 0, best: 0 }, chests: {}, chestSkin: {}, combo: 0 }, econ);
 if (econ.wallet === null) econ.wallet = ECON.starterGems + ECON.gemValue * Object.keys(gems).length; // existing saves keep their gems' worth
 function saveEcon() { try { localStorage.setItem("ws_econ", JSON.stringify(econ)); } catch (e) {} }
 saveEcon();
@@ -2804,6 +2807,20 @@ function unlockWorld(k, via) {
 // ---- daily gift ----
 const giftReady = () => econ.gift.last !== localDay();
 function giftAmount() { return ECON.gift[econ.gift.step % ECON.gift.length]; }
+// world chests owed from earlier runs: a finished world without its skin chest (v0.40+). Worlds finished before
+// chests existed (v0.29) also get the +20 ◆; ones finished in v0.29-v0.39 already had their gems.
+function worldDone(k) { for (let i = worldStart(k); i < worldEnd(k); i++) if (!progress[LEVELS[i].name]) return false; return true; }
+function pendingChests() { const out = []; for (let k = 0; k < worldCount(); k++) if (worldDone(k) && !econ.chestSkin[k]) out.push(k); return out; }
+function openPendingChest() {
+  const k = pendingChests()[0]; if (k === undefined) return;
+  let gems = econ.chests[k] ? 0 : ECON.worldChest;
+  econ.chests[k] = true; econ.chestSkin[k] = true;
+  const prize = pickChestSkin(k);
+  if (prize) econ.skins.push(prize.skin.id); else gems += ECON.chestAllOwnedGems;
+  econ.wallet += gems; saveEcon();
+  Platform.event("world_chest", { world: k + 1, skin: prize ? prize.skin.id : null, tier: prize ? prize.tier : null, pending: true });
+  hide("gift"); openChest({ prize, gems, world: k, pending: true });
+}
 function openGift() {
   const st = econ.gift.step % ECON.gift.length, ready = giftReady();
   const steps = document.getElementById("giftSteps"); steps.innerHTML = "";
@@ -2813,6 +2830,9 @@ function openGift() {
   document.getElementById("giftText").textContent = ready ? `+${giftAmount()} ◆` + (skin ? " and the Sunrise skin" : "") : `Today's gift is claimed. Next: +${giftAmount()} ◆`;
   document.getElementById("bGiftClaim").textContent = ready ? "Claim" : "OK";
   document.getElementById("bGiftDouble").style.display = ready && Platform.canReward ? "block" : "none";
+  const pend = pendingChests().length, gc = document.getElementById("giftChests");
+  gc.innerHTML = pend ? `<div class="gc">🎁 ${pend} world chest${pend > 1 ? "s" : ""} waiting for you<button id="bOpenChest">Open a chest</button></div>` : "";
+  if (pend) document.getElementById("bOpenChest").onclick = openPendingChest;
   show("gift");
 }
 function claimGift(mult) {
@@ -3142,7 +3162,7 @@ function win(goalHit) {
     if (econ.combo && econ.combo % ECON.comboEvery === 0) { comboGain = ECON.comboBonus; econ.wallet += comboGain; }
     const done = LEVELS.slice(worldStart(wk), worldEnd(wk)).every(l => progress[l.name]);
     if (done && !worldWasDone && !econ.chests[wk]) {
-      econ.chests[wk] = true; chestGain = ECON.worldChest;
+      econ.chests[wk] = true; econ.chestSkin[wk] = true; chestGain = ECON.worldChest;
       chestPrize = pickChestSkin(wk);
       if (chestPrize) econ.skins.push(chestPrize.skin.id); else chestGain += ECON.chestAllOwnedGems;
       econ.wallet += chestGain;
@@ -3288,7 +3308,7 @@ function openChest(r) {
         const pz = document.getElementById("chestPrize"); pz.innerHTML = "";
         if (r.prize) pz.appendChild(skinCanvas(r.prize.skin, 150)); else pz.innerHTML = `<div style="font-size:110px;line-height:1.2;color:#ff6ad5">◆</div>`;
         document.getElementById("chestName").textContent = r.prize ? `${r.prize.skin.name} skin` : "You own every skin!";
-        document.getElementById("chestGems").textContent = `+${r.gems} ◆`;
+        document.getElementById("chestGems").textContent = r.gems ? `+${r.gems} ◆` : "";
         document.getElementById("bChestEquip").style.display = r.prize ? "" : "none";
         Sfx.star(2);
       }, 650);
@@ -3297,7 +3317,10 @@ function openChest(r) {
 }
 function closeChest(equip) {
   if (equip && chestNow && chestNow.prize) { econ.skin = chestNow.prize.skin.id; saveEcon(); toast(`${chestNow.prize.skin.name} equipped`); }
-  hide("chest"); chestNow = null; if (state === "won") show("win");
+  const wasPending = chestNow && chestNow.pending;
+  hide("chest"); chestNow = null;
+  if (wasPending) { if (isShown("menu")) buildMenu(); if (pendingChests().length || giftReady()) openGift(); }
+  else if (state === "won") show("win");
 }
 document.getElementById("bChestEquip").onclick = e => { e.stopPropagation(); closeChest(true); };
 document.getElementById("bChestOk").onclick = e => { e.stopPropagation(); closeChest(false); };
@@ -4104,7 +4127,7 @@ function buildMenu() {
     `<span style="color:#ff9ae3" title="Gems to spend">◆ ${econ.wallet}</span>` +
     `<span style="color:#ffd34d" title="Stars">★ ${totalStars()}</span>`;
   document.getElementById("totals").innerHTML = chips;
-  const ready = giftReady();
+  const ready = giftReady() || pendingChests().length > 0;
   for (const id of ["giftDot", "giftDot2"]) document.getElementById(id).classList.toggle("on", ready);
   document.getElementById("bGift").classList.toggle("ready", ready);
   const nx = nextPlayable(), here = worldIdx(Math.max(0, nx)), wd = worldAt(here);
@@ -5153,7 +5176,7 @@ else if (linkModel) playCustom(linkModel, "link"); // a friend's own level
 else if (linkDaily) playDaily(); // a friend's daily link: straight into today's daily
 else if (linkLevel >= 1 && linkLevel <= LEVELS.length) loadLevel(linkLevel - 1); // shared link: straight in
 else if (Platform.env === "crazygames") loadLevel(nextUnbeaten()); // portals require landing in gameplay
-else { loadLevel(Math.max(0, nextPlayable())); state = "paused"; openMenu("home"); if (giftReady()) openGift(); }
+else { loadLevel(Math.max(0, nextPlayable())); state = "paused"; openMenu("home"); if (giftReady() || pendingChests().length) openGift(); }
 if (/[?&]stats\b/.test(location.search)) openStats();
 if (linkCode && !linkModel) toast("That level link is broken. Ask for the code again?");
 // ---------- Auto-update (website only): GitHub Pages caches the page for ~10 min, so a phone can open an
