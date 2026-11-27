@@ -307,6 +307,12 @@
   #scrHome .row3 svg{width:calc(22px * var(--s));height:calc(22px * var(--s))}
   #scrHome .help{margin-top:calc(14px * var(--s));font-size:calc(13px * var(--s))}
   #scrHome .ver{font-size:calc(11px * var(--s))}
+  @keyframes ws-bump{0%{transform:scale(1)}35%{transform:scale(1.32)}100%{transform:scale(1)}}
+  #stats{display:inline-block}
+  #stats.bump{animation:ws-bump .38s ease-out}
+  #stats .hs{color:#ffd34d;letter-spacing:-1px}
+  #stats .hs i{font-style:normal;opacity:.3}
+  .flygem{position:fixed;left:0;top:0;z-index:6;pointer-events:none;font-size:30px;color:#ff6ad5;text-shadow:0 0 12px #ff6ad5,0 2px 0 #7a1a5c;margin:-18px 0 0 -12px}
   #hint{position:fixed;bottom:calc(env(safe-area-inset-bottom) + 14px);left:0;right:0;text-align:center;opacity:.8;pointer-events:none;font-size:14px;padding:0 calc(env(safe-area-inset-right) + 24px) 0 calc(env(safe-area-inset-left) + 24px);text-shadow:0 1px 3px #000;transition:opacity .6s}
   #snapBtns.show ~ #hint, body.snap #hint{padding:0 110px}
   /* short landscape phones: tighter panels */
@@ -345,7 +351,7 @@
       <button id="bBuild" class="b3d teal"><svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 6.5l3 3M4 20l1-4L16 5a2.1 2.1 0 0 1 3 3L8 19z"></path></svg><span>Build</span></button>
     </div></div>
     <p class="help" id="helpText"></p>
-    <p class="ver" id="ver">prototype v0.27</p>
+    <p class="ver" id="ver">prototype v0.28</p>
   </section>
   <section class="mscr" id="scrBuild">
     <div class="prow"><button class="icon" id="bBuildBack" aria-label="Back"><svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"></path></svg></button>
@@ -2338,6 +2344,7 @@ function loadLevel(i, override) {
   if (override !== undefined) levelOverride = override; else if (i < LEVELS.length) levelOverride = null;
   levelIdx = i; level = levelOverride || LEVELS[i];
   rec = []; ghost = ghosts[level.name] || null; landFx = null;
+  spawnT = SPAWN_T; ballSq = 0; rings = []; hudStars = 3; hitStop = 0;
   for (const o of level.objs) if (o.bx === undefined) { o.bx = o.x; o.by = o.y; o.ba = o.a || 0; }
   for (const o of level.objs) if (o.t === "portal") o.pair = level.objs.find(q => q !== o && q.t === "portal" && q.link === o.link);
   for (const o of level.objs) if (o.t === "gem") o.got = false;
@@ -2394,6 +2401,7 @@ function collide(o, r, b = ball) {
 // push body b out of o, then bounce + rolling friction; returns impact speed (0 = no impact)
 // shared by the real ball and the trajectory preview so the preview never lies
 function respond(b, o, c, h) {
+  b.nx = c.nx; b.ny = c.ny; // last contact normal (squash direction)
   b.x += c.nx * c.depth; b.y += c.ny * c.depth;
   const vn = b.vx * c.nx + b.vy * c.ny;
   if (vn >= 0) return 0;
@@ -2443,9 +2451,16 @@ function physStep(b, gx, gy, h, onEvent) {
   return null;
 }
 function onBallEvent(kind, o, imp) {
-  if (kind === "gem") { burst(o.x, o.y, "#ff6ad5", 22); Sfx.gem(); buzz([10, 30, 10]); if (!gems[level.name]) floatText(o.x, o.y, `+${ECON.gemValue} ◆`, "#ff6ad5"); return; }
+  if (kind === "gem") {
+    burst(o.x, o.y, "#ff6ad5", 30); burst(o.x, o.y, "#ffffff", 10); ring(o.x, o.y, "#ff6ad5", 90, 0.5, 6);
+    hitStop = 0.05; Sfx.gem(); buzz([10, 30, 10]);
+    if (!gems[level.name]) floatText(o.x, o.y - 10, `+${ECON.gemValue} ◆`, "#ff6ad5");
+    try { flyGem(o.x, o.y); } catch (e) {}
+    return;
+  }
   if (kind === "portal") { burst(ball.x, ball.y, PORTAL_COLORS[o.link] || "#b36bff", 14); Sfx.portal(); buzz(10); trail = []; return; }
-  if (o.t === "bounce") { burst(ball.x, ball.y, "#ffa640", 10); Sfx.bounce(); buzz(15); }
+  if (imp > 140) { ballSq = Math.max(ballSq, Math.min(0.32, imp / 1800 + (o.t === "bounce" ? 0.12 : 0))); ballSqA = Math.atan2(ball.ny || 0, ball.nx || 1); }
+  if (o.t === "bounce") { burst(ball.x, ball.y, "#ffa640", 10); ring(ball.x, ball.y, "#ffa640", 50, 0.3, 4); Sfx.bounce(); buzz(15); }
   else if (o.t === "glue") { if (imp > 80) { Sfx.splat(Math.min(1, imp / 700)); buzz(10); } }
   else {
     Sfx.thud(imp);
@@ -2778,6 +2793,7 @@ function buzz(pattern) {
 
 // ---------- Update ----------
 function update(dt) {
+  if (hitStop > 0) { hitStop -= dt; return; }
   // hint fades after a few seconds
   if (state === "play" && timer > 3.5) document.getElementById("hint").style.opacity = 0;
 
@@ -2814,6 +2830,15 @@ function update(dt) {
   }
   recordGhost();
   if (level.bounds && Math.hypot(ball.x, ball.y) > level.bounds) return die("void");
+  // near miss: flying past spikes at speed
+  if (nearT <= 0 && Math.hypot(ball.vx, ball.vy) > 260) {
+    for (const o of level.objs) if (o.t === "spike" && collide(o, BALL_R + 13)) {
+      nearT = 1.6; floatText(ball.x, ball.y - 26, "Close!", "#ffb02e"); Sfx.snap(); buzz(6); break;
+    }
+  }
+  // live stars in the HUD drain as the 3★ / 2★ times pass
+  const sNow = level.par[0] >= 999 ? 3 : timer <= level.par[0] ? 3 : timer <= level.par[1] ? 2 : 1;
+  if (sNow < hudStars) { hudStars = sNow; hudBump(); Sfx.missStar(); }
 
   // rolling spin uses on-screen horizontal speed
   const sx = ball.vx * Math.cos(angle) - ball.vy * Math.sin(angle);
@@ -2824,7 +2849,7 @@ function update(dt) {
 
 function die(kind) {
   state = "dead"; deadT = 0.75; deaths.n++; shake = 1;
-  burst(ball.x, ball.y, "#ff4d6d", 34);
+  burst(ball.x, ball.y, "#ff4d6d", 24); deathFx(kind);
   if (kind === "void") Sfx.fall(); else Sfx.spike();
   buzz([30, 40, 60]);
   const st = stat();
@@ -2841,6 +2866,7 @@ function win(goalHit) {
   buzz([20, 60, 20, 60, 40]);
   const t = timer, st = t <= level.par[0] ? 3 : t <= level.par[1] ? 2 : 1;
   landingFx(goalHit, level.custom === "test" ? 3 : st);
+  if (deaths.n === 0 && stat().tries === 1) floatText(ball.x, ball.y - 78, "FIRST TRY!", "#4fe39a");
   if (level.custom) return customWin(t, st); // player-made: no stars, gems, streak or ghost saved
   const ls = stat();
   const prevBest = ls.best, prevStars = progress[level.name] || 0;
@@ -2852,6 +2878,7 @@ function win(goalHit) {
   const gk = level.name;
   if (!ghosts[gk] || t < ghosts[gk].t) { ghosts[gk] = { t, p: rec }; try { localStorage.setItem("ws_ghosts", JSON.stringify(ghosts)); } catch (e) {} }
   const prev = progress[level.name] || 0;
+  const wk = worldIdx(levelIdx), worldWasDone = !dailyRun && LEVELS.slice(worldStart(wk), worldEnd(wk)).every(l => progress[l.name]);
   if (st > prev) { progress[level.name] = st; try { localStorage.setItem("ws_stars", JSON.stringify(progress)); } catch (e) {} }
   const gem = level.objs.find(o => o.t === "gem"), gotGem = !!(gem && gem.got);
   let gemGain = 0;
@@ -2863,6 +2890,7 @@ function win(goalHit) {
   lastWin = { n: levelIdx + 1, name: level.name, st, t, deaths: deaths.n, gem: gem ? gotGem : null, daily: dailyRun ? today() : null };
   if (dailyRun && (!daily[today()] || t < daily[today()])) { daily[today()] = Math.round(t * 100) / 100; try { localStorage.setItem("ws_daily", JSON.stringify(daily)); } catch (e) {} }
   const wonLevel = levelIdx;
+  const later2 = (ms, fn) => setTimeout(() => { if (state === "won" && levelIdx === wonLevel) fn(); }, ms); // not cleared by celebrate()
   setTimeout(() => {
     if (state !== "won" || levelIdx !== wonLevel) return; // player restarted / left meanwhile
     const newBest = prevBest !== null && t < prevBest - 0.005;
@@ -2875,6 +2903,8 @@ function win(goalHit) {
     document.getElementById("winGem").innerHTML = "";
     document.getElementById("bShare").textContent = "Share";
     const extra = [];
+    const worldNowDone = !dailyRun && !worldWasDone && LEVELS.slice(worldStart(wk), worldEnd(wk)).every(l => progress[l.name]);
+    if (worldNowDone) { extra.push(`<b style="color:#ffd34d;font-size:18px">🏆 World ${wk + 1} complete!</b>`); later2(1300, () => { confetti(lowFx ? 50 : 120); Sfx.win(); buzz([30, 50, 30, 50, 60]); }); }
     if (streak) extra.push(`🔥 ${streak.n}-day streak` + (streak.bonus ? ` · <span style="color:#ff6ad5">+${streak.bonus} ◆</span>` : "") + (streak.used ? " · ❄ freeze used" : ""));
     if (extra.length) document.getElementById("winGem").innerHTML += "<br>" + extra.join(" · ");
     document.getElementById("bNext").textContent = dailyRun ? "Back to the menu" : levelIdx < LEVELS.length - 1 ? "Next ▶" : "Finish ▶";
@@ -2933,6 +2963,40 @@ function burst(x, y, color, n) {
 }
 // landing on the goal: rings, a flash, a zoom kick, confetti that falls toward the screen bottom, stars over the goal
 let landFx = null;
+let hitStop = 0, spawnT = 0, ballSq = 0, ballSqA = 0, rings = [], hudStars = 3, nearT = 0;
+const SPAWN_T = 0.32;
+const popScale = q => { const c = 1.70158; q -= 1; return 1 + (c + 1) * q * q * q + c * q * q; }; // ease-out-back
+function ring(x, y, color, max, dur = 0.45, w = 5) { rings.push({ x, y, color, max, dur, w, t: 0 }); }
+function hudBump() { const el = document.getElementById("stats"); el.classList.remove("bump"); void el.offsetWidth; el.classList.add("bump"); }
+function worldToScreen(x, y) {
+  const sc = Math.min(W, H) / level.view, dx = x - cam.x, dy = y - cam.y, c = Math.cos(angle), s2 = Math.sin(angle);
+  return [W / 2 + sc * (dx * c - dy * s2), H / 2 + sc * (dx * s2 + dy * c)];
+}
+// gem pickup: the gem flies from the level up into the HUD, which bumps when it lands
+function flyGem(x, y) {
+  const [sx, sy] = worldToScreen(x, y), r = document.getElementById("stats").getBoundingClientRect();
+  const el = document.createElement("div"); el.className = "flygem"; el.textContent = "◆"; document.body.appendChild(el);
+  const tx = r.right - 14, ty = r.top + r.height / 2, mx = (sx + tx) / 2 + (sx < tx ? -60 : 60), my = Math.min(sy, ty) - 40;
+  const a = el.animate([
+    { transform: `translate(${sx}px,${sy}px) scale(.6)`, opacity: 1 },
+    { transform: `translate(${mx}px,${my}px) scale(1.7)`, opacity: 1, offset: 0.35 },
+    { transform: `translate(${tx}px,${ty}px) scale(.7)`, opacity: 0.9 },
+  ], { duration: 720, easing: "cubic-bezier(.45,0,.6,1)" });
+  a.onfinish = () => { el.remove(); hudBump(); Sfx.star(2); };
+}
+// death: freeze a beat, the ball shatters (or, in the void, shrinks away), a red shock ring
+function deathFx(kind) {
+  hitStop = 0.08;
+  const col = skinNow().fill, n = lowFx ? 8 : 14;
+  if (kind === "void") particles.push({ x: ball.x, y: ball.y, vx: ball.vx * 0.5, vy: ball.vy * 0.5, life: 0.6, color: col, ghost: true });
+  else for (let i = 0; i < n; i++) {
+    const a = Math.random() * Math.PI * 2, sp = 160 + Math.random() * 380;
+    particles.push({ x: ball.x, y: ball.y, vx: Math.cos(a) * sp + ball.vx * 0.3, vy: Math.sin(a) * sp + ball.vy * 0.3, life: 0.9 + Math.random() * 0.4,
+      color: i % 3 ? col : "#ffffff", conf: true, shard: true, rot: Math.random() * 6, vr: (Math.random() - 0.5) * 18, w: 6 + Math.random() * 7 });
+  }
+  ring(ball.x, ball.y, "#ff4d6d", 120, 0.5, 7);
+  hudBump();
+}
 const LAND_COLORS = ["#ffd34d", "#ff6ad5", "#4fe39a", "#5b6cff", "#ffb02e", "#ffffff", "#42c8ff"];
 function landingFx(goal, st) {
   landFx = { t: 0, x: ball.x, y: ball.y, goal, st };
@@ -2949,6 +3013,10 @@ function landingFx(goal, st) {
 }
 function updateParticles(dt) {
   if (landFx) { landFx.t += dt; if (landFx.t > 2.5) landFx = null; }
+  if (spawnT > 0) spawnT = Math.max(0, spawnT - dt);
+  ballSq *= Math.exp(-dt * 13); nearT = Math.max(0, nearT - dt);
+  for (const r of rings) r.t += dt;
+  rings = rings.filter(r => r.t < r.dur);
   for (const f of floaters) { f.y -= 60 * dt; f.life -= dt; }
   floaters = floaters.filter(f => f.life > 0);
   const cgx = Math.sin(angle) * 900, cgy = Math.cos(angle) * 900;
@@ -3053,9 +3121,15 @@ function render(now) {
     }
     ctx.globalAlpha = 1;
   }
+  for (const r of rings) {
+    const q = r.t / r.dur; ctx.globalAlpha = (1 - q) * 0.85; ctx.strokeStyle = r.color; ctx.lineWidth = r.w * (1 - q) + 1;
+    ctx.beginPath(); ctx.arc(r.x, r.y, BALL_R + q * r.max, 0, Math.PI * 2); ctx.stroke();
+  }
   for (const p of particles) {
     ctx.globalAlpha = Math.max(0, Math.min(1, p.life)); ctx.fillStyle = p.color;
-    if (p.conf) { ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(p.rot); ctx.fillRect(-p.w / 2, -p.w / 4, p.w, p.w / 2 * (0.4 + Math.abs(Math.sin(p.rot * 2)))); ctx.restore(); }
+    if (p.ghost) { ctx.globalAlpha = p.life / 0.6 * 0.8; ctx.beginPath(); ctx.arc(p.x, p.y, BALL_R * (p.life / 0.6), 0, Math.PI * 2); ctx.fill(); }
+    else if (p.shard) { ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(p.rot); ctx.beginPath(); ctx.moveTo(-p.w / 2, p.w / 3); ctx.lineTo(p.w / 2, p.w / 2.5); ctx.lineTo(0, -p.w / 2); ctx.closePath(); ctx.fill(); ctx.restore(); }
+    else if (p.conf) { ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(p.rot); ctx.fillRect(-p.w / 2, -p.w / 4, p.w, p.w / 2 * (0.4 + Math.abs(Math.sin(p.rot * 2)))); ctx.restore(); }
     else { ctx.beginPath(); ctx.arc(p.x, p.y, 4, 0, Math.PI * 2); ctx.fill(); }
   }
   for (const f of floaters) {
@@ -3087,7 +3161,9 @@ function render(now) {
   }
 
   const hudGem = level.objs.find(o => o.t === "gem");
-  document.getElementById("stats").textContent = `⏱ ${timer.toFixed(1)}s   ☠ ${deaths.n}` + (hudGem ? `   ${hudGem.got ? "◆" : "◇"}` : "");
+  const hs = level.par[0] >= 999 ? "" : `<span class="hs">${"★".repeat(hudStars)}<i>${"★".repeat(3 - hudStars)}</i></span>   `;
+  const hudHtml = `${hs}⏱ ${timer.toFixed(1)}s   ☠ ${deaths.n}` + (hudGem ? `   ${hudGem.got ? "◆" : "◇"}` : "");
+  const statsEl = document.getElementById("stats"); if (statsEl._h !== hudHtml) { statsEl.innerHTML = hudHtml; statsEl._h = hudHtml; }
 }
 
 function drawGem(o, now) {
@@ -3205,6 +3281,9 @@ function drawObj(o, now) {
 
 function drawBall(now) {
   ctx.save(); ctx.translate(ball.x, ball.y);
+  const pop = spawnT > 0 ? Math.max(0.05, popScale(1 - spawnT / SPAWN_T)) : 1; // pops in after a restart
+  if (ballSq > 0.01) { ctx.rotate(ballSqA); ctx.scale((1 - ballSq) * pop, (1 + ballSq) * pop); ctx.rotate(-ballSqA); } // squash on hard hits
+  else if (pop !== 1) ctx.scale(pop, pop);
   const sk = skinNow();
   ctx.shadowColor = sk.glow; ctx.shadowBlur = 20;
   ctx.fillStyle = sk.fill; ctx.beginPath(); ctx.arc(0, 0, BALL_R, 0, Math.PI * 2); ctx.fill();
