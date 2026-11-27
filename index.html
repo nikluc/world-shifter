@@ -367,7 +367,7 @@
       <button id="bBuild" class="b3d teal"><svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 6.5l3 3M4 20l1-4L16 5a2.1 2.1 0 0 1 3 3L8 19z"></path></svg><span>Build</span></button>
     </div></div>
     <p class="help" id="helpText"></p>
-    <p class="ver" id="ver">prototype v0.32</p>
+    <p class="ver" id="ver">prototype v0.33</p>
   </section>
   <section class="mscr" id="scrBuild">
     <div class="prow"><button class="icon" id="bBuildBack" aria-label="Back"><svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"></path></svg></button>
@@ -410,6 +410,7 @@
     <button class="setrow" id="bMusic">♫ Music <span></span></button>
     <button class="setrow" id="bSound">🔊 Sound effects <span></span></button>
     <button class="setrow" id="bVibe">📳 Vibration <span></span></button>
+    <button class="setrow" id="bEyes">👀 Ball face <span></span></button>
     <button class="setrow" id="bMode">🎮 Controls <span></span></button>
     <div class="setrow sens" id="sensRow"><label for="sens">🌀 Turn speed</label><span id="sensVal"></span>
       <input type="range" id="sens" min="0.5" max="2.5" step="0.1" aria-label="Drag turn speed"></div>
@@ -3594,6 +3595,38 @@ function skinShine(g, r, edge) {
   g.fillStyle = hl; g.beginPath(); g.arc(0, 0, r, 0, Math.PI * 2); g.fill();
   if (edge) { g.strokeStyle = "rgba(0,0,0,0.35)"; g.lineWidth = Math.max(1, r * 0.08); g.stroke(); }
 }
+// the ball's eyes: always upright on screen, glance where it flies (or at the goal while waiting),
+// blink now and then, go wide when fast / after a near miss, and turn into happy arcs on landing
+let eyesOn = true;
+try { eyesOn = localStorage.getItem("ws_eyes") !== "0"; } catch (e) {}
+const look = { x: 0, y: 0 };
+function drawEyes(now) {
+  ctx.save(); ctx.rotate(-angle);
+  const c = Math.cos(angle), s2 = Math.sin(angle);
+  let dx, dy;
+  if (state === "play" && (waiting || freeze > 0)) { const g = level.objs.find(o => o.t === "goal") || ball; dx = g.x - ball.x; dy = g.y - ball.y; }
+  else { dx = ball.vx; dy = ball.vy; }
+  let sx = dx * c - dy * s2, sy = dx * s2 + dy * c; const m = Math.hypot(sx, sy);
+  if (m > 1) { sx /= m; sy /= m; } else { sx = 0; sy = 0.3; }
+  look.x += (sx - look.x) * 0.2; look.y += (sy - look.y) * 0.2;
+  const k = BALL_R / 14, speed = Math.hypot(ball.vx, ball.vy);
+  const happy = state === "won", scared = !happy && (nearT > 1.15 || speed > 680);
+  const blink = !happy && !scared && now % 3700 < 120;
+  const ex = 4.6 * k, ey = -3 * k + look.y * 1.2 * k, ox = look.x * 1.6 * k;
+  ctx.lineCap = "round";
+  for (const side of [-1, 1]) {
+    const x = side * ex + ox * 0.6, y = ey;
+    if (happy) { ctx.strokeStyle = "#1a1030"; ctx.lineWidth = 1.8 * k; ctx.beginPath(); ctx.arc(x, y + 1.2 * k, 2.6 * k, Math.PI * 1.15, Math.PI * 1.85); ctx.stroke(); continue; }
+    if (blink) { ctx.strokeStyle = "#1a1030"; ctx.lineWidth = 1.6 * k; ctx.beginPath(); ctx.moveTo(x - 2.6 * k, y); ctx.lineTo(x + 2.6 * k, y); ctx.stroke(); continue; }
+    const R = (scared ? 4.3 : 3.6) * k;
+    ctx.fillStyle = "#ffffff"; ctx.beginPath(); ctx.arc(x, y, R, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = "rgba(26,16,48,0.55)"; ctx.lineWidth = 0.9 * k; ctx.stroke();
+    ctx.fillStyle = "#1a1030"; ctx.beginPath(); ctx.arc(x + look.x * 1.5 * k, y + look.y * 1.5 * k, (scared ? 1.3 : 1.9) * k, 0, Math.PI * 2); ctx.fill();
+  }
+  if (scared) { ctx.fillStyle = "#1a1030"; ctx.beginPath(); ctx.ellipse(ox * 0.6, 5 * k, 1.8 * k, 2.3 * k, 0, 0, Math.PI * 2); ctx.fill(); }
+  else if (happy) { ctx.strokeStyle = "#1a1030"; ctx.lineWidth = 1.6 * k; ctx.beginPath(); ctx.arc(ox * 0.6, 2.5 * k, 3.6 * k, Math.PI * 0.15, Math.PI * 0.85); ctx.stroke(); }
+  ctx.restore();
+}
 function drawBall(now) {
   ctx.save(); ctx.translate(ball.x, ball.y);
   const pop = spawnT > 0 ? Math.max(0.05, popScale(1 - spawnT / SPAWN_T)) : 1; // pops in after a restart
@@ -3606,7 +3639,9 @@ function drawBall(now) {
   ctx.shadowBlur = 0; ctx.rotate(ball.spin - angle);
   if (sk.art) paintSkinArt(ctx, sk, BALL_R);
   else { ctx.strokeStyle = sk.stripe; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(-BALL_R * 0.6, 0); ctx.lineTo(BALL_R * 0.6, 0); ctx.stroke(); }
-  ctx.rotate(-(ball.spin - angle)); if (!lowFx) skinShine(ctx, BALL_R, !!sk.art); ctx.rotate(ball.spin - angle);
+  ctx.rotate(-(ball.spin - angle)); if (!lowFx) skinShine(ctx, BALL_R, !!sk.art);
+  if (eyesOn && !(sk.art && sk.art.k === "face")) drawEyes(now);
+  ctx.rotate(ball.spin - angle);
   if (state === "play" && freeze > 0) {
     ctx.strokeStyle = "rgba(255,255,255,0.6)"; ctx.lineWidth = 2;
     ctx.beginPath(); ctx.arc(0, 0, BALL_R + 6 + freeze * 30, 0, Math.PI * 2); ctx.stroke();
@@ -3960,6 +3995,7 @@ function paintSettings() {
   setRow("bSound", !Sfx.muted, Sfx.muted ? "Off" : "On");
   const canVibe = !!navigator.vibrate;
   setRow("bVibe", canVibe && vibeOn, !canVibe ? "Not on this phone" : vibeOn ? "On" : "Off");
+  setRow("bEyes", eyesOn, eyesOn ? "On" : "Off");
   setRow("bMode", true, snapMode ? "90° buttons" : "Drag / circle");
   document.getElementById("sensRow").style.display = snapMode ? "none" : "";
   document.getElementById("sens").value = dragSens;
@@ -3976,6 +4012,7 @@ document.getElementById("bSettings").onclick = openSettings;
 document.getElementById("bCloseSettings").onclick = () => { hide("settings"); if (state === "paused" && level && !isShown("menu")) state = "play"; };
 document.getElementById("settings").addEventListener("pointerdown", e => { if (e.target.id === "settings") document.getElementById("bCloseSettings").click(); });
 document.getElementById("bMusic").onclick = () => { Sfx.toggleMusic(); paintSettings(); };
+document.getElementById("bEyes").onclick = () => { eyesOn = !eyesOn; try { localStorage.setItem("ws_eyes", eyesOn ? "1" : "0"); } catch (e) {} paintSettings(); };
 document.getElementById("sens").addEventListener("input", e => {
   dragSens = Math.round(parseFloat(e.target.value) * 10) / 10;
   try { localStorage.setItem("ws_sens", String(dragSens)); } catch (er) {}
