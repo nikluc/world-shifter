@@ -432,7 +432,7 @@
       <button id="bBuild" class="b3d teal"><svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 6.5l3 3M4 20l1-4L16 5a2.1 2.1 0 0 1 3 3L8 19z"></path></svg><span>Build</span></button>
     </div></div>
     <p class="help" id="helpText"></p>
-    <p class="ver" id="ver">prototype v0.42</p>
+    <p class="ver" id="ver">prototype v0.44</p>
   </section>
   <section class="mscr" id="scrBuild">
     <div class="prow"><button class="icon" id="bBuildBack" aria-label="Back"><svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"></path></svg></button>
@@ -2116,7 +2116,7 @@ document.getElementById("ver").textContent += ` · ${LEVELS.length} levels`;
 
 // ---------- Sound (synthesized with Web Audio — no files) ----------
 const Sfx = (() => {
-  let ac = null, master = null, noiseBuf = null, lastThud = 0;
+  let ac = null, master = null, out = null, platformMuted = false, noiseBuf = null, lastThud = 0;
   let muted = false;
   try { muted = localStorage.getItem("ws_muted") === "1"; } catch (e) {}
   // browsers only allow audio after a user gesture: call this from input handlers
@@ -2125,7 +2125,8 @@ const Sfx = (() => {
       const AC = window.AudioContext || window.webkitAudioContext;
       if (!AC) return;
       ac = new AC();
-      master = ac.createGain(); master.gain.value = muted ? 0 : SFX_VOLUME; master.connect(ac.destination);
+      master = ac.createGain(); master.gain.value = muted ? 0 : SFX_VOLUME;
+      out = ac.createGain(); out.gain.value = platformMuted ? 0 : 1; master.connect(out); out.connect(ac.destination); // out: the portal's mute, above our own toggles
       noiseBuf = ac.createBuffer(1, ac.sampleRate, ac.sampleRate);
       const d = noiseBuf.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
       musicBus = ac.createGain(); musicBus.gain.value = musicOn ? MUSIC_VOLUME : 0;
@@ -2280,6 +2281,8 @@ const Sfx = (() => {
       if (musicBus) musicBus.gain.setTargetAtTime(musicOn ? MUSIC_VOLUME : 0, ac.currentTime, 0.1);
       return musicOn;
     },
+    // CrazyGames' site-wide mute: wins over the in-game music / sound toggles (they can't turn it back on)
+    platformMute(on) { platformMuted = !!on; if (out) out.gain.value = platformMuted ? 0 : 1; },
     toggle() {
       muted = !muted;
       try { localStorage.setItem("ws_muted", muted ? "1" : "0"); } catch (e) {}
@@ -2387,7 +2390,12 @@ const Platform = (() => {
 
   async function init() {
     try {
-      if (env === "crazygames") { cg = window.CrazyGames.SDK; await cg.init(); }
+      if (env === "crazygames") {
+        cg = window.CrazyGames.SDK;
+        if (!window.__cgInited) await cg.init(); // the CrazyGames build's loader may have done it already (Data module)
+        const apply = st => Sfx.platformMute(!!(st && st.muteAudio));
+        apply(cg.game.settings); cg.game.addSettingsChangeListener(apply);
+      }
       if (env === "native" && P.AdMob) {
         await P.AdMob.initialize({});
         const c = await P.AdMob.requestConsentInfo(); // GDPR / US-state consent (UMP), required before ads
@@ -2442,7 +2450,9 @@ const Platform = (() => {
     if (due) { winsSinceAd = 0; await showAd("midgame"); }
     go();
   }
-  return { env, init, setPlaying, event, error, betweenLevels, rewarded: () => showAd("rewarded"),
+  // a big achievement (a world finished): CrazyGames plays its own celebration around the game. Sparingly.
+  function happy() { try { if (cg) cg.game.happytime(); } catch (e) {} }
+  return { env, init, setPlaying, event, error, betweenLevels, happy, rewarded: () => showAd("rewarded"),
            get canReward() { return adsOn() && !adOpen; }, get errors() { return log; },
            get sharing() { return env !== "crazygames"; } }; // portals don't allow links out to other sites
 })();
@@ -3156,7 +3166,8 @@ function win(goalHit) {
   if (!ghosts[gk] || t < ghosts[gk].t) { ghosts[gk] = { t, p: rec }; try { localStorage.setItem("ws_ghosts", JSON.stringify(ghosts)); } catch (e) {} }
   const prev = progress[level.name] || 0;
   const wk = worldIdx(levelIdx), worldWasDone = !dailyRun && LEVELS.slice(worldStart(wk), worldEnd(wk)).every(l => progress[l.name]);
-  if (st > prev) { progress[level.name] = st; try { localStorage.setItem("ws_stars", JSON.stringify(progress)); } catch (e) {} }
+  // dailies keep their own best times (daily{}), not stars
+  if (st > prev && !dailyRun) { progress[level.name] = st; try { localStorage.setItem("ws_stars", JSON.stringify(progress)); } catch (e) {} }
   const gem = level.objs.find(o => o.t === "gem"), gotGem = !!(gem && gem.got);
   let gemGain = 0;
   if (gotGem && !gems[level.name]) { gems[level.name] = true; gemGain = ECON.gemValue; econ.wallet += gemGain; try { localStorage.setItem("ws_gems", JSON.stringify(gems)); } catch (e) {} }
@@ -3196,6 +3207,7 @@ function win(goalHit) {
     const extra = [];
     const worldNowDone = !dailyRun && !worldWasDone && LEVELS.slice(worldStart(wk), worldEnd(wk)).every(l => progress[l.name]);
     if (worldNowDone) {
+      Platform.happy();
       extra.push(`<b style="color:#ffd34d;font-size:18px">🏆 World ${wk + 1} complete!</b>`);
       if (chestGain) later2(1500, () => openChest({ prize: chestPrize, gems: chestGain, world: wk }));
       else later2(1300, () => { confetti(lowFx ? 50 : 120); launchFireworks(7, "gold", 0.2); Sfx.win(); buzz([30, 50, 30, 50, 60]); });
