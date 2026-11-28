@@ -141,8 +141,9 @@ def suite(b):
     check("online: plays / clears / likes counted once", (d["plays"], d["clears"], d["likes"]) == (10, 4, 3), (d["plays"], d["clears"], d["likes"]))
     pg.close()
     pg = fresh(ctx)
-    pg.click("#bHomeOnline"); pg.wait_for_timeout(300)
-    check("online: 'opening soon' without Firebase config", "opening soon" in pg.inner_text("#onList"))
+    pg.click("#bHomeOnline"); pg.wait_for_timeout(4000)  # real Firebase (read-only: just the list)
+    t = pg.inner_text("#onList")
+    check("online: real Firebase list loads", "Loading" not in t and "Can't reach" not in t and pg.locator("#onTabs button").count() == 4, t[:60])
     pg.close()
 
     # ---- shop + skins ----

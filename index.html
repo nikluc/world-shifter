@@ -432,7 +432,7 @@
       <button id="bBuild" class="b3d teal"><svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 6.5l3 3M4 20l1-4L16 5a2.1 2.1 0 0 1 3 3L8 19z"></path></svg><span>Build</span></button>
     </div></div>
     <p class="help" id="helpText"></p>
-    <p class="ver" id="ver">prototype v0.44</p>
+    <p class="ver" id="ver">prototype v0.45</p>
   </section>
   <section class="mscr" id="scrBuild">
     <div class="prow"><button class="icon" id="bBuildBack" aria-label="Back"><svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"></path></svg></button>
@@ -4651,7 +4651,7 @@ document.getElementById("bEditBack").onclick = () => { if (level && level.custom
 // ---- online levels: Firebase (anonymous sign-in + Firestore over plain REST, no SDK) ----
 // Fill these in from the Firebase console (studio/online-levels.md). Empty = online levels hidden.
 // ?online=mock runs the same features on a pretend server kept on this device, for testing.
-const ONLINE_CONFIG = { apiKey: "", projectId: "" };
+const ONLINE_CONFIG = { apiKey: "AIzaSyCFwTfbazSizLIohxmaFZWRfg2VPd_np8E", projectId: "world-shifter" }; // public web key (safe to ship); lock it to our domains in Google Cloud
 const ONLINE = { pageSize: 30, hideReports: 3, minPlaysForRate: 3 };
 const MAKER_ANIMALS = ["Otter", "Fox", "Panda", "Koala", "Gecko", "Moth", "Heron", "Lynx", "Yak", "Newt", "Wombat", "Puffin", "Ferret", "Bison", "Crane", "Hare",
   "Seal", "Owl", "Tapir", "Squid", "Badger", "Lemur", "Ibis", "Mole", "Quokka", "Sloth", "Toucan", "Walrus", "Raven", "Beetle"];
