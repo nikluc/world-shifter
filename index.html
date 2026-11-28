@@ -432,7 +432,7 @@
       <button id="bBuild" class="b3d teal"><svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 6.5l3 3M4 20l1-4L16 5a2.1 2.1 0 0 1 3 3L8 19z"></path></svg><span>Build</span></button>
     </div></div>
     <p class="help" id="helpText"></p>
-    <p class="ver" id="ver">prototype v0.45</p>
+    <p class="ver" id="ver">prototype v0.46</p>
   </section>
   <section class="mscr" id="scrBuild">
     <div class="prow"><button class="icon" id="bBuildBack" aria-label="Back"><svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"></path></svg></button>
@@ -2422,7 +2422,7 @@ const Platform = (() => {
     try { localStorage.setItem("ws_errors", JSON.stringify(log)); } catch (x) {}
     try { if (env === "native" && P.FirebaseCrashlytics) P.FirebaseCrashlytics.recordException({ message: msg }); } catch (x) {}
   }
-  const adsOn = () => ready && env !== "web";
+  const adsOn = () => ready && env !== "web" && !window.WS_NO_ADS; // WS_NO_ADS: CrazyGames Basic Launch (ads not allowed yet)
   // an ad covers the game: pause play and all audio, resume after
   async function showAd(kind) {
     if (adOpen) return false;

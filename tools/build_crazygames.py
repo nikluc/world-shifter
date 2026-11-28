@@ -12,15 +12,23 @@ local save into the Data module), then mirrors every later write of those keys t
 and only then starts the game. Playtest stats, ghosts and error logs stay local (size limit 1 MB).
 In the submission form, turn on "Progress Save" or the Data module stays off.
 
-    python world-shifter/tools/build_crazygames.py
-    -> builds/crazygames/index.html and builds/world-shifter-crazygames.zip (upload the zip)
+Ads: CrazyGames does not allow ads in Basic Launch, so the default build has them off
+(window.WS_NO_ADS: no midgame ads, no "watch an ad" reward buttons). Once the game is moved to
+Full Launch, build with --full.
+
+The portal wants the files themselves, not a zip: upload builds/crazygames/index.html (the whole
+game is that one file).
+
+    python world-shifter/tools/build_crazygames.py           # Basic Launch (no ads)
+    python world-shifter/tools/build_crazygames.py --full    # Full Launch (midgame + rewarded ads)
+    -> builds/crazygames/index.html (upload this) and builds/world-shifter-crazygames.zip
 """
-import pathlib, zipfile
+import pathlib, sys, zipfile
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 SRC = ROOT / "world-shifter" / "index.html"
 OUT = ROOT / "builds" / "crazygames"
-SDK = '<script>window.WS_BUILD = "crazygames";</script>\n<script src="https://sdk.crazygames.com/crazygames-sdk-v3.js"></script>\n'
+SDK = '<script>window.WS_BUILD = "crazygames";%s</script>\n<script src="https://sdk.crazygames.com/crazygames-sdk-v3.js"></script>\n'
 SYNC = ["ws_stars", "ws_gems", "ws_econ", "ws_seen", "ws_daily", "ws_mine", "ws_online", "ws_auth", "ws_progress",
         "ws_music", "ws_muted", "ws_eyes", "ws_sens", "ws_vibe"]
 LOADER = """<script>
@@ -31,6 +39,7 @@ LOADER = """<script>
     const sdk = window.CrazyGames && window.CrazyGames.SDK;
     if (sdk) {
       await sdk.init(); window.__cgInited = true;
+      try { sdk.game.loadingStart(); } catch (e) {}
       const d = sdk.data;
       for (const k of SYNC) {
         let v = null; try { v = d.getItem(k); } catch (e) {}
@@ -43,6 +52,8 @@ LOADER = """<script>
     }
   } catch (e) { console.warn("CrazyGames Data module unavailable, using local saves", e); }
   const s = document.createElement("script"); s.textContent = document.getElementById("wsgame").textContent; document.body.appendChild(s);
+  // the game is running and has drawn its first frames: tell CrazyGames loading is over
+  requestAnimationFrame(() => requestAnimationFrame(() => { try { window.CrazyGames.SDK.game.loadingStop(); } catch (e) {} }));
 })();
 </script>
 """ % SYNC
@@ -51,7 +62,8 @@ LOADER = """<script>
 def main():
     html = SRC.read_text(encoding="utf-8")
     assert html.count("<style>") == 1, "expected one <style> in index.html"
-    html = html.replace("<style>", SDK + "<style>")  # SDK must load before the game script runs
+    full = "--full" in sys.argv
+    html = html.replace("<style>", SDK % ("" if full else " window.WS_NO_ADS = true;") + "<style>")  # SDK must load before the game script runs
     game_open = '<script>\n"use strict";'
     assert html.count(game_open) == 1, "expected one main game <script>"
     html = html.replace(game_open, '<script type="text/plain" id="wsgame">\n"use strict";')  # started by the loader
@@ -63,6 +75,7 @@ def main():
     with zipfile.ZipFile(zpath, "w", zipfile.ZIP_DEFLATED) as z:
         z.write(OUT / "index.html", "index.html")
     kb = zpath.stat().st_size / 1024
+    print("FULL LAUNCH build: ads ON" if full else "BASIC LAUNCH build: ads OFF (use --full after Full Launch)")
     print(f"built {OUT / 'index.html'}\nzip   {zpath} ({kb:.0f} KB; CrazyGames limit for the initial download is 50 MB, 20 MB for mobile)")
 
 
